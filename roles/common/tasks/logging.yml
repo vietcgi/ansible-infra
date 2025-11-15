@@ -1,0 +1,31 @@
+---
+# Logging configuration
+
+- name: Create logging directory
+  file:
+    path: /var/log/sentinel
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Configure log rotation (Debian-based)
+  template:
+    src: logrotate_sentinel.j2
+    dest: /etc/logrotate.d/sentinel
+    backup: yes
+    mode: '0644'
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Configure log rotation (RedHat-based)
+  template:
+    src: logrotate_sentinel.j2
+    dest: /etc/logrotate.d/sentinel
+    backup: yes
+    mode: '0644'
+  become: yes
+  when: ansible_os_family == "RedHat"
+
+- name: Display logging configuration summary
+  debug:
+    msg: "Logging and log rotation configured"

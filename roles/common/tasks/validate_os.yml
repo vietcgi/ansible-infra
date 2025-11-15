@@ -1,0 +1,20 @@
+---
+# Validate OS compatibility
+
+- name: Check OS family support
+  assert:
+    that:
+      - ansible_os_family is defined
+      - ansible_os_family in common_supported_distributions
+    fail_msg: "Unsupported OS family: {{ ansible_os_family }}. Supported: {{ common_supported_distributions | join(', ') }}"
+    success_msg: "✓ OS family supported: {{ ansible_os_family }}"
+
+- name: Display system information
+  debug:
+    msg: |
+      System Information:
+        Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+        OS Family: {{ ansible_os_family }}
+        Kernel: {{ ansible_kernel }}
+        Architecture: {{ ansible_machine }}
+        Python: {{ ansible_python_version }}

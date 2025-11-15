@@ -1,0 +1,29 @@
+---
+# Install core utilities and packages
+
+- name: Install core packages (Debian-based)
+  apt:
+    name: "{{ common_core_packages }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  become: yes
+
+- name: Install core packages (RedHat-based)
+  yum:
+    name: "{{ common_core_packages }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+  become: yes
+
+- name: Install core packages (macOS)
+  homebrew:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ common_core_packages }}"
+  when: ansible_os_family == "Darwin"
+  ignore_errors: yes  # Some packages may not be available on macOS
+
+- name: Display installed packages summary
+  debug:
+    msg: "Core utilities installed successfully"

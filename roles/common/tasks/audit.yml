@@ -1,0 +1,43 @@
+---
+# System audit configuration
+
+- name: Install audit daemon (Debian-based)
+  apt:
+    name: auditd
+    state: present
+  become: yes
+  when:
+    - ansible_os_family == "Debian"
+    - common_enable_audit
+
+- name: Install audit daemon (RedHat-based)
+  yum:
+    name: audit
+    state: present
+  become: yes
+  when:
+    - ansible_os_family == "RedHat"
+    - common_enable_audit
+
+- name: Configure audit rules
+  template:
+    src: audit.rules.j2
+    dest: /etc/audit/rules.d/sentinel.rules
+    backup: yes
+  become: yes
+  notify: restart auditd
+  when: common_enable_audit
+
+- name: Enable audit daemon
+  systemd:
+    name: auditd
+    enabled: yes
+    state: started
+  become: yes
+  when:
+    - ansible_os_family != "Darwin"
+    - common_enable_audit
+
+- name: Display audit configuration summary
+  debug:
+    msg: "Audit daemon configured and enabled"

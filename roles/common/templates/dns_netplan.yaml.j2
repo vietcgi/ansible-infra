@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# DNS Configuration - Sentinel Infrastructure (Netplan)
+
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+      dhcp4-overrides:
+        use-dns: true
+      nameservers:
+        addresses:
+{% for dns_server in common_dns_servers %}
+          - {{ dns_server }}
+{% endfor %}
+      search: [localdomain]

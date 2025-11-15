@@ -1,0 +1,58 @@
+---
+# NTP time synchronization setup
+
+- name: Set timezone (all platforms)
+  timezone:
+    name: "{{ common_timezone }}"
+  become: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Configure NTP (Debian-based with systemd-timesyncd)
+  block:
+    - name: Install NTP (Debian-based)
+      apt:
+        name: ntp
+        state: present
+      become: yes
+
+    - name: Configure NTP servers (Debian-based)
+      template:
+        src: ntp.conf.j2
+        dest: /etc/ntp.conf
+        backup: yes
+        mode: '0644'
+      become: yes
+      notify: restart ntp
+
+  when: ansible_os_family == "Debian" and common_ntp_enabled
+
+- name: Configure NTP (RedHat-based)
+  block:
+    - name: Install NTP (RedHat-based)
+      yum:
+        name: ntp
+        state: present
+      become: yes
+
+    - name: Configure NTP servers (RedHat-based)
+      template:
+        src: ntp.conf.j2
+        dest: /etc/ntp.conf
+        backup: yes
+        mode: '0644'
+      become: yes
+      notify: restart ntpd
+
+  when: ansible_os_family == "RedHat" and common_ntp_enabled
+
+- name: Enable and start NTP service (Linux)
+  systemd:
+    name: "{{ 'ntp' if ansible_os_family == 'Debian' else 'ntpd' }}"
+    enabled: yes
+    state: started
+  become: yes
+  when: ansible_os_family != "Darwin" and common_ntp_enabled
+
+- name: Display NTP status
+  debug:
+    msg: "NTP synchronization configured and enabled"

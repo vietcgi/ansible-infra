@@ -1,0 +1,23 @@
+---
+# Common Role - Main Tasks
+# Provides OS-agnostic server foundation setup
+
+- name: Import task files
+  import_tasks: "{{ item }}"
+  loop:
+    - validate_os.yml
+    - system_update.yml
+    - core_packages.yml
+    - python.yml
+    - ntp.yml
+    - ssh_hardening.yml
+    - sysctl.yml
+    - audit.yml
+    - limits.yml
+    - dns.yml
+    - logging.yml
+
+- name: Display role completion summary
+  debug:
+    msg: "Common role applied successfully - base server configuration complete"
+  when: not ansible_check_mode

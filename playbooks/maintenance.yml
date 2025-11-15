@@ -1,0 +1,141 @@
+---
+# Sentinel Infrastructure - Maintenance & Updates Playbook
+# Perform system updates, patches, and maintenance tasks
+# Target: Production servers (staggered rolling updates)
+#
+# Usage:
+#   ansible-playbook playbooks/maintenance.yml -i inventories/production/hosts.yml --tags updates
+#   ansible-playbook playbooks/maintenance.yml -i inventories/production/hosts.yml --tags logs
+#   ansible-playbook playbooks/maintenance.yml -i inventories/staging/hosts.yml
+
+- name: Sentinel Infrastructure - Maintenance Tasks
+  hosts: all
+  become: yes
+  gather_facts: yes
+  serial: 1  # Update servers one at a time
+
+  pre_tasks:
+    - name: Display maintenance window info
+      debug:
+        msg: |
+          Starting Maintenance Window for {{ inventory_hostname }}
+          ======================================================
+          Maintenance Tasks:
+          - System package updates
+          - Log rotation and cleanup
+          - Cache management
+          - Monitoring validation
+          - Backup verification
+
+    - name: Check system health before maintenance
+      command: /usr/bin/uptime
+      register: pre_maintenance_uptime
+      changed_when: false
+
+  tasks:
+    - name: System updates
+      block:
+        - name: Update package cache (Debian-based)
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          when: ansible_os_family == "Debian"
+
+        - name: Upgrade packages (Debian-based)
+          apt:
+            upgrade: dist
+            autoremove: yes
+            autoclean: yes
+          when: ansible_os_family == "Debian"
+
+        - name: Update packages (RedHat-based)
+          yum:
+            name: "*"
+            state: latest
+          when: ansible_os_family == "RedHat"
+
+      tags:
+        - updates
+        - maintenance
+
+    - name: Cleanup logs
+      block:
+        - name: Rotate logs manually
+          command: logrotate -f /etc/logrotate.conf
+          when: ansible_os_family != "Darwin"
+
+        - name: Clear old logs (>30 days)
+          find:
+            paths: /var/log
+            age: 30d
+            type: f
+            patterns: "*.log"
+          register: old_logs
+
+        - name: Delete old logs
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ old_logs.files }}"
+          when: old_logs.files is defined
+
+      tags:
+        - logs
+        - maintenance
+
+    - name: Clear caches
+      block:
+        - name: Clear package manager cache (Debian-based)
+          apt:
+            autoclean: yes
+          when: ansible_os_family == "Debian"
+
+        - name: Clear package manager cache (RedHat-based)
+          command: yum clean all
+          when: ansible_os_family == "RedHat"
+
+      tags:
+        - cache
+        - maintenance
+
+    - name: Validate monitoring
+      block:
+        - name: Check Grafana Agent status
+          systemd:
+            name: grafana-agent
+            state: started
+          when: ansible_os_family != "Darwin"
+
+        - name: Check Node Exporter status
+          systemd:
+            name: node_exporter
+            state: started
+          when: ansible_os_family != "Darwin"
+
+      tags:
+        - monitoring
+        - maintenance
+
+  post_tasks:
+    - name: Check system health after maintenance
+      command: /usr/bin/uptime
+      register: post_maintenance_uptime
+      changed_when: false
+
+    - name: Display maintenance completion summary
+      debug:
+        msg: |
+          Maintenance Completed for {{ inventory_hostname }}
+          ===================================================
+          Status: SUCCESS ✓
+
+          Before Maintenance:  {{ pre_maintenance_uptime.stdout }}
+          After Maintenance:   {{ post_maintenance_uptime.stdout }}
+
+          Tasks Completed:
+          ✓ System package updates applied
+          ✓ Log rotation and cleanup performed
+          ✓ Package cache cleared
+          ✓ Monitoring services validated
+
+          Recommendation: Monitor system performance and alerts for next 24 hours.

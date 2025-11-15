@@ -1,0 +1,35 @@
+---
+# Common Role - Handlers
+
+- name: restart sshd
+  systemd:
+    name: sshd
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  listen: restart sshd
+
+- name: restart sshd macos
+  command: sudo launchctl unload /System/Library/LaunchDaemons/ssh.plist && sudo launchctl load /System/Library/LaunchDaemons/ssh.plist
+  listen: restart sshd macos
+
+- name: restart ntp
+  systemd:
+    name: ntp
+    state: restarted
+  become: yes
+  listen: restart ntp
+
+- name: restart ntpd
+  systemd:
+    name: ntpd
+    state: restarted
+  become: yes
+  listen: restart ntpd
+
+- name: restart auditd
+  systemd:
+    name: auditd
+    state: restarted
+  become: yes
+  listen: restart auditd

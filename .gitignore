@@ -1,0 +1,53 @@
+# Ansible
+*.retry
+*.pyc
+__pycache__/
+*.swp
+*.swo
+*~
+.vault_pass
+.vault_password
+
+# Collections & Roles
+collections/
+roles/*/requirements.yml
+.ansible/plugins/
+.ansible/roles/
+
+# Testing
+.molecule/
+.pytest_cache/
+.tox/
+htmlcov/
+.coverage
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Sensitive Data
+*.key
+*.pem
+secrets.yml
+vars/secrets.yml
+inventories/*/group_vars/*/vault.yml
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+/tmp/ansible*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

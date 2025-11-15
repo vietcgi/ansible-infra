@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Log Rotation Configuration - Sentinel Infrastructure
+
+/var/log/sentinel/*.log {
+  daily
+  rotate {{ common_log_retention_days }}
+  missingok
+  notifempty
+  compress
+  delaycompress
+  copytruncate
+  sharedscripts
+  postrotate
+    /bin/systemctl reload rsyslog > /dev/null 2>&1 || true
+  endscript
+}

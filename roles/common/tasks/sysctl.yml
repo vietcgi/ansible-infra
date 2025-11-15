@@ -1,0 +1,25 @@
+---
+# Kernel parameter tuning and sysctl configuration
+
+- name: Create sysctl configuration directory
+  file:
+    path: /etc/sysctl.d
+    state: directory
+    mode: '0755'
+  become: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Apply sysctl configuration
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop: "{{ common_sysctl_config | dict2items }}"
+  become: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Display sysctl configuration summary
+  debug:
+    msg: "Kernel parameters configured and applied"

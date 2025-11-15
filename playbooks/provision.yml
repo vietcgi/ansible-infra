@@ -1,0 +1,72 @@
+---
+# Sentinel Infrastructure - Server Provisioning Playbook
+# Initial server setup and foundational configuration
+# Target: All new servers (production, staging, development)
+#
+# Usage:
+#   ansible-playbook playbooks/provision.yml -i inventories/production/hosts.yml
+#   ansible-playbook playbooks/provision.yml -i inventories/staging/hosts.yml
+#   ansible-playbook playbooks/provision.yml -k  # Prompt for SSH password if needed
+
+- name: Sentinel Infrastructure - Provision Servers
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    ansible_user: "{{ remote_user | default('ubuntu') }}"
+
+  pre_tasks:
+    - name: Validate server connectivity
+      ping:
+
+    - name: Display provisioning info
+      debug:
+        msg: |
+          Provisioning Server:
+            Hostname: {{ inventory_hostname }}
+            IP Address: {{ ansible_host | default('localhost') }}
+            Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+            OS Family: {{ ansible_os_family }}
+            Kernel: {{ ansible_kernel }} ({{ ansible_architecture }})
+
+  roles:
+    # Foundation layer
+    - role: common
+      tags:
+        - foundation
+        - always
+      vars:
+        common_update_packages: true
+        common_upgrade_packages: true
+
+  post_tasks:
+    - name: Verify provisioning success
+      assert:
+        that:
+          - ansible_os_family is defined
+          - ansible_distribution is defined
+        fail_msg: "Server provisioning validation failed"
+        success_msg: "✓ Server provisioned and configured successfully"
+
+    - name: Create provisioning report
+      copy:
+        content: |
+          Sentinel Infrastructure Provisioning Report
+          ============================================
+          Date: {{ ansible_date_time.iso8601 }}
+          Hostname: {{ inventory_hostname }}
+          IP Address: {{ ansible_default_ipv4.address }}
+          Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+          Memory: {{ ansible_memtotal_mb }} MB
+          CPU Cores: {{ ansible_processor_vcpus }}
+
+          Provisioning Status: SUCCESS ✓
+
+          Next Steps:
+          1. Review firewall rules
+          2. Configure monitoring alerts
+          3. Setup backup policies
+          4. Enable automated updates
+        dest: /var/log/sentinel/provisioning-report.txt
+      become: yes

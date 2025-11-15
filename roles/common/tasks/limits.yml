@@ -1,0 +1,22 @@
+---
+# File descriptor and resource limits configuration
+
+- name: Create limits configuration directory
+  file:
+    path: /etc/security/limits.d
+    state: directory
+    mode: '0755'
+  become: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Apply file descriptor limits
+  template:
+    src: limits.conf.j2
+    dest: /etc/security/limits.d/99-sentinel.conf
+    backup: yes
+  become: yes
+  when: ansible_os_family != "Darwin"
+
+- name: Display limits configuration summary
+  debug:
+    msg: "File descriptor and resource limits configured"

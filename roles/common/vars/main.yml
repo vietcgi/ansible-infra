@@ -1,0 +1,56 @@
+---
+# Common Role - Variables (OS Detection & Distribution-Specific)
+
+# Package manager mapping based on OS family
+common_package_manager_map:
+  Debian:
+    manager: apt
+    update_cache: true
+    update_cmd: "apt-get update"
+  RedHat:
+    manager: yum
+    update_cache: false
+    update_cmd: "yum check-update || true"
+  Darwin:
+    manager: brew
+    update_cache: false
+    update_cmd: "brew update"
+
+# System service names
+common_services_map:
+  ntp:
+    Debian: ntp
+    RedHat: ntpd
+    Darwin: null  # macOS uses timed
+  ssh:
+    Debian: ssh
+    RedHat: sshd
+    Darwin: com.openssh.sshd
+
+# Path mappings
+common_paths:
+  ssh_config: /etc/ssh/sshd_config
+  ssh_service: "{{ common_services_map.ssh[ansible_os_family] }}"
+  sysctl_config: /etc/sysctl.d/99-sentinel.conf
+  audit_config: /etc/audit/rules.d/sentinel.rules
+
+# Python command detection
+common_python_cmd: "{{ 'python3' if ansible_os_family != 'Darwin' else 'python3' }}"
+
+# Supported distributions
+common_supported_distributions:
+  - ubuntu
+  - debian
+  - centos
+  - rhel
+  - rocky
+  - almalinux
+  - macos
+
+# Version constraints
+common_min_versions:
+  ubuntu: "20.04"
+  debian: "11"
+  centos: "8"
+  rhel: "8"
+  macos: "12"

@@ -1,0 +1,33 @@
+---
+# DNS resolver configuration
+
+- name: Configure DNS servers (Debian-based)
+  block:
+    - name: Create netplan configuration
+      template:
+        src: dns_netplan.yaml.j2
+        dest: /etc/netplan/99-sentinel-dns.yaml
+        backup: yes
+      become: yes
+      register: netplan_config
+
+    - name: Apply netplan configuration
+      command: netplan apply
+      become: yes
+      when: netplan_config.changed
+
+  when:
+    - ansible_os_family == "Debian"
+    - ansible_distribution_major_version is version('18.04', '>=')
+
+- name: Configure DNS servers (RedHat-based)
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+    backup: yes
+  become: yes
+  when: ansible_os_family == "RedHat"
+
+- name: Display DNS configuration summary
+  debug:
+    msg: "DNS resolvers configured"

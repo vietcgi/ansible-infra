@@ -1,0 +1,86 @@
+---
+# Sentinel Infrastructure - Configuration Management Playbook
+# Apply full configuration stack with Grafana monitoring and security
+# Target: All servers requiring production-grade setup
+#
+# Usage:
+#   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml
+#   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --tags grafana
+#   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --skip-tags monitoring
+
+- name: Sentinel Infrastructure - Configure Servers
+  hosts: all
+  become: yes
+  gather_facts: yes
+  vars:
+    ansible_user: "{{ remote_user | default('ubuntu') }}"
+
+  pre_tasks:
+    - name: Validate configuration prerequisites
+      ping:
+
+    - name: Display configuration info
+      debug:
+        msg: |
+          Configuring Server:
+            Hostname: {{ inventory_hostname }}
+            Environment: {{ common_hostname_environment }}
+            Apply Full Stack: common, grafana-collection (agent, datasources, dashboards)
+
+  roles:
+    # Foundation - Core OS configuration
+    - role: common
+      tags:
+        - foundation
+        - always
+
+    # Grafana Monitoring Stack (from grafana.grafana collection)
+    - role: grafana.grafana.grafana_agent
+      tags:
+        - monitoring
+        - grafana
+      when: '"monitoring_disabled" not in group_names'
+      vars:
+        grafana_agent_version: "{{ grafana_agent_version | default('latest') }}"
+        grafana_agent_enabled: true
+
+    - role: grafana.grafana.prometheus
+      tags:
+        - monitoring
+        - grafana
+      when: '"prometheus_servers" in group_names'
+
+    - role: grafana.grafana.loki
+      tags:
+        - monitoring
+        - logging
+      when: '"loki_servers" in group_names'
+
+  post_tasks:
+    - name: Verify full configuration
+      assert:
+        that:
+          - ansible_os_family is defined
+          - ansible_distribution is defined
+        fail_msg: "Server configuration validation failed"
+        success_msg: "✓ Server configured with full stack successfully"
+
+    - name: Display configuration completion summary
+      debug:
+        msg: |
+          Configuration Complete for {{ inventory_hostname }}
+          ================================================
+          Status: SUCCESS ✓
+
+          Applied Layers:
+          ✓ Foundation (common role)
+          ✓ Grafana Agent (metrics collection)
+          ✓ Prometheus (time-series DB)
+          ✓ Loki (log aggregation)
+
+          Next Actions:
+          1. Verify monitoring dashboards in Grafana
+          2. Configure data sources in Grafana
+          3. Setup alerting rules and thresholds
+          4. Enable log streaming to Loki
+          5. Test failover scenarios

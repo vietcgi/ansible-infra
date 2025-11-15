@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Resource Limits Configuration - Sentinel Infrastructure
+# File descriptor and resource limits
+
+# All users
+* soft nofile {{ common_file_limits.soft }}
+* hard nofile {{ common_file_limits.hard }}
+* soft nproc 65536
+* hard nproc 65536
+* soft memlock unlimited
+* hard memlock unlimited
+* soft locks unlimited
+* hard locks unlimited
+
+# Root user (may need higher limits)
+root soft nofile {{ common_file_limits.hard }}
+root hard nofile {{ common_file_limits.hard }}
+root soft nproc unlimited
+root hard nproc unlimited
