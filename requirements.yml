@@ -8,6 +8,11 @@ collections:
     version: ">=6.0.6"
     source: https://galaxy.ansible.com
 
+  # Prometheus - Official Prometheus collection
+  - name: prometheus.prometheus
+    version: ">=0.14.0"
+    source: https://galaxy.ansible.com
+
   # Community Collections
   - name: community.general
     version: ">=7.0.0"

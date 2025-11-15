@@ -44,12 +44,26 @@
         grafana_agent_version: "{{ grafana_agent_version | default('latest') }}"
         grafana_agent_enabled: true
 
-    - role: grafana.grafana.prometheus
+    # Prometheus Stack (from prometheus.prometheus collection)
+    - role: prometheus.prometheus.prometheus
       tags:
         - monitoring
-        - grafana
+        - prometheus
       when: '"prometheus_servers" in group_names'
+      vars:
+        prometheus_version: "{{ prometheus_version | default('latest') }}"
+        prometheus_listen_address: "{{ prometheus_listen_address | default('0.0.0.0:9090') }}"
 
+    - role: prometheus.prometheus.node_exporter
+      tags:
+        - monitoring
+        - prometheus
+      when: '"monitoring_disabled" not in group_names'
+      vars:
+        node_exporter_version: "{{ node_exporter_version | default('latest') }}"
+        node_exporter_listen_address: "{{ node_exporter_listen_address | default('0.0.0.0:9100') }}"
+
+    # Loki (from grafana.grafana collection)
     - role: grafana.grafana.loki
       tags:
         - monitoring
