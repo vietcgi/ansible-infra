@@ -1,0 +1,45 @@
+---
+# Molecule Converge Playbook - Apply role to test instances
+
+- name: Converge - Apply common role to test instances
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  pre_tasks:
+    - name: Display test environment information
+      debug:
+        msg: |
+          Testing common role on:
+            OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+            Family: {{ ansible_os_family }}
+            Kernel: {{ ansible_kernel }}
+            Architecture: {{ ansible_machine }}
+      tags:
+        - always
+
+  roles:
+    - role: common
+      tags:
+        - always
+
+  post_tasks:
+    - name: Display role application summary
+      debug:
+        msg: |
+          ✓ Common role applied successfully
+
+          Summary:
+          - OS validated and supported
+          - System packages updated
+          - Core utilities installed
+          - Python runtime configured
+          - NTP synchronized
+          - SSH hardened
+          - Kernel parameters tuned
+          - Audit logging enabled
+          - File limits configured
+          - DNS configured
+          - Log rotation setup
+      tags:
+        - always

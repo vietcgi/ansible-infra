@@ -1,0 +1,128 @@
+---
+# macOS SSH Daemon Security Hardening
+# Post-quantum safe algorithms, strong ciphers, rate limiting
+
+- name: "Debug: Hardening SSH daemon"
+  debug:
+    msg: "Applying hardened SSH daemon configuration with post-quantum algorithms"
+
+- name: "Check SSH daemon status"
+  shell: systemctl status ssh 2>/dev/null || launchctl list | grep -i ssh || echo "SSH daemon status: unknown"
+  register: ssh_status
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+
+- name: "Create hardened sshd_config"
+  template:
+    src: sshd_config_macos.j2
+    dest: /etc/ssh/sshd_config.hardened
+    owner: root
+    group: wheel
+    mode: "0600"
+    backup: yes
+  register: sshd_config_created
+
+- name: "Validate SSH daemon configuration"
+  shell: |
+    # Create temporary copy for testing
+    cp /etc/ssh/sshd_config.hardened /tmp/sshd_config_test
+    # Test syntax
+    sudo sshd -T -f /tmp/sshd_config_test > /dev/null 2>&1
+    result=$?
+    rm -f /tmp/sshd_config_test
+    exit $result
+  changed_when: false
+  check_mode: false
+  register: sshd_validation
+  when: sshd_config_created is changed
+
+- name: "Display SSH validation result"
+  debug:
+    msg: |
+      SSH Configuration Validation:
+      {% if sshd_validation.rc == 0 %}✓ Valid syntax - Configuration is correct{% else %}✗ Syntax error detected - Review configuration{% endif %}
+
+- name: "Backup current sshd_config"
+  shell: |
+    if [ -f /etc/ssh/sshd_config ]; then
+      cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)
+      echo "Backed up to: /etc/ssh/sshd_config.backup.*"
+    fi
+  register: sshd_backup_result
+  changed_when: '"Backed up" in sshd_backup_result.stdout'
+
+- name: "Deploy hardened SSH configuration"
+  shell: |
+    cp /etc/ssh/sshd_config.hardened /etc/ssh/sshd_config
+    chmod 0600 /etc/ssh/sshd_config
+    chown root:wheel /etc/ssh/sshd_config
+  when: sshd_validation.rc == 0 and not macos_hardening_dry_run
+  register: sshd_deploy_result
+  changed_when: true
+
+- name: "Restart SSH daemon (launchd)"
+  shell: |
+    # macOS uses launchd, not systemd
+    launchctl stop com.openssh.sshd 2>/dev/null || true
+    sleep 2
+    launchctl start com.openssh.sshd 2>/dev/null || true
+  when: sshd_validation.rc == 0 and not macos_hardening_dry_run
+  register: ssh_restart_result
+  changed_when: true
+
+- name: "Wait for SSH daemon to restart"
+  wait_for:
+    port: "{{ ansible_ssh_port | default(22) }}"
+    delay: 2
+    timeout: 10
+  when: sshd_validation.rc == 0 and not macos_hardening_dry_run
+
+- name: "Verify SSH daemon is responding"
+  shell: |
+    ssh-keyscan -p {{ ansible_ssh_port | default(22) }} {{ inventory_hostname }} 2>/dev/null | grep -q "ssh-rsa\|ssh-ed25519" && echo "SSH daemon responsive" || echo "SSH daemon check inconclusive"
+  changed_when: false
+  check_mode: false
+  register: ssh_verify
+  when: sshd_validation.rc == 0
+
+- name: "Test hardened SSH configuration"
+  shell: |
+    sudo sshd -T | grep -E "^(kexalgorithms|ciphers|macs|permitrootlogin|passwordauthentication|permituserenvironment)" | sort
+  changed_when: false
+  check_mode: false
+  register: sshd_config_test
+  when: sshd_validation.rc == 0
+
+- name: "Display hardened SSH configuration"
+  debug:
+    msg: |
+      SSH Daemon Hardening Complete:
+
+      Applied Configuration:
+      {{ sshd_config_test.stdout }}
+
+      Key Security Features:
+      ✓ Post-quantum key exchange (sntrup761x25519-sha512)
+      ✓ Strong ciphers (ChaCha20-Poly1305, AES-GCM)
+      ✓ Secure MACs (HMAC-SHA2 with Encrypt-then-MAC)
+      ✓ Key-based authentication only (password auth disabled)
+      ✓ Root login disabled
+      ✓ SSH tunneling disabled
+      ✓ X11 forwarding disabled
+      ✓ Agent forwarding disabled
+      ✓ Rate limiting via Packet Filter (5 conn/30s)
+
+      Configuration Files:
+      - Active config: /etc/ssh/sshd_config
+      - Backup: /etc/ssh/sshd_config.backup.* (timestamped)
+      - Hardened template: /etc/ssh/sshd_config.hardened
+
+      Verification Commands:
+      $ sudo sshd -T                    # Show active configuration
+      $ ssh-keyscan -p 22 localhost     # Test SSH connectivity
+
+      Notes:
+      - SSH sessions may be briefly interrupted during restart
+      - Key-based authentication is now required
+      - Ensure SSH keys are properly configured before applying this role in production

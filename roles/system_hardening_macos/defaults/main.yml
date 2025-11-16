@@ -1,0 +1,143 @@
+---
+# macOS System Hardening - Default Variables
+# Follows NIST SP 800-219 and CIS Benchmarks (2025)
+
+## ============================================================================
+## FIREWALL SETTINGS
+## ============================================================================
+
+# Application Firewall (ALF) - Inbound application-layer filtering
+macos_firewall_enabled: true
+macos_firewall_stealth_mode: true
+macos_firewall_logging_enabled: true
+macos_firewall_block_all_incoming: false  # false = allow needed services
+
+# Packet Filter (PF) - Network-layer firewall
+macos_pf_enabled: true
+macos_pf_rate_limit_ssh: true             # Enable rate limiting
+macos_pf_ssh_rate_limit_count: 5          # Max 5 connections
+macos_pf_ssh_rate_limit_window: 30        # Per 30 seconds
+
+## ============================================================================
+## SSH SECURITY
+## ============================================================================
+
+# Enable SSH hardening
+macos_ssh_hardening_enabled: true
+
+# SSH Key Exchange (post-quantum safe options first)
+macos_ssh_key_exchange:
+  - sntrup761x25519-sha512@openssh.com    # Post-quantum (OpenSSH 8.10+)
+  - curve25519-sha256
+  - curve25519-sha256@libssh.org
+
+# SSH Ciphers (AEAD variants with built-in auth)
+macos_ssh_ciphers:
+  - chacha20-poly1305@openssh.com
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+
+# SSH Message Authentication Codes (Encrypt-then-MAC)
+macos_ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+
+# SSH Daemon Settings
+macos_sshd_permit_root_login: "no"
+macos_sshd_password_authentication: "no"
+macos_sshd_empty_password_login: "no"
+macos_sshd_permit_user_environment: "no"
+macos_sshd_permit_tunnel: "no"
+macos_sshd_permit_agent_forwarding: "no"
+macos_sshd_allow_tcp_forwarding: "no"
+macos_sshd_x11_forwarding: "no"
+macos_sshd_max_auth_tries: 3
+macos_sshd_max_sessions: 5
+macos_sshd_client_alive_interval: 300     # 5 minutes
+macos_sshd_client_alive_count_max: 3
+
+## ============================================================================
+## SYSTEM INTEGRITY
+## ============================================================================
+
+# System Integrity Protection (SIP) - MUST be true for production
+macos_sip_check_enabled: true
+macos_sip_required: true                  # Non-negotiable for security
+
+# Gatekeeper - Code signature enforcement
+macos_gatekeeper_enabled: true
+
+# XProtect - Malware protection
+macos_xprotect_check_enabled: true
+
+## ============================================================================
+## USER ACCESS CONTROL
+## ============================================================================
+
+# Sudo Configuration
+macos_sudo_password_required: true
+macos_sudo_timeout_minutes: 5             # Session timeout
+macos_sudo_logging_enabled: true
+macos_sudo_requiretty: true               # Require TTY for sudo
+macos_sudo_use_pty: true                  # Use pseudo-terminal
+
+# Login Window Security
+macos_disable_auto_login: true
+macos_hide_user_list_login: true
+macos_disable_guest_account: true
+macos_disable_remote_login: true
+
+# Account Settings
+macos_disable_root_account: true
+
+## ============================================================================
+## NETWORK & SERVICES
+## ============================================================================
+
+# Service Disabling (adjust for your environment)
+macos_disable_airdrop: true
+macos_disable_bluetooth: true
+macos_disable_remote_desktop: true
+macos_disable_printer_sharing: true
+macos_disable_file_sharing: true
+macos_disable_remote_apple_events: true
+
+# DNS Security (DoH/DoT)
+macos_dns_security_enabled: true
+macos_dns_servers:
+  - 9.9.9.9                               # Quad9 (DoH capable)
+  - 149.112.112.112
+
+## ============================================================================
+## SYSTEM MONITORING & LOGGING
+## ============================================================================
+
+# OpenBSM Audit Logging
+macos_audit_logging_enabled: true
+macos_audit_flags: "ad,ad,-ad,-lo,-ss,-lo,-ss,-ps"  # NIST recommended
+
+# Log Retention
+macos_log_retention_days: 30
+
+## ============================================================================
+## SYSTEM UPDATES
+## ============================================================================
+
+# Automatic Updates
+macos_auto_security_updates: true
+macos_auto_os_updates: true
+macos_auto_check_enabled: true
+macos_auto_update_check_frequency_days: 1
+
+## ============================================================================
+## ROLE BEHAVIOR SETTINGS
+## ============================================================================
+
+# Skip certain checks/tasks if needed
+macos_skip_firewall_config: false
+macos_skip_ssh_hardening: false
+macos_skip_sip_check: false
+macos_skip_service_disabling: false
+
+# Dry-run mode (set to true to only report, not change)
+macos_hardening_dry_run: false

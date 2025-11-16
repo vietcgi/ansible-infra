@@ -1,0 +1,80 @@
+---
+# Molecule Converge - Test the Role Application
+# This runs the role against the test instance
+
+- name: Converge
+  hosts: all
+  gather_facts: yes
+  pre_tasks:
+    - name: Display platform information
+      debug:
+        msg: |
+          Platform: {{ ansible_os_family }}
+          Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Python: {{ ansible_python_version }}
+          Ansible: {{ ansible_version.full }}
+
+    - name: Verify this is a test environment
+      assert:
+        that:
+          - ansible_os_family in ['Darwin', 'Debian', 'RedHat']
+        fail_msg: "Unsupported OS family for testing: {{ ansible_os_family }}"
+        quiet: true
+
+    # For Linux-based testing (since Docker runs Linux)
+    - name: "Setup Linux environment for testing (if not macOS)"
+      block:
+        - name: Update package cache
+          apt:
+            update_cache: yes
+          become: yes
+          when: ansible_os_family == 'Debian'
+
+        - name: Install required packages
+          package:
+            name:
+              - curl
+              - wget
+              - git
+              - python3
+              - openssh-client
+              - openssh-server
+            state: present
+          become: yes
+
+        - name: Start SSH service
+          service:
+            name: ssh
+            state: started
+            enabled: yes
+          become: yes
+          when: ansible_os_family == 'Debian'
+
+      when: ansible_os_family != 'Darwin'
+
+  roles:
+    - role: common
+      when: ansible_os_family != 'Darwin'
+
+    - role: system_hardening_macos
+      vars:
+        # Test with safe defaults that won't break testing environment
+        macos_firewall_enabled: "{{ ansible_os_family == 'Darwin' }}"
+        macos_pf_enabled: "{{ ansible_os_family == 'Darwin' }}"
+        macos_ssh_hardening_enabled: true
+        macos_sshd_password_authentication: "no"
+        macos_sudo_timeout_minutes: 5
+        macos_disable_airdrop: "{{ ansible_os_family == 'Darwin' }}"
+        macos_disable_bluetooth: "{{ ansible_os_family == 'Darwin' }}"
+        macos_audit_logging_enabled: "{{ ansible_os_family == 'Darwin' }}"
+        macos_auto_security_updates: "{{ ansible_os_family == 'Darwin' }}"
+        # Skip firewall on non-macOS for testing
+        macos_skip_firewall_config: "{{ ansible_os_family != 'Darwin' }}"
+
+  post_tasks:
+    - name: Display role completion
+      debug:
+        msg: |
+          Role application completed successfully!
+          Platform: {{ ansible_os_family }}
+          Test environment ready for verification

@@ -6,6 +6,9 @@
   register: python3_check
   changed_when: false
   failed_when: false
+  tags:
+    - python
+    - runtime
 
 - name: Install Python 3 (Debian-based)
   apt:
@@ -15,6 +18,9 @@
     - ansible_os_family == "Debian"
     - python3_check.rc != 0
   become: yes
+  tags:
+    - python
+    - runtime
 
 - name: Install Python 3 (RedHat-based)
   yum:
@@ -24,12 +30,21 @@
     - ansible_os_family == "RedHat"
     - python3_check.rc != 0
   become: yes
+  tags:
+    - python
+    - runtime
 
 - name: Verify Python 3 installation
   command: python3 --version
   register: python3_version
   changed_when: false
+  tags:
+    - python
+    - runtime
 
 - name: Display Python version
   debug:
     msg: "Python version: {{ python3_version.stdout }}"
+  tags:
+    - python
+    - runtime

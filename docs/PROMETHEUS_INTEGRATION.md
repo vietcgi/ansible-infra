@@ -2,7 +2,7 @@
 
 ## Overview
 
-Sentinel Infrastructure now includes the official **prometheus.prometheus** Ansible collection for comprehensive metrics collection and monitoring.
+ansible-infra now includes the official **prometheus.prometheus** Ansible collection for comprehensive metrics collection and monitoring.
 
 ## Collections Used
 
@@ -66,7 +66,7 @@ Official Grafana collection for:
 ### 1. Install Collections
 
 ```bash
-cd /Users/kevin/sentinel-infra
+cd /Users/kevin/ansible-infra
 make install
 # or
 ansible-galaxy collection install -r requirements.yml

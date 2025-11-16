@@ -1,0 +1,174 @@
+---
+# Molecule Prepare - Test Environment Setup
+# Prepares test instances before role convergence
+
+- name: Prepare test environment
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: "Setup: Display environment"
+      debug:
+        msg: |
+          Preparing test environment...
+          OS: {{ ansible_os_family }}
+          Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Python: {{ ansible_python_version }}
+
+    ## ========================================================================
+    ## DEBIAN/UBUNTU PREPARATION
+    ## ========================================================================
+
+    - name: "Prepare: Debian/Ubuntu test environment"
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+
+        - name: Install essential packages
+          apt:
+            name:
+              - curl
+              - wget
+              - git
+              - python3
+              - python3-pip
+              - openssh-client
+              - openssh-server
+              - sudo
+              - curl
+              - dnsutils
+              - net-tools
+              - systemctl
+            state: present
+
+        - name: Ensure SSH directory exists
+          file:
+            path: /root/.ssh
+            state: directory
+            mode: '0700'
+
+        - name: Generate SSH key for testing
+          openssh_keypair:
+            path: /root/.ssh/id_rsa
+            type: rsa
+            size: 2048
+            force: no
+
+        - name: Add SSH key to authorized_keys
+          authorized_key:
+            user: root
+            state: present
+            key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+
+        - name: Start SSH service
+          systemd:
+            name: ssh
+            state: started
+            enabled: yes
+            daemon_reload: yes
+
+      when: ansible_os_family == 'Debian'
+
+    ## ========================================================================
+    ## REDHAT/CENTOS PREPARATION
+    ## ========================================================================
+
+    - name: "Prepare: RedHat/CentOS test environment"
+      block:
+        - name: Install essential packages
+          yum:
+            name:
+              - curl
+              - wget
+              - git
+              - python3
+              - openssh-client
+              - openssh-server
+              - openssh-clients
+              - sudo
+              - bind-utils
+              - net-tools
+            state: present
+
+        - name: Ensure SSH directory exists
+          file:
+            path: /root/.ssh
+            state: directory
+            mode: '0700'
+
+        - name: Generate SSH key for testing
+          openssh_keypair:
+            path: /root/.ssh/id_rsa
+            type: rsa
+            size: 2048
+            force: no
+
+        - name: Add SSH key to authorized_keys
+          authorized_key:
+            user: root
+            state: present
+            key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+
+        - name: Start SSH service
+          systemd:
+            name: sshd
+            state: started
+            enabled: yes
+            daemon_reload: yes
+
+      when: ansible_os_family == 'RedHat'
+
+    ## ========================================================================
+    ## MACOS PREPARATION
+    ## ========================================================================
+
+    - name: "Prepare: macOS test environment"
+      block:
+        - name: Verify macOS version
+          assert:
+            that:
+              - ansible_distribution_major_version | int >= 14
+            fail_msg: "macOS 14 or higher required"
+
+        - name: Check SSH is running
+          shell: launchctl list | grep ssh || echo "SSH not loaded"
+          register: ssh_status
+          changed_when: false
+
+        - name: Ensure SSH is enabled
+          shell: systemsetup -setremotelogin on || true
+          register: ssh_enable
+          changed_when: '"is already on" not in ssh_enable.stdout'
+
+      when: ansible_os_family == 'Darwin'
+
+    ## ========================================================================
+    ## GENERIC SETUP
+    ## ========================================================================
+
+    - name: "Setup: Create test directories"
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /var/log
+        - /etc/ssh
+        - /etc/security
+
+    - name: "Setup: Test connectivity"
+      ping:
+
+    - name: "Setup: Display Python interpreter"
+      debug:
+        msg: |
+          Python Interpreter: {{ ansible_python_interpreter }}
+          Executable: {{ ansible_python_executable }}
+
+    - name: "Setup: Preparation complete"
+      debug:
+        msg: |
+          Test environment prepared successfully!
+          Ready for role convergence.

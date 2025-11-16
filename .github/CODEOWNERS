@@ -1,0 +1,28 @@
+# Code Ownership and Review Responsibilities
+
+# Global default - infrastructure team
+* @devops-team
+
+# Role-specific ownership
+roles/common/ @devops-team @senior-engineer-1
+roles/system_hardening_macos/ @macos-specialist
+
+# Playbooks
+playbooks/ @devops-team
+playbooks/provision.yml @devops-team
+playbooks/configure.yml @devops-team @senior-engineer-1
+
+# Security-critical files - require security team review
+SECURITY.md @security-team
+*.vault @devops-team
+inventories/*/vault/ @devops-team
+roles/*/tasks/*ssh* @security-team
+roles/*/tasks/*security* @security-team
+
+# Documentation
+docs/ @tech-lead
+*.md @tech-lead
+
+# CI/CD
+.github/ @devops-team
+.ansible-lint @devops-team

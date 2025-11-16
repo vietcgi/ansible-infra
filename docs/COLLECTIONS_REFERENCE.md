@@ -1,6 +1,6 @@
 # Ansible Collections Reference
 
-Complete guide to installed collections and available roles for Sentinel Infrastructure.
+Complete guide to installed collections and available roles for ansible-infra framework.
 
 ## Installed Collections
 

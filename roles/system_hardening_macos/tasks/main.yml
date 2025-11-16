@@ -1,0 +1,158 @@
+---
+# macOS System Hardening - Main Orchestration
+# Runs hardening tasks in dependency order
+
+- name: "Verify platform is macOS"
+  assert:
+    that:
+      - ansible_os_family == "Darwin"
+    fail_msg: "This role only supports macOS (Darwin). Current OS: {{ ansible_os_family }}"
+    quiet: true
+
+- name: "Verify macOS version is 14 or higher"
+  assert:
+    that:
+      - ansible_distribution_major_version | int >= 14
+    fail_msg: "macOS 14 (Sonoma) or higher required. Current: {{ ansible_distribution_version }}"
+    quiet: true
+
+- name: "Debug: Starting macOS system hardening"
+  debug:
+    msg: |
+      Starting macOS system hardening on {{ inventory_hostname }}
+      macOS Version: {{ ansible_distribution_version }}
+      Host: {{ ansible_machine }}
+
+## ============================================================================
+## CRITICAL CHECKS (Must pass for production)
+## ============================================================================
+
+- name: "Block: Critical System Checks"
+  block:
+    - name: "Check if System Integrity Protection is enabled"
+      shell: csrutil status
+      register: sip_status
+      changed_when: false
+      check_mode: false
+
+    - name: "Verify SIP is enabled (non-negotiable for production)"
+      assert:
+        that:
+          - '"enabled" in sip_status.stdout'
+        fail_msg: |
+          CRITICAL: System Integrity Protection (SIP) is disabled!
+          SIP is non-negotiable for production macOS systems.
+          Enable SIP and retry hardening.
+          Reference: https://support.apple.com/en-us/102149
+        quiet: false
+      when: macos_sip_required
+
+    - name: "Display SIP status"
+      debug:
+        msg: "System Integrity Protection: {{ sip_status.stdout_lines }}"
+  when: macos_sip_check_enabled
+
+## ============================================================================
+## FIREWALL HARDENING
+## ============================================================================
+
+- name: "Block: Firewall Hardening"
+  block:
+    - name: "Include Application Firewall (ALF) hardening"
+      include_tasks: firewall_alf.yml
+      when: macos_firewall_enabled and not macos_skip_firewall_config
+
+    - name: "Include Packet Filter (PF) hardening"
+      include_tasks: firewall_pf.yml
+      when: macos_pf_enabled and not macos_skip_firewall_config
+  rescue:
+    - name: "Display firewall error (non-critical)"
+      debug:
+        msg: "Firewall configuration encountered an issue. Review logs."
+
+## ============================================================================
+## SSH SECURITY HARDENING
+## ============================================================================
+
+- name: "Block: SSH Security Hardening"
+  block:
+    - name: "Include SSH daemon hardening"
+      include_tasks: ssh_hardening.yml
+      when: macos_ssh_hardening_enabled and not macos_skip_ssh_hardening
+  rescue:
+    - name: "Display SSH hardening error"
+      debug:
+        msg: "SSH hardening encountered an issue. Review logs."
+
+## ============================================================================
+## SYSTEM INTEGRITY VERIFICATION
+## ============================================================================
+
+- name: "Block: System Integrity Verification"
+  block:
+    - name: "Include system integrity checks"
+      include_tasks: system_integrity.yml
+      when: macos_sip_check_enabled
+
+## ============================================================================
+## USER ACCESS CONTROL
+## ============================================================================
+
+- name: "Block: User Access Control Hardening"
+  block:
+    - name: "Include user access control hardening"
+      include_tasks: user_access.yml
+
+## ============================================================================
+## NETWORK & SERVICES HARDENING
+## ============================================================================
+
+- name: "Block: Network & Services Hardening"
+  block:
+    - name: "Include network services hardening"
+      include_tasks: network_services.yml
+      when: not macos_skip_service_disabling
+
+## ============================================================================
+## SYSTEM LOGGING CONFIGURATION
+## ============================================================================
+
+- name: "Block: System Logging Configuration"
+  block:
+    - name: "Include system logging configuration"
+      include_tasks: logging.yml
+      when: macos_audit_logging_enabled
+
+## ============================================================================
+## SYSTEM UPDATE CONFIGURATION
+## ============================================================================
+
+- name: "Block: System Update Configuration"
+  block:
+    - name: "Include system update configuration"
+      include_tasks: system_updates.yml
+
+## ============================================================================
+## COMPLETION SUMMARY
+## ============================================================================
+
+- name: "Display hardening completion summary"
+  debug:
+    msg: |
+      ✓ macOS system hardening completed on {{ inventory_hostname }}
+
+      Applied configurations:
+      {% if macos_firewall_enabled %}✓ Application Firewall (ALF){% endif %}
+      {% if macos_pf_enabled %}✓ Packet Filter (PF){% endif %}
+      {% if macos_ssh_hardening_enabled %}✓ SSH daemon hardening{% endif %}
+      {% if macos_audit_logging_enabled %}✓ Audit logging{% endif %}
+
+      Next steps:
+      1. Test SSH connectivity: ssh -v user@{{ inventory_hostname }}
+      2. Verify firewall: sudo pfctl -s info
+      3. Check sshd config: sudo sshd -T
+      4. Monitor logs: log stream --predicate 'process == "sshd"'
+
+      References:
+      - NIST SP 800-219: https://pages.nist.gov/macos_security/
+      - CIS Benchmarks: https://www.cisecurity.org/cis-benchmarks/

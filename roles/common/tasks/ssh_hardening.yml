@@ -11,6 +11,10 @@
   become: yes
   notify: restart sshd
   when: ansible_os_family != "Darwin"
+  tags:
+    - ssh
+    - hardening
+    - security
 
 - name: Configure SSH daemon (macOS)
   template:
@@ -21,6 +25,10 @@
   become: yes
   notify: restart sshd macos
   when: ansible_os_family == "Darwin"
+  tags:
+    - ssh
+    - hardening
+    - security
 
 - name: Ensure SSH config directory permissions
   file:
@@ -28,7 +36,15 @@
     state: directory
     mode: '0755'
   become: yes
+  tags:
+    - ssh
+    - hardening
+    - security
 
 - name: Display SSH hardening summary
   debug:
     msg: "SSH daemon configured with security hardening"
+  tags:
+    - ssh
+    - hardening
+    - security

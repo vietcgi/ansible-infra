@@ -1,0 +1,64 @@
+---
+# macOS System Integrity Verification
+# Checks SIP, Gatekeeper, XProtect status
+
+- name: "Debug: Verifying system integrity"
+  debug:
+    msg: "Checking System Integrity Protection (SIP), Gatekeeper, and XProtect"
+
+- name: "Check System Integrity Protection (SIP) status"
+  shell: csrutil status
+  register: sip_status
+  changed_when: false
+  check_mode: false
+
+- name: "Verify SIP is enabled"
+  assert:
+    that:
+      - '"enabled" in sip_status.stdout'
+    fail_msg: "CRITICAL: System Integrity Protection (SIP) is disabled!"
+
+- name: "Check Gatekeeper status"
+  shell: spctl --status
+  register: gatekeeper_status
+  changed_when: false
+  check_mode: false
+
+- name: "Verify Gatekeeper is enabled"
+  assert:
+    that:
+      - '"active" in gatekeeper_status.stdout or "enabled" in gatekeeper_status.stdout'
+    fail_msg: "Warning: Gatekeeper may not be properly enabled"
+  when: macos_gatekeeper_enabled
+
+- name: "Check XProtect status"
+  shell: |
+    if [ -f /Library/Apple/System/Library/CoreServices/XProtectFramework.framework/Versions/Current/XProtect ]; then
+      echo "XProtect: Installed"
+    fi
+    if launchctl list | grep -q xprotect; then
+      echo "XProtect daemon: Running"
+    fi
+  register: xprotect_status
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+
+- name: "Display system integrity status"
+  debug:
+    msg: |
+      System Integrity Status:
+
+      System Integrity Protection (SIP):
+      {{ sip_status.stdout }}
+
+      Gatekeeper:
+      {{ gatekeeper_status.stdout }}
+
+      XProtect:
+      {% if xprotect_status.stdout %}{{ xprotect_status.stdout }}{% else %}Status check completed{% endif %}
+
+      Interpretation:
+      ✓ SIP should be "enabled" (required for production)
+      ✓ Gatekeeper should be "active" (prevents unsigned apps)
+      ✓ XProtect should be "installed" and "running"

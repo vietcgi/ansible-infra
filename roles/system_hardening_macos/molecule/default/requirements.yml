@@ -1,0 +1,15 @@
+---
+# Molecule Test Requirements
+# Dependencies needed for testing
+
+collections:
+  - name: ansible.posix
+    version: ">=1.4.0"
+
+  - name: community.general
+    version: ">=5.0.0"
+
+roles:
+  - name: common
+    src: /Users/kevin/ansible-infra/roles/common
+    scm: git

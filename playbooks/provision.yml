@@ -1,5 +1,5 @@
 ---
-# Sentinel Infrastructure - Server Provisioning Playbook
+# ansible-infra - Server Provisioning Playbook
 # Initial server setup and foundational configuration
 # Target: All new servers (production, staging, development)
 #
@@ -8,7 +8,7 @@
 #   ansible-playbook playbooks/provision.yml -i inventories/staging/hosts.yml
 #   ansible-playbook playbooks/provision.yml -k  # Prompt for SSH password if needed
 
-- name: Sentinel Infrastructure - Provision Servers
+- name: ansible-infra - Provision Servers
   hosts: all
   become: yes
   gather_facts: yes
@@ -51,7 +51,7 @@
     - name: Create provisioning report
       copy:
         content: |
-          Sentinel Infrastructure Provisioning Report
+          ansible-infra Provisioning Report
           ============================================
           Date: {{ ansible_date_time.iso8601 }}
           Hostname: {{ inventory_hostname }}
@@ -68,5 +68,5 @@
           2. Configure monitoring alerts
           3. Setup backup policies
           4. Enable automated updates
-        dest: /var/log/sentinel/provisioning-report.txt
+        dest: /var/log/ansible-infra/provisioning-report.txt
       become: yes

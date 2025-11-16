@@ -1,0 +1,117 @@
+---
+# macOS Network & Services Hardening
+# Disable unnecessary services, configure DNS security
+
+- name: "Debug: Hardening network and services"
+  debug:
+    msg: "Disabling unnecessary services and configuring secure DNS"
+
+- name: "Disable AirDrop"
+  shell: |
+    defaults write com.apple.NetworkBrowser DisableAirDrop -bool true
+    defaults write /Library/Preferences/com.apple.alf com.apple.alf.allowbonjour -bool false
+  register: airdrop_result
+  changed_when: true
+  when: macos_disable_airdrop
+
+- name: "Disable Bluetooth"
+  shell: |
+    # Check if Bluetooth can be disabled (may require MDM for controlled disable)
+    defaults write com.apple.systempreferences.bluetooth AppleBluetoothAutoSeekPointingDevice -bool false
+    defaults write com.apple.systempreferences.bluetooth AppleBluetoothMultipleKeyboardsEnabled -bool false
+  register: bluetooth_result
+  changed_when: true
+  when: macos_disable_bluetooth
+  ignore_errors: true
+
+- name: "Disable Remote Desktop"
+  shell: |
+    sudo systemsetup -setremotedesktop off 2>/dev/null || \
+    defaults write /Library/Preferences/com.apple.RemoteDesktop.plist Enabled -bool false || true
+  register: remote_desktop_result
+  changed_when: true
+  when: macos_disable_remote_desktop
+
+- name: "Disable printer sharing"
+  shell: |
+    systemsetup -setprinterSharing off 2>/dev/null || \
+    defaults write /Library/Preferences/org.cups.printers.plist Shared -bool false || true
+  register: printer_sharing_result
+  changed_when: true
+  when: macos_disable_printer_sharing
+
+- name: "Disable file sharing"
+  shell: |
+    systemsetup -setfileSharing off 2>/dev/null || \
+    defaults write /Library/Preferences/com.apple.AppleFileServer enabled -bool false || true
+  register: file_sharing_result
+  changed_when: true
+  when: macos_disable_file_sharing
+
+- name: "Disable Remote Apple Events"
+  shell: |
+    systemsetup -setremoteappleevents off 2>/dev/null || true
+  register: apple_events_result
+  changed_when: true
+  when: macos_disable_remote_apple_events
+
+- name: "Configure DNS servers (DNS security)"
+  block:
+    - name: "Get list of network services"
+      shell: |
+        networksetup -listallnetworkservices | grep -v '^\*'
+      register: network_services
+      changed_when: false
+
+    - name: "Set DNS servers on all active services"
+      shell: |
+        for service in $(networksetup -listallnetworkservices | grep -v '^\*'); do
+          echo "Configuring DNS for: $service"
+          networksetup -setdnsservers "$service" {{ macos_dns_servers | join(' ') }}
+        done
+      register: dns_config_result
+      changed_when: '"Configuring DNS" in dns_config_result.stdout'
+      when: macos_dns_security_enabled and network_services.stdout_lines | length > 0
+
+  when: macos_dns_security_enabled
+
+- name: "Verify network configuration"
+  shell: |
+    echo "Current DNS Servers:"
+    networksetup -getdnsservers Ethernet 2>/dev/null || networksetup -getdnsservers Wi-Fi 2>/dev/null || echo "Unable to determine active network interface"
+
+    echo ""
+    echo "Disabled Services Status:"
+    echo "AirDrop: $(defaults read com.apple.NetworkBrowser DisableAirDrop 2>/dev/null || echo 'Check failed')"
+    echo "Printer Sharing: $(systemsetup -getprinterSharing 2>/dev/null || echo 'Check failed')"
+  register: network_verify
+  changed_when: false
+
+- name: "Display network hardening summary"
+  debug:
+    msg: |
+      Network & Services Hardening Complete:
+
+      Services Disabled:
+      {% if macos_disable_airdrop %}✓ AirDrop{% endif %}
+      {% if macos_disable_bluetooth %}✓ Bluetooth management{% endif %}
+      {% if macos_disable_remote_desktop %}✓ Remote Desktop{% endif %}
+      {% if macos_disable_printer_sharing %}✓ Printer Sharing{% endif %}
+      {% if macos_disable_file_sharing %}✓ File Sharing{% endif %}
+      {% if macos_disable_remote_apple_events %}✓ Remote Apple Events{% endif %}
+
+      DNS Configuration:
+      {% if macos_dns_security_enabled %}✓ Configured for security (Quad9){% else %}- Using default DNS{% endif %}
+
+      Current Configuration:
+      {{ network_verify.stdout }}
+
+      Verification Commands:
+      $ networksetup -getdnsservers Wi-Fi          # Check DNS servers
+      $ systemsetup -getprinterSharing             # Check printer sharing
+      $ defaults read com.apple.NetworkBrowser     # Check service settings
+
+      Notes:
+      - Some services may require MDM (Mobile Device Management) to fully disable
+      - Changes may require restart to take full effect
+      - Bluetooth/Remote Desktop may be needed for specific infrastructure use cases

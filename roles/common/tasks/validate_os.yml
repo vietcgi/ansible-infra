@@ -8,6 +8,9 @@
       - ansible_os_family in common_supported_distributions
     fail_msg: "Unsupported OS family: {{ ansible_os_family }}. Supported: {{ common_supported_distributions | join(', ') }}"
     success_msg: "✓ OS family supported: {{ ansible_os_family }}"
+  tags:
+    - validation
+    - always
 
 - name: Display system information
   debug:
@@ -18,3 +21,6 @@
         Kernel: {{ ansible_kernel }}
         Architecture: {{ ansible_machine }}
         Python: {{ ansible_python_version }}
+  tags:
+    - validation
+    - always

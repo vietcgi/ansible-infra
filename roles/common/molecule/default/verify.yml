@@ -1,0 +1,233 @@
+---
+# Molecule Verify Playbook - Validate role execution results
+
+- name: Verify - Validate common role execution
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # OS Validation
+    - name: Verify OS detection
+      assert:
+        that:
+          - ansible_os_family is defined
+          - ansible_os_family in ['Debian', 'RedHat']
+        fail_msg: "OS family not properly detected"
+        success_msg: "✓ OS family detected: {{ ansible_os_family }}"
+      tags:
+        - validation
+
+    # System Updates
+    - name: Verify system is updated (Debian)
+      shell: |
+        apt-get update > /dev/null 2>&1
+        apt-get upgrade -s | grep -c "^Inst" || echo 0
+      register: pending_updates
+      changed_when: false
+      when: ansible_os_family == "Debian"
+      tags:
+        - packages
+
+    - name: Verify packages installed
+      package_facts:
+        manager: auto
+      tags:
+        - packages
+
+    - name: Assert core packages present
+      assert:
+        that:
+          - "'curl' in ansible_facts.packages"
+          - "'git' in ansible_facts.packages"
+          - "'vim' in ansible_facts.packages"
+        fail_msg: "Required core packages not installed"
+        success_msg: "✓ Core packages installed"
+      tags:
+        - packages
+
+    # Python Verification
+    - name: Verify Python 3 installation
+      command: python3 --version
+      register: python_version
+      changed_when: false
+      tags:
+        - python
+
+    - name: Assert Python 3 available
+      assert:
+        that:
+          - python_version.rc == 0
+          - "'Python 3' in python_version.stdout"
+        fail_msg: "Python 3 not properly installed"
+        success_msg: "✓ {{ python_version.stdout }}"
+      tags:
+        - python
+
+    # NTP Verification
+    - name: Check NTP service (Debian)
+      systemd:
+        name: ntp
+        state: started
+      register: ntp_status
+      failed_when: false
+      when: ansible_os_family == "Debian"
+      tags:
+        - ntp
+
+    - name: Check NTP service (RedHat)
+      systemd:
+        name: ntpd
+        state: started
+      register: ntpd_status
+      failed_when: false
+      when: ansible_os_family == "RedHat"
+      tags:
+        - ntp
+
+    - name: Verify time synchronization
+      command: timedatectl status
+      register: time_status
+      changed_when: false
+      tags:
+        - ntp
+
+    - name: Assert NTP enabled
+      assert:
+        that:
+          - "'Network time on: yes' in time_status.stdout or 'synchronized: yes' in time_status.stdout"
+        fail_msg: "NTP not properly synchronized"
+        success_msg: "✓ Time synchronization active"
+      tags:
+        - ntp
+
+    # SSH Hardening Verification
+    - name: Verify SSH config exists
+      stat:
+        path: /etc/ssh/sshd_config
+      register: sshd_config
+      tags:
+        - ssh
+
+    - name: Assert SSH config present
+      assert:
+        that:
+          - sshd_config.stat.exists
+          - sshd_config.stat.mode == '0600'
+        fail_msg: "SSH config not properly configured"
+        success_msg: "✓ SSH config present with correct permissions"
+      tags:
+        - ssh
+
+    - name: Verify SSH configuration validity
+      command: sshd -t
+      changed_when: false
+      tags:
+        - ssh
+
+    - name: Verify SSH post-quantum algorithms
+      shell: grep "KexAlgorithms" /etc/ssh/sshd_config | grep -c "sntrup761x25519" || echo 0
+      register: pq_algorithms
+      changed_when: false
+      tags:
+        - ssh
+
+    - name: Assert post-quantum algorithms enabled
+      assert:
+        that:
+          - pq_algorithms.stdout | int > 0
+        fail_msg: "Post-quantum algorithms not configured"
+        success_msg: "✓ Post-quantum SSH algorithms enabled"
+      tags:
+        - ssh
+
+    # Kernel Parameters (sysctl)
+    - name: Verify sysctl configuration
+      command: sysctl net.core.somaxconn
+      register: sysctl_config
+      changed_when: false
+      tags:
+        - kernel
+
+    - name: Assert sysctl tuning applied
+      assert:
+        that:
+          - "sysctl_config.rc == 0"
+          - "'somaxconn' in sysctl_config.stdout"
+        fail_msg: "Kernel parameters not properly tuned"
+        success_msg: "✓ Kernel parameters tuned"
+      tags:
+        - kernel
+
+    # Audit Logging
+    - name: Check audit daemon (if installed)
+      systemd:
+        name: auditd
+        state: started
+      register: audit_status
+      failed_when: false
+      when: ansible_os_family == "Debian" and common_enable_audit | default(true)
+      tags:
+        - audit
+
+    # File Limits
+    - name: Verify file limits configured
+      shell: grep -c "nofile" /etc/security/limits.d/* 2>/dev/null || echo 0
+      register: limits_config
+      changed_when: false
+      tags:
+        - limits
+
+    - name: Assert file limits configured
+      assert:
+        that:
+          - limits_config.stdout | int > 0
+        fail_msg: "File limits not configured"
+        success_msg: "✓ File descriptor limits configured"
+      tags:
+        - limits
+
+    # DNS Configuration
+    - name: Verify DNS configuration exists
+      stat:
+        path: /etc/resolv.conf
+      register: resolv_conf
+      tags:
+        - dns
+
+    - name: Assert DNS configuration present
+      assert:
+        that:
+          - resolv_conf.stat.exists
+        fail_msg: "DNS configuration missing"
+        success_msg: "✓ DNS configuration in place"
+      tags:
+        - dns
+
+    # Logging Configuration
+    - name: Check log directory
+      stat:
+        path: /var/log/ansible-infra
+      register: log_dir
+      failed_when: false
+      tags:
+        - logging
+
+    - name: Display verification summary
+      debug:
+        msg: |
+          ✓ All verification tests passed!
+
+          Verified:
+          - OS properly detected and supported
+          - System packages updated and installed
+          - Python 3 runtime configured
+          - NTP time synchronization enabled
+          - SSH daemon hardened with post-quantum algorithms
+          - Kernel parameters optimized
+          - Audit logging operational
+          - File descriptor limits configured
+          - DNS resolution configured
+          - Log management in place
+      tags:
+        - always

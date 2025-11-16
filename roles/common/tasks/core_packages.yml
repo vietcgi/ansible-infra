@@ -8,6 +8,9 @@
     update_cache: yes
   when: ansible_os_family == "Debian"
   become: yes
+  tags:
+    - packages
+    - core-packages
 
 - name: Install core packages (RedHat-based)
   yum:
@@ -15,6 +18,9 @@
     state: present
   when: ansible_os_family == "RedHat"
   become: yes
+  tags:
+    - packages
+    - core-packages
 
 - name: Install core packages (macOS)
   homebrew:
@@ -23,7 +29,13 @@
   loop: "{{ common_core_packages }}"
   when: ansible_os_family == "Darwin"
   ignore_errors: yes  # Some packages may not be available on macOS
+  tags:
+    - packages
+    - core-packages
 
 - name: Display installed packages summary
   debug:
     msg: "Core utilities installed successfully"
+  tags:
+    - packages
+    - core-packages

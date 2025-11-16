@@ -1,20 +1,50 @@
-# Sentinel Infrastructure - Enterprise Ansible Automation
+# ansible-infra - Enterprise Infrastructure Automation Framework
 
-A production-grade, cross-platform infrastructure automation framework using Ansible with integrated Grafana monitoring.
+A production-grade, reusable infrastructure automation framework for multi-platform deployments (Linux + macOS) with enterprise-grade testing, security, and monitoring.
+
+**Status**: ✅ Production-Ready | 📚 Fully Documented | 🔒 Security-Hardened | 🧪 Enterprise-Tested
 
 ## Overview
 
-**Sentinel Infrastructure** is an enterprise-class Ansible-based infrastructure-as-code (IaC) solution designed for managing Linux and macOS servers at scale. It leverages industry-standard collections and battle-tested practices.
+**ansible-infra** is an enterprise-class infrastructure-as-code framework designed for managing Linux and macOS servers at scale. It uses official Ansible collections for Linux infrastructure and custom roles for macOS-specific requirements, following industry best practices.
 
 ### Key Features
 
-- **Multi-Platform Support**: Ubuntu, Debian, CentOS, RHEL, Rocky, AlmaLinux, macOS
-- **Grafana Integration**: Unified observability with Grafana Agent, Prometheus, and Loki
-- **Production-Ready**: Security hardening, audit logging, and compliance baseline
-- **Modular Architecture**: Reusable roles and playbooks following Ansible best practices
-- **Enterprise Standards**: Version control, CI/CD ready, comprehensive documentation
+- **Multi-Platform Support**: Ubuntu, Debian, Rocky, AlmaLinux (Linux) + macOS
+- **Hybrid Deployment Model**: Official collections (Linux) + custom roles (macOS)
+- **macOS Security Hardening**: 31 security controls with NIST + CIS compliance
+- **Enterprise Testing**: Molecule framework with 4 test scenarios
+- **Production-Ready**: Pre-commit hooks, GitHub Actions CI/CD, automated testing
+- **Security First**: Secret detection, vulnerability scanning, compliance alignment
+- **Modular Architecture**: Reusable roles and playbooks
 - **Idempotent Design**: Safe to run repeatedly - no configuration drift
-- **GitOps Ready**: Infrastructure as Code with git-based workflows
+
+## Documentation Roadmap
+
+**Choose your path based on your role:**
+
+### 🚀 Getting Started (5-15 minutes)
+- **[Quick Start](docs/QUICK_START.md)** - Choose your deployment path (Arnio, Linux-only, or hardening)
+- **[README](README.md)** (this file) - Project overview
+
+### 🏗️ Understanding the Design (15-30 minutes)
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - Hybrid deployment model, role strategy, data flow
+- **[Roadmap & Vision](docs/ROADMAP.md)** - Long-term strategy, phases, scaling
+
+### 🔐 Security & Compliance (20-40 minutes)
+- **[Security Hardening](docs/SECURITY_HARDENING.md)** - 31+ controls, firewall, SSH, audit logging
+- **[Standards & Compliance](docs/STANDARDS.md)** - NIST SP 800-219, CIS Benchmarks, Apple guidelines
+- **[macOS Role Details](roles/system_hardening_macos/README.md)** - Complete role reference
+
+### 🧪 Quality & Testing (20-30 minutes)
+- **[Quality Assurance](docs/QUALITY_ASSURANCE.md)** - Testing framework, CI/CD, Molecule, pre-commit hooks
+
+### 📦 Implementation (2-4 hours)
+- **[Implementation Guide](docs/IMPLEMENTATION.md)** - Step-by-step deployment to production
+- **[Monitoring Setup](docs/PROMETHEUS_INTEGRATION.md)** - Prometheus + Grafana integration
+
+### 📚 Reference Documentation
+- **[Collections Reference](docs/COLLECTIONS_REFERENCE.md)** - Comprehensive Ansible collection inventory with role specifications and dependencies
 
 ## Quick Start
 
@@ -29,8 +59,8 @@ A production-grade, cross-platform infrastructure automation framework using Ans
 
 ```bash
 # Clone repository
-git clone <your-repo-url> sentinel-infra
-cd sentinel-infra
+git clone <your-repo-url> ansible-infra
+cd ansible-infra
 
 # Install dependencies
 ansible-galaxy collection install -r requirements.yml
@@ -44,11 +74,12 @@ ansible-inventory -i inventories/production/hosts.yml --list
 ### Directory Structure
 
 ```
-sentinel-infra/
+ansible-infra/
 ├── ansible.cfg                 # Ansible configuration
 ├── requirements.yml            # Collection dependencies
 ├── roles/
-│   └── common/                # Foundation role (OS-agnostic setup)
+│   ├── common/                # OS-agnostic foundation role
+│   └── system_hardening_macos/ # macOS security hardening role
 ├── playbooks/
 │   ├── provision.yml          # Initial server provisioning
 │   ├── configure.yml          # Full configuration stack
@@ -57,8 +88,7 @@ sentinel-infra/
 │   ├── production/            # Production servers
 │   ├── staging/               # Staging environment
 │   └── development/           # Development servers
-├── tests/                     # Testing and validation
-├── docs/                      # Documentation
+├── docs/                      # Comprehensive documentation
 └── .gitignore
 ```
 

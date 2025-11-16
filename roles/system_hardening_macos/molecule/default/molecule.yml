@@ -1,0 +1,70 @@
+---
+# Molecule Configuration for system_hardening_macos Role
+# Enterprise-grade testing framework for macOS hardening
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+  # Note: macOS testing in Docker has limitations
+  # Docker Desktop provides Linux containers, so we'll test on compatible Linux
+  # Real macOS testing should be done on actual macOS runners (GitHub Actions, etc.)
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+      callback_whitelist: profile_tasks, timer
+  env:
+    ANSIBLE_LIBRARY: ${MOLECULE_PROJECT_DIR}/../../library
+  inventory:
+    host_vars:
+      instance:
+        ansible_user: root
+        ansible_become: no
+        # For real macOS testing
+        # ansible_python_interpreter: /usr/bin/python3
+  lint:
+    name: ansible-lint
+    enabled: true
+    options:
+      format: json
+
+scenario:
+  name: default
+  description: Default test scenario for system_hardening_macos
+  test_sequence:
+    - dependency
+    - lint
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - cleanup
+    - destroy
+
+verifier:
+  name: ansible
+  lint:
+    name: ansible-lint
+    enabled: true
+
+# Additional test scenarios
+environments:
+  - name: default
+    image: ubuntu:22.04
+  - name: ubuntu-20
+    image: ubuntu:20.04
+  - name: debian-11
+    image: debian:11
+  - name: rocky-8
+    image: rockylinux:8

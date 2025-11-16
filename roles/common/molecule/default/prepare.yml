@@ -1,0 +1,47 @@
+---
+# Molecule Prepare Playbook - Set up test instances before role execution
+
+- name: Prepare - Set up test instances
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Update apt cache (Debian-based)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      changed_when: false
+
+    - name: Install basic packages (Debian-based)
+      apt:
+        name:
+          - python3
+          - python3-apt
+          - curl
+          - ca-certificates
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install basic packages (RedHat-based)
+      yum:
+        name:
+          - python3
+          - curl
+          - ca-certificates
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure systemd is running
+      command: systemctl status
+      changed_when: false
+      failed_when: false
+
+    - name: Display preparation summary
+      debug:
+        msg: |
+          ✓ Test instance prepared:
+            - Python3 installed
+            - Basic utilities available
+            - systemd operational

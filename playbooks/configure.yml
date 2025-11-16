@@ -1,5 +1,5 @@
 ---
-# Sentinel Infrastructure - Configuration Management Playbook
+# ansible-infra - Configuration Management Playbook
 # Apply full configuration stack with Grafana monitoring and security
 # Target: All servers requiring production-grade setup
 #
@@ -8,7 +8,7 @@
 #   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --tags grafana
 #   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --skip-tags monitoring
 
-- name: Sentinel Infrastructure - Configure Servers
+- name: ansible-infra - Configure Servers
   hosts: all
   become: yes
   gather_facts: yes

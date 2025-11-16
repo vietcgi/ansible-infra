@@ -1,7 +1,7 @@
 # {{ ansible_managed }}
-# Log Rotation Configuration - Sentinel Infrastructure
+# Log Rotation Configuration - ansible-infra
 
-/var/log/sentinel/*.log {
+/var/log/ansible-infra/*.log {
   daily
   rotate {{ common_log_retention_days }}
   missingok

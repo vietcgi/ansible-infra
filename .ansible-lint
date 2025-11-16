@@ -1,0 +1,109 @@
+# Ansible-Lint Configuration
+# Enterprise-grade linting for code quality
+
+---
+# Define profile for strict linting
+profile: production
+
+# Enable specific rules
+rules:
+  args:
+    required: true
+    trailing-spaces: true
+  bool-value:
+    allowed-values: ['true', 'false']
+  command-instead-of-module:
+    # Use modules instead of shell commands
+    level: error
+  comments:
+    min-spaces-from-content: 2
+  decryption:
+    required: true
+  deprecated-module:
+    level: error
+  deprecated-command-line-argument:
+    level: error
+  formatting:
+    require-newline-before-close-brace: true
+  jinja:
+    # Ensure proper Jinja2 syntax
+    level: error
+  line-length:
+    max: 120
+    level: warning
+  name:
+    # Use descriptive task names
+    min-name-length: 8
+    pattern: "^[A-Z].*$"  # Start with capital letter
+  new-lines:
+    type: unix
+  no-changed-when:
+    # Check for changed_when in shell/command tasks
+    level: error
+  no-handler-when:
+    level: error
+  no-jinja-when:
+    level: error
+  no-prompts:
+    level: error
+  no-relative-imports:
+    level: error
+  package-latest:
+    level: warning
+  playbook-extension:
+    expected: .yml
+  schema:
+    level: error
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+    level: warning
+  yaml:
+    truthy: false
+    level: error
+
+# Exclude paths from linting
+exclude_paths:
+  - .git/
+  - .gitignore
+  - .molecule/
+  - molecule/
+  - .tox/
+  - venv/
+  - .venv/
+  - __pycache__/
+  - "*.egg-info"
+  - .pytest_cache/
+  - .cache/
+  - docs/
+
+# File patterns to lint
+file_extensions:
+  - .yml
+  - .yaml
+  - .json
+
+# Variables that are expected to be defined
+mock_modules:
+  - debug
+  - set_fact
+  - assert
+  - fail
+
+# Skip specific rules for specific files
+skip_list:
+  # Allow for backward compatibility where needed
+  - 'schema'  # Can be relaxed per-file with noqa comments
+
+# Enable certain rules
+enable_list:
+  - 'risky-file-permissions'
+  - 'risky-shell-pipe'
+  - 'no-log-password'
+  - 'no-changed-when'
+  - 'command-instead-of-module'
+
+# Severity levels
+severity: medium
+
+# Show all issues
+verbosity: 1

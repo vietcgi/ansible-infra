@@ -1,0 +1,128 @@
+---
+# Molecule Configuration - Common Role Testing
+# Tests foundation role across multiple Linux distributions
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  # Ubuntu 24.04 LTS - Latest stable
+  - name: ubuntu-24
+    image: docker.io/library/ubuntu:24.04
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /lib/systemd/systemd -v
+    pid_mode: host
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+
+  # Ubuntu 22.04 LTS - Long-term support
+  - name: ubuntu-22
+    image: docker.io/library/ubuntu:22.04
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /lib/systemd/systemd -v
+    pid_mode: host
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+
+  # Debian 12 - Current stable
+  - name: debian-12
+    image: docker.io/library/debian:12
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /lib/systemd/systemd -v
+    pid_mode: host
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+
+  # Rocky Linux 9 - RHEL-compatible
+  - name: rocky-9
+    image: docker.io/library/rocky:9
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /lib/systemd/systemd -v
+    pid_mode: host
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    prepare: prepare.yml
+    verify: verify.yml
+  config_options:
+    defaults:
+      # Enable pipelining for faster execution
+      pipelining: true
+      # Use more aggressive facts caching
+      gather_facts: smart
+      fact_caching: jsonfile
+      fact_caching_connection: /tmp/molecule/ansible_facts
+      fact_caching_timeout: 86400
+  inventory:
+    group_vars:
+      all:
+        # Use defaults from role
+        common_update_packages: true
+        common_upgrade_packages: true
+        common_ntp_enabled: true
+        common_ssh_password_authentication: "no"
+    host_vars:
+      ubuntu-24:
+        ansible_os_family: Debian
+      ubuntu-22:
+        ansible_os_family: Debian
+      debian-12:
+        ansible_os_family: Debian
+      rocky-9:
+        ansible_os_family: RedHat
+
+scenario:
+  name: default
+  description: |
+    Test foundation role on multiple Linux distributions
+
+    Tests the following:
+    - OS validation (detect and support)
+    - System package updates
+    - Core package installation
+    - Python runtime configuration
+    - NTP time synchronization
+    - SSH daemon hardening
+    - Kernel parameter tuning
+    - Audit logging setup
+    - File descriptor limits
+    - DNS configuration
+    - Log rotation setup
+
+    Verifies:
+    - All tasks execute without errors
+    - Idempotence (second run shows no changes)
+    - Configuration files are in place
+    - Services are running
+    - Security controls are applied
+
+verifier:
+  name: ansible
+
+lint:
+  name: ansible-lint
+  options:
+    profile: production

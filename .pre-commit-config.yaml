@@ -1,0 +1,140 @@
+# Pre-commit Hooks Configuration
+# Enterprise-grade quality gates before commits
+
+repos:
+  # YAML Linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.32.0
+    hooks:
+      - id: yamllint
+        name: YAML Lint
+        description: Check YAML files
+        entry: yamllint -d relaxed
+        language: python
+        types: [yaml]
+        additional_dependencies: ['yamllint']
+
+  # Ansible Linting
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v6.20.2
+    hooks:
+      - id: ansible-lint
+        name: Ansible Lint
+        description: Lint Ansible playbooks and roles
+        entry: ansible-lint
+        language: python
+        types: [yaml]
+        files: (^roles/.*\.yml$|^playbooks/.*\.yml$|^molecule/.*\.yml$)
+        additional_dependencies: ['ansible-lint', 'ansible-core']
+        require_serial: true
+
+  # Python Linting (for Python code in roles if any)
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        name: Flake8
+        description: Check Python code style
+        language: python
+        types: [python]
+        files: (roles/.*\.py$|library/.*\.py$|filter_plugins/.*\.py$)
+        additional_dependencies: ['flake8']
+
+  # Check Trailing Whitespace
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        description: Remove trailing whitespace
+        types: [text, yaml, python]
+
+      - id: end-of-file-fixer
+        name: Fix End of File
+        description: Ensure files end with newline
+        types: [text, yaml, python]
+
+      - id: check-yaml
+        name: Check YAML
+        description: Validate YAML syntax
+        files: \.(yaml|yml)$
+        args: ['--unsafe']
+
+      - id: check-json
+        name: Check JSON
+        description: Validate JSON syntax
+        types: [json]
+
+      - id: check-merge-conflict
+        name: Check for Merge Conflicts
+        description: Prevent merging files with unresolved conflicts
+        types: [text]
+
+      - id: check-added-large-files
+        name: Check for Large Files
+        description: Prevent large files from being committed
+        args: ['--maxkb=500']
+
+      - id: mixed-line-ending
+        name: Check Mixed Line Ending
+        description: Enforce consistent line endings
+        args: ['--fix=lf']
+        types: [text]
+
+  # Detect Secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        description: Prevent secrets from being committed
+        entry: detect-secrets scan
+        language: python
+        types: [text]
+        exclude_patterns: |
+          (?x)^(
+            \.git/.*|
+            docs/.*|
+            tests/.*|
+            molecule/.*
+          )$
+        additional_dependencies: ['detect-secrets']
+
+  # Ansible Syntax Check
+  - repo: local
+    hooks:
+      - id: ansible-syntax-check
+        name: Ansible Syntax Check
+        entry: ansible-playbook --syntax-check
+        language: python
+        types: [yaml]
+        files: (^playbooks/|^roles/)
+        additional_dependencies: ['ansible-core']
+        pass_filenames: false
+
+# Configuration options
+default_language_version:
+  python: python3.9
+
+# Exclude certain paths
+exclude: |
+  (?x)^(
+    \.git/|
+    \.tox/|
+    venv/|
+    \.venv/|
+    \.molecule/|
+    __pycache__/|
+    \.pytest_cache/|
+    \.cache/|
+    .*\.egg-info/
+  )
+
+# Minimum Python version
+minimum_pre_commit_version: '2.15.0'
+
+# Only run on files being committed
+fail_fast: false
+
+# Run specific stages
+stages: ['commit', 'push', 'manual']

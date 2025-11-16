@@ -1,0 +1,125 @@
+---
+# macOS System Updates Configuration
+# Automatic security updates and OS updates
+
+- name: "Debug: Configuring system updates"
+  debug:
+    msg: "Setting up automatic security updates and software updates"
+
+- name: "Enable automatic security updates"
+  shell: |
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
+  register: auto_security_updates_result
+  changed_when: true
+  when: macos_auto_security_updates
+
+- name: "Enable automatic OS updates"
+  shell: |
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate InstallAssistantSuppressionMetric -bool true
+  register: auto_os_updates_result
+  changed_when: true
+  when: macos_auto_os_updates
+
+- name: "Enable automatic update check"
+  shell: |
+    softwareupdate -l -r -d -s /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency -int {{ macos_auto_update_check_frequency_days }}
+  register: auto_check_result
+  changed_when: true
+  when: macos_auto_check_enabled
+  ignore_errors: true
+
+- name: "Configure update preferences"
+  shell: |
+    # Enable installing security updates automatically
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallSecurityUpdates -bool true
+
+    # Set check frequency (in days)
+    defaults write /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency -int {{ macos_auto_update_check_frequency_days }}
+  register: update_prefs_result
+  changed_when: true
+
+- name: "Enable automatic macOS malware definition updates"
+  shell: |
+    defaults write /Library/Preferences/com.apple.security.xprotect.plist AutomaticUpdates -bool true
+  register: malware_updates_result
+  changed_when: true
+
+- name: "Schedule launchd job for updates (optional)"
+  copy:
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>Label</key>
+          <string>com.apple.softwareupdate.auto-check</string>
+          <key>ProgramArguments</key>
+          <array>
+              <string>/usr/sbin/softwareupdate</string>
+              <string>-l</string>
+          </array>
+          <key>StartInterval</key>
+          <integer>86400</integer>
+          <key>RunAtLoad</key>
+          <true/>
+      </dict>
+      </plist>
+    dest: /Library/LaunchDaemons/com.apple.softwareupdate.auto-check.plist
+    owner: root
+    group: wheel
+    mode: "0644"
+  register: update_launchd_result
+  changed_when: true
+
+- name: "Verify update configuration"
+  shell: |
+    echo "Software Update Settings:"
+    defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "AutomaticCheck: Not configured"
+    defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>/dev/null || echo "AutomaticDownload: Not configured"
+    defaults read /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall 2>/dev/null || echo "CriticalUpdate: Not configured"
+    defaults read /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency 2>/dev/null || echo "ScheduleFrequency: Not configured"
+
+    echo ""
+    echo "XProtect Malware Definitions:"
+    defaults read /Library/Preferences/com.apple.security.xprotect.plist AutomaticUpdates 2>/dev/null || echo "AutoUpdate: Not configured"
+
+    echo ""
+    echo "Last Update Check:"
+    defaults read /Library/Preferences/com.apple.SoftwareUpdate LastCheckTime 2>/dev/null | cut -d' ' -f1-3 || echo "No check history"
+  register: update_verify
+  changed_when: false
+
+- name: "Display update configuration summary"
+  debug:
+    msg: |
+      System Update Configuration Complete:
+
+      Automatic Updates:
+      {% if macos_auto_check_enabled %}✓ Check enabled (every {{ macos_auto_update_check_frequency_days }} days){% endif %}
+      {% if macos_auto_security_updates %}✓ Security updates: Automatic{% endif %}
+      {% if macos_auto_os_updates %}✓ OS updates: Automatic{% endif %}
+
+      Malware Protection:
+      ✓ XProtect: Automatic updates enabled
+      ✓ Signature updates: Via iCloud (Sequoia 15.2+) or standard mechanism
+
+      Configuration:
+      {{ update_verify.stdout }}
+
+      Manual Update Commands:
+      $ softwareupdate -l                         # List available updates
+      $ softwareupdate -a                         # Install all updates
+      $ softwareupdate -i -r                      # Install recommended updates
+
+      Update Status:
+      $ defaults read /Library/Preferences/com.apple.SoftwareUpdate | grep -E "^[[:space:]]+(Auto|Check|Critical|Schedule)"
+
+      Important Notes:
+      - Automatic updates typically run overnight
+      - System may restart without warning for critical security updates
+      - XProtect updates now come via iCloud for macOS 15.2+ (Sequoia)
+      - Ensure system is not critical during maintenance windows
+      - Review logs: log stream --predicate 'process == "SoftwareUpdate"'

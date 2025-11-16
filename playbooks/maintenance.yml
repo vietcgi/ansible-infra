@@ -1,5 +1,5 @@
 ---
-# Sentinel Infrastructure - Maintenance & Updates Playbook
+# ansible-infra - Maintenance & Updates Playbook
 # Perform system updates, patches, and maintenance tasks
 # Target: Production servers (staggered rolling updates)
 #
@@ -8,7 +8,7 @@
 #   ansible-playbook playbooks/maintenance.yml -i inventories/production/hosts.yml --tags logs
 #   ansible-playbook playbooks/maintenance.yml -i inventories/staging/hosts.yml
 
-- name: Sentinel Infrastructure - Maintenance Tasks
+- name: ansible-infra - Maintenance Tasks
   hosts: all
   become: yes
   gather_facts: yes

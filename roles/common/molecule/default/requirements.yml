@@ -1,0 +1,11 @@
+---
+# Molecule Test Requirements - Role dependencies
+
+# The common role has no dependencies on other roles
+# This file would be used if common role required other roles
+
+# Example (currently not needed):
+# roles:
+#   - name: some-dependency
+#     src: git+https://github.com/user/role.git
+#     version: main
