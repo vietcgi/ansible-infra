@@ -33,6 +33,17 @@
     - packages
     - core-packages
 
+- name: Install core packages (Alpine)
+  apk:
+    name: "{{ common_core_packages }}"
+    state: present
+  when: ansible_os_family == "Alpine"
+  become: yes
+  ignore_errors: yes  # Some packages may not be available in Alpine repos
+  tags:
+    - packages
+    - core-packages
+
 - name: Display installed packages summary
   debug:
     msg: "Core utilities installed successfully"

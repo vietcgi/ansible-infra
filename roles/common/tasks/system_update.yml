@@ -32,6 +32,15 @@
     - packages
     - system-update
 
+- name: Update package cache (Alpine)
+  apk:
+    update_cache: yes
+  when: ansible_os_family == "Alpine"
+  tags:
+    - packages
+    - system-update
+    - critical
+
 - name: Upgrade packages (Debian-based)
   apt:
     upgrade: dist
@@ -52,6 +61,18 @@
     state: latest
   when:
     - ansible_os_family == "RedHat"
+    - common_upgrade_packages | bool
+  become: yes
+  tags:
+    - packages
+    - system-update
+    - critical
+
+- name: Upgrade packages (Alpine)
+  apk:
+    upgrade: yes
+  when:
+    - ansible_os_family == "Alpine"
     - common_upgrade_packages | bool
   become: yes
   tags:
