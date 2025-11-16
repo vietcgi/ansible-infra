@@ -9,6 +9,11 @@
   when:
     - ansible_os_family == "Debian"
     - common_enable_audit
+  tags:
+    - audit
+    - logging
+    - security
+    - critical
 
 - name: Install audit daemon (RedHat-based)
   yum:
@@ -18,6 +23,11 @@
   when:
     - ansible_os_family == "RedHat"
     - common_enable_audit
+  tags:
+    - audit
+    - logging
+    - security
+    - critical
 
 - name: Configure audit rules
   template:
@@ -27,6 +37,11 @@
   become: yes
   notify: restart auditd
   when: common_enable_audit
+  tags:
+    - audit
+    - logging
+    - security
+    - critical
 
 - name: Enable audit daemon
   systemd:
@@ -37,6 +52,11 @@
   when:
     - ansible_os_family != "Darwin"
     - common_enable_audit
+  tags:
+    - audit
+    - logging
+    - security
+    - critical
 
 - name: Display audit configuration summary
   debug:

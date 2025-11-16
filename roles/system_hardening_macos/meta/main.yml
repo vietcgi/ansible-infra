@@ -8,6 +8,7 @@ galaxy_info:
   company: Ansible-Infra Framework
   license: GPL-3.0-or-later
   min_ansible_version: 2.10
+  max_ansible_version: "2.19"  # Tested up to 2.19, prevent use with untested versions
 
   # Galaxy tags for discoverability
   tags:

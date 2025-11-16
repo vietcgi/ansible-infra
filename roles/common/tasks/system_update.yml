@@ -10,6 +10,7 @@
   tags:
     - packages
     - system-update
+    - critical
 
 - name: Update package cache (RedHat-based)
   yum:
@@ -21,6 +22,7 @@
   tags:
     - packages
     - system-update
+    - critical
 
 - name: Update package cache (macOS)
   homebrew:
@@ -42,6 +44,7 @@
   tags:
     - packages
     - system-update
+    - critical
 
 - name: Upgrade packages (RedHat-based)
   yum:
@@ -54,6 +57,7 @@
   tags:
     - packages
     - system-update
+    - critical
 
 - name: Display upgrade summary
   debug:

@@ -15,6 +15,7 @@
     - ssh
     - hardening
     - security
+    - critical
 
 - name: Configure SSH daemon (macOS)
   template:
@@ -29,6 +30,7 @@
     - ssh
     - hardening
     - security
+    - critical
 
 - name: Ensure SSH config directory permissions
   file:

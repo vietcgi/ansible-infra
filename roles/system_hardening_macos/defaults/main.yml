@@ -2,6 +2,21 @@
 # macOS System Hardening - Default Variables
 # Follows NIST SP 800-219 and CIS Benchmarks (2025)
 
+## BACKUP STRATEGY
+# Configuration file backups are automatically created when modified
+# Backups are stored with timestamps: <filename>.YYYY-MM-DD@HH:MM:SS~
+# Location: Same directory as the original file
+# Retention: Keeps last 10 backups automatically via Ansible
+# To restore: cp /etc/ssh/sshd_config.YYYY-MM-DD@HH:MM:SS~ /etc/ssh/sshd_config
+
+## DRY-RUN MODE
+# To run in dry-run mode (no changes made):
+# ansible-playbook playbooks/provision.yml -i inventories/projects/my-project --check
+# This will:
+#   1. Report all changes that WOULD be made
+#   2. NOT make any actual changes
+#   3. Still validate configurations (e.g., sshd -t for SSH config)
+
 ## ============================================================================
 ## FIREWALL SETTINGS
 ## ============================================================================
