@@ -1,0 +1,77 @@
+---
+# Ansible Inventory Template
+# Project: {{ project_name | default('my-project') }}
+# Purpose: Define servers and groups for this project
+#
+# To use this template:
+# 1. Replace {{ project_name }} with your actual project name
+# 2. Update IP addresses and hostnames
+# 3. Add/remove groups as needed
+# 4. Test with: ansible all -i . -m ping
+
+all:
+  # Global variables (apply to all hosts)
+  vars:
+    ansible_user: ubuntu
+    ansible_port: 22
+    ansible_python_interpreter: /usr/bin/python3
+
+  children:
+    # Web servers - your application servers
+    webservers:
+      hosts:
+        web01:
+          ansible_host: 10.0.1.10
+        web02:
+          ansible_host: 10.0.1.11
+
+    # Database servers - your data stores
+    databases:
+      hosts:
+        db01:
+          ansible_host: 10.0.2.10
+
+    # Monitoring servers - Prometheus, Grafana, etc.
+    monitoring_servers:
+      hosts:
+        prometheus01:
+          ansible_host: 10.0.3.10
+        grafana01:
+          ansible_host: 10.0.3.20
+        loki01:
+          ansible_host: 10.0.3.30
+
+    # Load balancers (if used)
+    loadbalancers:
+      hosts:
+        lb01:
+          ansible_host: 10.0.1.1
+
+    # All Linux servers combined
+    linux_servers:
+      children:
+        - webservers
+        - databases
+        - monitoring_servers
+        - loadbalancers
+
+    # Servers without monitoring (optional)
+    monitoring_disabled:
+      children: []
+      # Move hosts here to disable monitoring for specific groups
+
+# Variable Precedence (what overrides what):
+# 1. roles/<role>/defaults/main.yml         [Least specific - framework defaults]
+# 2. inventories/shared/global_vars.yml     [Cross-project defaults]
+# 3. inventories/projects/<project>/group_vars/all.yml          [Project defaults]
+# 4. inventories/projects/<project>/group_vars/<group>.yml      [Group overrides]
+# 5. inventories/projects/<project>/host_vars/<host>.yml        [Host-specific]
+# 6. inventories/projects/<project>/group_vars/all_vault.yml    [Encrypted secrets]
+# 7. ansible-playbook -e "var=value"                            [Most specific - runtime]
+#
+# Example: SSH Port
+#   Role default: 22
+#   Project override in group_vars/all.yml: 2222
+#   Webserver override in group_vars/webservers.yml: 2223
+#   Host override in host_vars/web01.yml: 2224
+#   Result: web01 uses 2224, web02 uses 2223, db01 uses 2222

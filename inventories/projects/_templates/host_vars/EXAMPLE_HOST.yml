@@ -1,0 +1,127 @@
+---
+# Host-Specific Configuration Template
+# Copy this file for each host that needs custom settings
+#
+# Naming: <hostname>.yml
+# Example: web01.yml, db01.yml
+#
+# Host variables have HIGHEST priority (except runtime -e)
+# Use for:
+# - Host-specific IP addresses
+# - Host-specific hostnames
+# - Host-specific resource limits
+# - Host-specific service configs
+# - Exceptional settings for one host
+
+# ============================================================================
+# HOST IDENTIFICATION
+# ============================================================================
+
+# Ansible connection details
+ansible_host: 10.0.1.10  # IP address or hostname
+
+# System hostname
+hostname: example-host-prod
+
+# ============================================================================
+# HOST SPECIFIC SETTINGS
+# ============================================================================
+
+# Custom SSH port for this host (overrides group/project settings)
+# common_ssh_port: 2224
+
+# Host role identifier
+host_role: "primary"
+
+# Host-specific features
+# enable_monitoring: false  # Disable monitoring for this host
+# enable_deployment: true
+# enable_backup: true
+
+# ============================================================================
+# HARDWARE SPECIFICATIONS
+# ============================================================================
+
+# Used for capacity planning and monitoring
+disk_capacity_gb: 500
+memory_gb: 16
+cpu_cores: 8
+
+# ============================================================================
+# SERVICE CONFIGURATION
+# ============================================================================
+
+# Service restart behavior (host-specific override)
+# common_restart_services: false
+
+# ============================================================================
+# SECURITY SETTINGS
+# ============================================================================
+
+# Host-specific security settings
+# security_hardening_level: "production"  # Override project default
+# firewall_enabled: true
+# ssh_hardening_enabled: true
+
+# ============================================================================
+# MONITORING AND ALERTS
+# ============================================================================
+
+# Host-specific monitoring
+# enable_monitoring: true
+# alert_disk_threshold: 80
+# alert_memory_threshold: 85
+# alert_cpu_threshold: 75
+
+# ============================================================================
+# BACKUP AND RECOVERY
+# ============================================================================
+
+# Host-specific backup settings
+# backup_enabled: true
+# backup_retention_days: 30
+# dr_replication_enabled: false
+
+# ============================================================================
+# CUSTOM VARIABLES
+# ============================================================================
+
+# Any custom variables specific to this host
+# my_custom_setting: "value"
+# my_app_port: 8080
+# my_cache_size: "2gb"
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# Variable Precedence (highest priority wins):
+#   1. ansible-playbook -e "var=value"        [Highest - Runtime]
+#   2. host_vars/<host>.yml                   [This file]
+#   3. group_vars/all_vault.yml               [Encrypted secrets]
+#   4. host_vars/<host>.yml (from inventory)
+#   5. group_vars/<group>.yml
+#   6. inventories/projects/<project>/group_vars/all.yml
+#   7. inventories/shared/global_vars.yml
+#   8. roles/<role>/defaults/main.yml         [Lowest - Framework defaults]
+#
+# To use this template:
+# 1. Copy this file: cp EXAMPLE_HOST.yml web01.yml
+# 2. Edit the file with host-specific settings
+# 3. Only include settings that differ from group/project defaults
+# 4. Keep file minimal for readability
+#
+# Example - web01.yml:
+# ---
+# ansible_host: 10.0.1.10
+# hostname: web01-prod
+# disk_capacity_gb: 1000
+# enable_caching: true
+#
+# Example - db01.yml:
+# ---
+# ansible_host: 10.0.2.10
+# hostname: db01-prod
+# disk_capacity_gb: 2000
+# memory_gb: 32
+# backup_enabled: true

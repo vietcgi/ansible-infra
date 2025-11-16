@@ -1,0 +1,158 @@
+---
+# Project-wide Configuration
+# This file is used by all hosts in this project
+# To override for specific groups, create group_vars/<group>.yml
+# To override for specific hosts, create host_vars/<host>.yml
+
+# ============================================================================
+# PROJECT IDENTIFICATION
+# ============================================================================
+
+project_name: example-project
+project_env: production  # production, staging, or development
+project_owner: your-team
+project_description: "Example project infrastructure"
+
+# ============================================================================
+# COMMON SYSTEM CONFIGURATION
+# ============================================================================
+
+# Hostname settings
+common_hostname_prefix: example
+common_hostname_environment: production
+
+# NTP (Network Time Protocol)
+common_ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+
+# SSH Configuration
+common_ssh_port: 2222  # Change from default 22
+common_ssh_permit_root_login: "no"
+common_ssh_password_authentication: "no"
+common_ssh_pubkey_authentication: "yes"
+
+# System updates
+common_update_packages: true
+common_upgrade_packages: false  # Set to true to upgrade packages
+
+# System limits
+common_max_open_files: 65536
+common_max_processes: 4096
+
+# ============================================================================
+# MONITORING CONFIGURATION
+# ============================================================================
+
+# Enable/disable monitoring per project
+monitoring_enabled: true
+monitoring_grafana_enabled: true
+monitoring_prometheus_enabled: true
+monitoring_loki_enabled: false  # Disable Loki by default
+monitoring_node_exporter_enabled: true
+
+# Monitoring server details (if using external monitoring)
+monitoring_prometheus_url: "http://prometheus01:9090"
+monitoring_grafana_url: "http://grafana01:3000"
+monitoring_loki_url: "http://loki01:3100"
+
+# ============================================================================
+# SECURITY CONFIGURATION
+# ============================================================================
+
+# Security hardening level
+# Options: minimal, standard, production
+security_hardening_level: production
+
+# Enable specific security features
+ssh_hardening_enabled: true
+firewall_enabled: true
+selinux_enabled: false  # Set to true if using SELinux
+
+# Sysctl tuning
+common_enable_sysctl_tuning: true
+
+# Audit logging
+common_enable_audit_logging: true
+
+# ============================================================================
+# BACKUP AND DISASTER RECOVERY
+# ============================================================================
+
+backup_enabled: true
+backup_retention_days: 30
+backup_schedule: "0 2 * * *"  # 2 AM daily
+
+# Disaster recovery
+dr_replication_enabled: false
+dr_replication_target: ""
+
+# ============================================================================
+# PACKAGE MANAGEMENT
+# ============================================================================
+
+# Core packages to install
+core_packages:
+  - git
+  - curl
+  - wget
+  - net-tools
+  - htop
+  - vim
+  - jq
+  - unzip
+  - zip
+
+# Python version for Ansible
+ansible_python_interpreter: /usr/bin/python3
+
+# ============================================================================
+# SERVICE CONFIGURATION
+# ============================================================================
+
+# Service restart behavior
+common_restart_services: false  # Set to true to restart services on config changes
+
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+
+# Custom environment variables for all servers
+environment_variables:
+  ENVIRONMENT: "{{ project_env }}"
+  PROJECT: "{{ project_name }}"
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
+# Log rotation
+common_logrotate_enabled: true
+common_log_retention_days: 30
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# To override these defaults for specific groups:
+#   Create: group_vars/<groupname>.yml
+#   Add variables to override
+#
+# To override for specific hosts:
+#   Create: host_vars/<hostname>.yml
+#   Add variables to override
+#
+# For secrets (passwords, tokens, keys):
+#   Create: group_vars/all_vault.yml
+#   Encrypt with: ansible-vault encrypt group_vars/all_vault.yml
+#   Edit with: ansible-vault edit group_vars/all_vault.yml
+#
+# Variable precedence (lowest to highest):
+#   1. Role defaults/main.yml
+#   2. inventories/shared/global_vars.yml
+#   3. inventories/projects/<project>/group_vars/all.yml (this file)
+#   4. inventories/projects/<project>/group_vars/<group>.yml
+#   5. inventories/projects/<project>/host_vars/<host>.yml
+#   6. inventories/projects/<project>/group_vars/all_vault.yml
+#   7. ansible-playbook -e "var=value"

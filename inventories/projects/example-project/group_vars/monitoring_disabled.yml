@@ -1,0 +1,39 @@
+---
+# Monitoring Disabled Group Configuration
+# Use this group for servers that should NOT have monitoring enabled
+#
+# To disable monitoring for a server:
+# 1. Move the host to the 'monitoring_disabled' group in inventory.yml
+# 2. OR set monitoring_enabled: false in host_vars
+
+# ============================================================================
+# DISABLE MONITORING
+# ============================================================================
+
+monitoring_enabled: false
+monitoring_grafana_enabled: false
+monitoring_prometheus_enabled: false
+monitoring_loki_enabled: false
+monitoring_node_exporter_enabled: false
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# Use this group for:
+# - Development machines
+# - Temporary test servers
+# - Bastion hosts
+# - Management servers
+# - Any server where monitoring is not needed
+#
+# To move a host to this group, add it to the inventory:
+#
+# all:
+#   children:
+#     monitoring_disabled:
+#       hosts:
+#         test-server:
+#           ansible_host: 10.0.4.10
+#
+# This group inherits from 'all' and overrides monitoring settings.
