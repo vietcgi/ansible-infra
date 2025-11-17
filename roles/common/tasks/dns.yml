@@ -8,6 +8,7 @@
         src: dns_netplan.yaml.j2
         dest: /etc/netplan/99-sentinel-dns.yaml
         backup: yes
+        mode: '0600'
       become: yes
       register: netplan_config
 

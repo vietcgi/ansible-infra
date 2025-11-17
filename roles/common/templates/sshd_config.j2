@@ -22,11 +22,11 @@ MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,h
 # Host-based authentication
 HostbasedAuthentication no
 PubkeyAuthentication yes
-PermitRootLogin {{ common_ssh_permit_root_login }}
+PermitRootLogin {{ 'yes' if common_ssh_permit_root_login else 'no' }}
 StrictModes yes
 
 # Password-based authentication
-PasswordAuthentication {{ common_ssh_password_authentication }}
+PasswordAuthentication {{ 'yes' if common_ssh_password_authentication else 'no' }}
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 

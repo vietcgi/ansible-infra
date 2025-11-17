@@ -7,8 +7,7 @@
       #!/usr/bin/env python3
       import sys
       import json
-      from auth0.authentication import GetToken
-      from auth0.management import Auth0
+      import requests
 
       try:
           domain = "{{ auth0_domain }}"
@@ -16,15 +15,20 @@
           client_secret = "{{ auth0_client_secret }}"
 
           # Get management API token
-          get_token = GetToken(domain)
-          token = get_token.client_credentials(
-              client_id=client_id,
-              client_secret=client_secret,
-              audience=f'https://{domain}/api/v2/'
-          )
+          token_url = f'https://{domain}/oauth/token'
+          payload = {
+              'client_id': client_id,
+              'client_secret': client_secret,
+              'audience': f'https://{domain}/api/v2/',
+              'grant_type': 'client_credentials'
+          }
 
-          # Initialize management API
-          mgmt = Auth0(domain, token)
+          token_response = requests.post(token_url, json=payload)
+          if token_response.status_code != 200:
+              raise Exception(f"Failed to get token: {token_response.text}")
+
+          token = token_response.json().get('access_token')
+          headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
 
           # Parse applications from JSON
           apps = json.loads("""{{ auth0_applications | to_json }}""")
@@ -33,13 +37,14 @@
           for app in apps:
               try:
                   # Check if app already exists
-                  existing = mgmt.clients.all(fields=['name', 'client_id'])
-                  app_exists = any(c['name'] == app['name'] for c in existing['clients'])
+                  response = requests.get(f'https://{domain}/api/v2/clients', headers=headers)
+                  existing = response.json()
+                  app_exists = any(c['name'] == app['name'] for c in existing)
 
                   if app_exists:
                       print(f"INFO: Application '{app['name']}' already exists, skipping")
                       # Get existing app details
-                      existing_app = next(c for c in existing['clients'] if c['name'] == app['name'])
+                      existing_app = next(c for c in existing if c['name'] == app['name'])
                       created_apps.append({
                           'name': app['name'],
                           'client_id': existing_app['client_id'],
@@ -67,7 +72,7 @@
                       if 'web_origins' in app:
                           app_data['web_origins'] = app['web_origins']
 
-                      result = mgmt.clients.create(app_data)
+                      result = requests.post(f'https://{domain}/api/v2/clients', json=app_data, headers=headers).json()
                       print(f"SUCCESS: Created application '{app['name']}'")
                       print(f"  Client ID: {result['client_id']}")
                       print(f"  Client Secret: {result['client_secret']}")
