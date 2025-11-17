@@ -1,0 +1,114 @@
+---
+# Example Client Configuration - Python/Django
+# Complete working example for deploying Django apps with Auth0
+
+client_name: "example"
+client_domain: "example.com"
+client_env: "production"
+client_timezone: "America/New_York"
+
+# ============================================================================
+# Common Role
+# ============================================================================
+
+common_users:
+  - name: "app"
+    shell: "/bin/bash"
+    groups: ["sudo"]
+  - name: "ubuntu"
+    shell: "/bin/bash"
+    groups: ["sudo"]
+
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - python3
+  - python3-pip
+  - python3-dev
+  - postgresql-client
+  - redis-tools
+  - htop
+  - net-tools
+
+common_hostname: "{{ client_name }}-web"
+common_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+  - 1.1.1.1
+
+common_ufw_rules:
+  - { rule: "allow", port: "22", proto: "tcp" }
+  - { rule: "allow", port: "80", proto: "tcp" }
+  - { rule: "allow", port: "443", proto: "tcp" }
+  - { rule: "allow", port: "8000", proto: "tcp" }
+
+common_fail2ban_enabled: true
+common_automatic_security_updates: true
+common_ssh_permit_root_login: false
+common_ssh_password_authentication: false
+
+# ============================================================================
+# Auth0 Configuration
+# ============================================================================
+
+auth0_domain: "{{ vault_auth0_domain }}"
+auth0_client_id: "{{ vault_auth0_client_id }}"
+auth0_client_secret: "{{ vault_auth0_client_secret }}"
+
+auth0_applications:
+  - name: "{{ client_name }}-portal"
+    type: "regular_web"
+    redirect_uris:
+      - "https://{{ client_domain }}/oidc/callback"
+      - "http://localhost:8000/oidc/callback"
+    allowed_logout_urls:
+      - "https://{{ client_domain }}/logout"
+      - "http://localhost:8000/logout"
+    web_origins:
+      - "https://{{ client_domain }}"
+
+auth0_users:
+  - email: "admin@{{ client_domain }}"
+    given_name: "Admin"
+    family_name: "User"
+    password: "{{ vault_initial_admin_password }}"
+    email_verified: true
+
+auth0_roles:
+  - name: "admin"
+    description: "Admin Access"
+  - name: "user"
+    description: "Standard User"
+
+auth0_mfa_enabled: true
+auth0_password_policy: "good"
+
+# ============================================================================
+# Application Integration (Django)
+# ============================================================================
+
+app_framework: "django"
+app_name: "portal"
+app_env: "{{ client_env }}"
+app_root_path: "/opt/portal"
+app_env_path: "/opt/portal/.env"
+
+app_env_vars:
+  DEBUG: "false"
+  ALLOWED_HOSTS: "{{ client_domain }},www.{{ client_domain }}"
+  DATABASE_URL: "postgresql://user:pass@db-prod-01:5432/portal"
+  REDIS_URL: "redis://cache:6379/0"
+  SECRET_KEY: "change-me-in-production"
+  CSRF_TRUSTED_ORIGINS: "https://{{ client_domain }},https://www.{{ client_domain }}"
+
+# ============================================================================
+# Ansible Configuration
+# ============================================================================
+
+ansible_user: "ubuntu"
+ansible_become: true
+ansible_become_method: "sudo"
+ansible_python_interpreter: "/usr/bin/python3"
+
