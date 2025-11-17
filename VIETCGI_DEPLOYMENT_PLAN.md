@@ -17,7 +17,7 @@
                          │ SSH (Key-based Auth)
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│      Target: web-prod-01 (203.0.113.10)                 │
+│      Target: web-prod-01 (108.181.38.69)               │
 │  • OS: Ubuntu 20.04+ LTS                                │
 │  • SSH User: ubuntu                                     │
 │  • SSH Key: ~/.ssh/vietcgi_prod_key                     │
@@ -196,7 +196,7 @@ all:
     app_servers:
       hosts:
         web-prod-01:
-          ansible_host: "203.0.113.10"
+          ansible_host: "108.181.38.69"
           app_framework: "nodejs"
           app_name: "portal"
 ```
@@ -246,9 +246,9 @@ The Auth0 integration has been **verified with live API testing**:
 
 Before running the playbook:
 
-- [ ] Verify SSH connectivity to 203.0.113.10
+- [ ] Verify SSH connectivity to 108.181.38.69
   ```bash
-  ssh -i ~/.ssh/vietcgi_prod_key ubuntu@203.0.113.10
+  ssh -i ~/.ssh/vietcgi_prod_key ubuntu@108.181.38.69
   ```
 
 - [ ] Verify SSH key exists and has correct permissions
@@ -280,11 +280,11 @@ After playbook completes successfully:
 
 1. **Verify Server State**
    ```bash
-   ssh -i ~/.ssh/vietcgi_prod_key ubuntu@203.0.113.10
+   ssh -i ~/.ssh/vietcgi_prod_key ubuntu@108.181.38.69
    # Check hostname
    hostname
    # Expected: vietcgi-prod
-   
+
    # Check firewall
    sudo ufw status
    # Expected: Active, with 22, 80, 443 allowed
@@ -299,8 +299,8 @@ After playbook completes successfully:
 3. **Test Auth0 Integration**
    ```bash
    # SSH to server
-   ssh -i ~/.ssh/vietcgi_prod_key ubuntu@203.0.113.10
-   
+   ssh -i ~/.ssh/vietcgi_prod_key ubuntu@108.181.38.69
+
    # Check configuration file
    cat ~/auth0_config.json
    # Should contain application credentials
@@ -358,7 +358,7 @@ The Vietcgi customer deployment is fully configured and ready to execute. All co
 - ✓ Committed to git with audit trail
 
 **Next Steps**:
-1. Ensure SSH connectivity to web-prod-01 (203.0.113.10)
+1. Ensure SSH connectivity to web-prod-01 (108.181.38.69)
 2. Ensure SSH key at ~/.ssh/vietcgi_prod_key exists
 3. Run the playbook command above
 4. Framework will automatically handle all deployment
