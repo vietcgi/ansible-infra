@@ -66,72 +66,103 @@ This extended session successfully:
 
 ---
 
-## Next Session - Immediate Actions
+## REVISED: Using Upstream Community Roles
 
-### Step 1: Complete Prometheus Targets Template (30 min)
-Location: `roles/common/templates/prometheus_targets.j2`
-- Service discovery target definitions
-- Scrape target groups
-- Label configuration
-- Dynamic target support
+**Important**: Leverage upstream community-maintained roles instead of building from scratch:
 
-### Step 2: Complete Prometheus Alert Rules (30 min)
-Location: `roles/common/templates/prometheus_alert_rules.j2`
-- CPU usage alerts
-- Memory pressure alerts
-- Disk space alerts
-- Network alerts
-- Process alerts
+### Upstream Roles to Use:
 
-### Step 3: Create Prometheus Systemd Templates (20 min)
-- `prometheus_systemd.j2` - Service unit
-- `prometheus_sysconfig.j2` - Environment config
+1. **Prometheus**: `prometheus-community.prometheus.prometheus`
+   - Well-maintained upstream role
+   - Handles binary installation, config, systemd
+   - Cross-platform support
 
-### Step 4: Create Grafana Task (1-2 hours)
-Location: `roles/common/tasks/monitoring_grafana.yml`
-- Grafana installation
-- Datasource configuration
-- Dashboard provisioning
-- User management
-- Authentication setup
+2. **Grafana**: `grafana.grafana.grafana`
+   - Official Grafana community role
+   - Datasource and dashboard provisioning
+   - Full feature parity
 
-### Step 5: Create Grafana Templates (1-2 hours)
-- `grafana_datasource.j2`
-- `grafana_dashboard_system.j2` (system metrics)
-- `grafana_dashboard_application.j2` (app metrics)
-- `grafana_dashboard_alerting.j2` (alert status)
+3. **AlertManager**: `prometheus-community.prometheus.alertmanager`
+   - Upstream AlertManager role
+   - Notification routing, receivers, rules
 
-### Step 6: Create AlertManager Task (1 hour)
-Location: `roles/common/tasks/monitoring_alertmanager.yml`
-- AlertManager installation
-- Configuration setup
-- Notification routes
-- Receiver configuration
+### New Approach: Wrapper Tasks
 
-### Step 7: Add Variables to defaults/main.yml (30 min)
-**New variables to add** (~30-40 variables):
-- monitoring_prometheus_enabled
-- monitoring_prometheus_version
-- monitoring_prometheus_port
-- monitoring_prometheus_retention
-- monitoring_prometheus_scrape_interval
-- monitoring_grafana_enabled
-- monitoring_grafana_port
-- monitoring_grafana_admin_password
-- monitoring_alertmanager_enabled
-- monitoring_alertmanager_port
-- [And 20+ more configuration variables]
+Instead of building from scratch, create thin wrapper tasks that:
+1. Define role dependencies in `requirements.yml`
+2. Create simple wrapper tasks that call upstream roles
+3. Provide organization-specific customization via templates/variables
+4. Maintain consistency with PHASE 1 patterns
 
-### Step 8: Update main.yml imports (5 min)
-Add import for new task:
+### Step 1: Update requirements.yml (15 min)
+Add upstream role dependencies:
 ```yaml
-- name: "Include Prometheus monitoring"
-  ansible.builtin.include_tasks: monitoring_prometheus.yml
-  when: monitoring_prometheus_enabled | default(true)
+roles:
+  - name: prometheus-community.prometheus.prometheus
+    version: "0.14.0"
+  - name: prometheus-community.prometheus.alertmanager
+    version: "0.11.0"
+  - name: grafana.grafana.grafana
+    version: "1.0.0"
+```
+
+### Step 2: Create Wrapper Task - monitoring_prometheus.yml (30 min)
+Location: `roles/common/tasks/monitoring_prometheus_wrapper.yml`
+- Include upstream prometheus role
+- Apply custom configuration overrides
+- Add organization-specific settings
+
+### Step 3: Create Wrapper Task - monitoring_grafana.yml (30 min)
+Location: `roles/common/tasks/monitoring_grafana_wrapper.yml`
+- Include upstream grafana role
+- Configure datasources
+- Provision dashboards
+
+### Step 4: Create Wrapper Task - monitoring_alertmanager.yml (30 min)
+Location: `roles/common/tasks/monitoring_alertmanager_wrapper.yml`
+- Include upstream alertmanager role
+- Configure notification channels
+- Set up alert routing
+
+### Step 5: Create Organization Customization Templates (1 hour)
+- `prometheus_custom_scrapes.j2` - Custom scrape configs
+- `prometheus_alert_rules.j2` - Custom alert rules
+- `grafana_custom_datasources.j2` - Custom data sources
+- `grafana_custom_dashboards.j2` - Custom dashboard definitions
+
+### Step 6: Update variables in defaults/main.yml (30 min)
+Add variables to control upstream roles:
+```yaml
+# Prometheus role variables
+prometheus_version: "2.48.1"
+prometheus_config_dir: "/etc/prometheus"
+prometheus_scrape_interval: "15s"
+
+# Grafana role variables
+grafana_version: "10.2.2"
+grafana_port: 3000
+grafana_admin_user: "admin"
+
+# AlertManager role variables
+alertmanager_version: "0.26.0"
+alertmanager_config_dir: "/etc/alertmanager"
+```
+
+### Step 7: Update main.yml imports (10 min)
+Add wrapper task imports:
+```yaml
+- name: "Include monitoring stack (Prometheus + Grafana + AlertManager)"
+  ansible.builtin.include_tasks: monitoring_prometheus_wrapper.yml
+  when: monitoring_enabled | default(true)
   tags:
     - monitoring
-    - monitoring_prometheus
 ```
+
+### Step 8: Test and Validate (1 hour)
+- Test upstream role integration
+- Validate configuration overrides
+- Ensure FQCN compliance
+- Cross-platform testing
 
 ---
 
