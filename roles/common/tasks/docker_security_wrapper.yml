@@ -364,6 +364,161 @@
     - compliance
     - documentation
 
+# Install and configure Trivy for image scanning
+- name: Configure Trivy image vulnerability scanning
+  block:
+    - name: Install Trivy
+      ansible.builtin.shell: |
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v{{ docker_trivy_version | default('0.48.0') }}
+      args:
+        creates: /usr/local/bin/trivy
+      become: true
+      when: docker_trivy_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - trivy
+        - image_scanning
+
+    - name: Create Trivy configuration
+      ansible.builtin.template:
+        src: trivy_config.j2
+        dest: /etc/docker/trivy-config.yaml
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      become: true
+      when: docker_trivy_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - trivy
+        - config
+
+    - name: Create image scanning script
+      ansible.builtin.template:
+        src: trivy_scan.sh.j2
+        dest: /usr/local/bin/docker-image-scan.sh
+        owner: root
+        group: root
+        mode: '0755'
+        backup: yes
+      become: true
+      when: docker_trivy_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - trivy
+
+    - name: Schedule daily image scans
+      ansible.builtin.cron:
+        name: "Docker image vulnerability scan"
+        hour: "{{ docker_scan_schedule_hour | default('2') }}"
+        minute: "{{ docker_scan_schedule_minute | default('0') }}"
+        job: "/usr/local/bin/docker-image-scan.sh >> /var/log/docker/image-scans.log 2>&1"
+        user: root
+      become: true
+      when: docker_trivy_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - trivy
+
+  rescue:
+    - name: Handle Trivy installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Trivy installation encountered issues:
+          - Check internet connectivity
+          - Verify permissions for /usr/local/bin
+          - Review curl output for errors
+      tags:
+        - docker_security
+        - trivy
+        - error
+
+# Install and configure Falco for runtime security
+- name: Configure Falco runtime security monitoring
+  block:
+    - name: Add Falco repository
+      ansible.builtin.shell: |
+        curl -s https://falco.org/repo/falcoproj-3672BA8F.asc | apt-key add -
+        echo "deb https://download.falco.org/packages/deb stable main" | tee /etc/apt/sources.list.d/falcoproj.list
+        apt-get update
+      args:
+        warn: false
+      become: true
+      when:
+        - ansible_os_family == "Debian"
+        - docker_falco_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - falco
+        - runtime
+
+    - name: Install Falco
+      ansible.builtin.package:
+        name: falco
+        state: present
+      become: true
+      when: docker_falco_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - falco
+
+    - name: Create Falco configuration
+      ansible.builtin.template:
+        src: falco_config.yaml.j2
+        dest: /etc/falco/falco.yaml
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      become: true
+      notify: restart falco
+      when: docker_falco_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - falco
+        - config
+
+    - name: Configure Falco rules for container security
+      ansible.builtin.template:
+        src: falco_container_rules.yaml.j2
+        dest: /etc/falco/rules.d/container_security_rules.yaml
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      become: true
+      notify: restart falco
+      when: docker_falco_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - falco
+        - rules
+
+    - name: Enable and start Falco service
+      ansible.builtin.systemd:
+        name: falco
+        enabled: yes
+        state: started
+      become: true
+      when: docker_falco_enabled | default(true) | bool
+      tags:
+        - docker_security
+        - falco
+
+  rescue:
+    - name: Handle Falco installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Falco installation encountered issues:
+          - Repository may be unavailable
+          - Kernel headers may not be installed: apt-get install linux-headers-$(uname -r)
+          - Check system requirements for Falco
+      tags:
+        - docker_security
+        - falco
+        - error
+
 # Final security validation
 - name: Docker security hardening validation
   block:

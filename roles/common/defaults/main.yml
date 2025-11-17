@@ -174,6 +174,19 @@ firewall_rich_rules: []                     # For firewalld rich rules
 # Example rich rules:
 #  - "rule family='ipv4' source address='192.168.1.0/24' service name='ssh' accept"
 
+## Docker Security (Trivy + Falco)
+docker_trivy_enabled: true                      # Enable Trivy image scanning
+docker_trivy_version: "0.48.0"                  # Trivy version
+docker_trivy_severity_threshold: "MEDIUM"       # Vulnerability severity threshold
+docker_trivy_alert_on_vuln: false               # Email alerts on vulnerabilities
+docker_scan_schedule_hour: "2"                  # Daily scan time (2 AM)
+docker_scan_schedule_minute: "0"
+
+docker_falco_enabled: true                      # Enable Falco runtime monitoring
+docker_falco_version: "latest"                  # Falco version
+docker_falco_grpc_enabled: false                # Enable gRPC API
+docker_falco_webserver_port: 8765               # Falco webserver port
+
 ## fail2ban: Intrusion Prevention System
 fail2ban_enabled: true
 

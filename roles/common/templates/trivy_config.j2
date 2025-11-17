@@ -1,0 +1,51 @@
+# Trivy Configuration for Docker Image Scanning
+# Vulnerability scanning for container images
+
+version: "2"
+
+severity:
+  - HIGH
+  - CRITICAL
+  - MEDIUM
+
+format: json
+output: /var/log/docker/trivy-scan.json
+
+# Database
+db:
+  repository: ghcr.io/aquasecurity/trivy-db
+  java-db-repository: ghcr.io/aquasecurity/trivy-java-db
+  skip-update: false
+  cache-dir: /var/cache/trivy
+
+# Scanning options
+scanners:
+  - vuln
+  - secret
+  - config
+
+# Vulnerability detection
+vulnType:
+  - os
+  - library
+
+# Secret scanning
+secret:
+  skipClose: true
+
+# Artifact options
+image:
+  max-score: 100
+  severity-thresholds: [3, 6, 8, 9, 10]
+
+# Reporting
+report:
+  format: json
+  dependency-tree: true
+  list-all-pkgs: true
+  ignore-unfixed: false
+
+# Skip verification
+skip-update: false
+exit-code: 0
+timeout: 5m0s

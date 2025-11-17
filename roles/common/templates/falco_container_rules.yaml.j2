@@ -1,0 +1,74 @@
+# Falco Container Security Rules
+# Detects suspicious container and process activity
+
+- rule: Suspicious Container Shell Access
+  desc: Detect shell access to containers
+  condition: >
+    spawned_process and container and
+    (proc.name = "sh" or proc.name = "bash" or proc.name = "zsh") and
+    (container.privileged = true or proc.puser = "root")
+  output: >
+    Container shell execution (user=%user.name container_id=%container.id
+    command=%proc.cmdline image=%container.image.tag)
+  priority: WARNING
+
+- rule: Write Below etc
+  desc: Detect writes to /etc directory in containers
+  condition: >
+    write and container and fd.name startswith "/etc/"
+  output: >
+    File write below /etc (user=%user.name container=%container.id
+    file=%fd.name command=%proc.cmdline)
+  priority: ERROR
+
+- rule: Suspicious Process in Container
+  desc: Detect suspicious process execution
+  condition: >
+    spawned_process and container and
+    (proc.name = "curl" or proc.name = "wget" or proc.name = "nc" or
+     proc.name = "nmap" or proc.name = "strace" or proc.name = "ltrace")
+  output: >
+    Suspicious process in container (user=%user.name container=%container.id
+    process=%proc.name command=%proc.cmdline)
+  priority: WARNING
+
+- rule: Container Escape Attempt
+  desc: Detect container escape attempts
+  condition: >
+    container and
+    (syscall = "mount" or syscall = "umount2" or
+     (syscall = "open" and fd.name = "/proc/sys/kernel/modules"))
+  output: >
+    Possible container escape attempt (user=%user.name container=%container.id
+    syscall=%syscall.name)
+  priority: CRITICAL
+
+- rule: Sensitive File Access in Container
+  desc: Detect access to sensitive files
+  condition: >
+    container and (fd.name = "/etc/shadow" or fd.name = "/etc/passwd" or
+     fd.name = "/root/.ssh" or fd.name = "/root/.aws")
+  output: >
+    Sensitive file accessed in container (user=%user.name container=%container.id
+    file=%fd.name)
+  priority: WARNING
+
+- rule: Network Activity From Container
+  desc: Detect suspicious network connections from containers
+  condition: >
+    outbound and container and
+    (fd.sip = "0.0.0.0" or (fd.sport < 1024 and fd.sport != 53))
+  output: >
+    Network activity from container (user=%user.name container=%container.id
+    connection=%fd.name sport=%fd.sport dport=%fd.dport)
+  priority: NOTICE
+
+- rule: Container Privilege Escalation
+  desc: Detect privilege escalation attempts
+  condition: >
+    container and syscall in (setuid, setgid, setresuid) and
+    proc.uid != 0
+  output: >
+    Privilege escalation attempt (user=%user.name container=%container.id
+    syscall=%syscall.name target_uid=%param2)
+  priority: CRITICAL

@@ -1,0 +1,93 @@
+#!/bin/bash
+# Trivy Docker Image Vulnerability Scanner
+# Scans all locally stored Docker images for vulnerabilities
+
+set -euo pipefail
+
+SCAN_DIR="/var/log/docker"
+REPORT_FILE="${SCAN_DIR}/trivy-scan-$(date +%Y%m%d_%H%M%S).json"
+TRIVY_CONFIG="/etc/docker/trivy-config.yaml"
+SEVERITY_THRESHOLD="{{ docker_trivy_severity_threshold | default('MEDIUM') }}"
+
+# Ensure log directory exists
+mkdir -p "${SCAN_DIR}"
+
+# Logging
+log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') $1"; }
+log_error() { echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') $1" >&2; }
+log_warn() { echo "[WARN] $(date '+%Y-%m-%d %H:%M:%S') $1"; }
+
+log_info "Starting Docker image vulnerability scan"
+log_info "Scan Report: $REPORT_FILE"
+
+# Get list of images
+IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" 2>/dev/null || echo "")
+
+if [[ -z "$IMAGES" ]]; then
+  log_warn "No Docker images found to scan"
+  exit 0
+fi
+
+SCAN_COUNT=0
+VULNERABLE_COUNT=0
+
+# Scan each image
+while IFS= read -r image; do
+  # Skip <none> images
+  if [[ "$image" == "<none>:<none>" ]]; then
+    continue
+  fi
+
+  log_info "Scanning image: $image"
+  SCAN_COUNT=$((SCAN_COUNT + 1))
+
+  # Run Trivy scan
+  if trivy image \
+    --config "$TRIVY_CONFIG" \
+    --severity "$SEVERITY_THRESHOLD" \
+    --format json \
+    "$image" > "${SCAN_DIR}/trivy-scan-${image//\//-}.json" 2>/dev/null; then
+
+    # Check if vulnerabilities found
+    if grep -q "\"Vulnerabilities\"" "${SCAN_DIR}/trivy-scan-${image//\//-}.json"; then
+      VULNERABLE_COUNT=$((VULNERABLE_COUNT + 1))
+      log_warn "Vulnerabilities found in: $image"
+
+      # Alert if configured
+      {% if docker_trivy_alert_on_vuln | default(false) %}
+      echo "Image $image has vulnerabilities detected by Trivy" | \
+        mail -s "Docker Image Vulnerability Alert: $image" root
+      {% endif %}
+    else
+      log_info "No vulnerabilities found in: $image"
+    fi
+  else
+    log_error "Failed to scan image: $image"
+  fi
+done <<< "$IMAGES"
+
+# Generate summary report
+{
+  echo "Docker Image Vulnerability Scan Summary"
+  echo "========================================"
+  echo "Scan Date: $(date)"
+  echo "Total Images Scanned: $SCAN_COUNT"
+  echo "Images with Vulnerabilities: $VULNERABLE_COUNT"
+  echo "Severity Threshold: $SEVERITY_THRESHOLD"
+  echo ""
+  echo "For detailed reports, see:"
+  echo "  - $SCAN_DIR/trivy-scan-*.json"
+  echo ""
+  echo "To remediate:"
+  echo "  1. Review vulnerability details"
+  echo "  2. Update base images"
+  echo "  3. Rebuild container images"
+  echo "  4. Re-run this scan to verify"
+} | tee -a "${SCAN_DIR}/scan-summary-$(date +%Y%m%d).log"
+
+log_info "Docker image scan complete: $SCAN_COUNT scanned, $VULNERABLE_COUNT with vulnerabilities"
+
+# Clean up old reports (older than 30 days)
+find "${SCAN_DIR}" -name "trivy-scan-*.json" -mtime +30 -delete
+
+exit 0
