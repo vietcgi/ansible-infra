@@ -1,0 +1,10 @@
+# Vault Rotation Monitoring Configuration
+# Monitoring and alerting for rotation jobs
+
+path "sys/metrics" {
+  capabilities = ["read"]
+}
+
+path "sys/audit" {
+  capabilities = ["read", "list"]
+}

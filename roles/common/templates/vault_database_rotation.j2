@@ -1,0 +1,6 @@
+# Vault Database Credential Rotation
+# Manages dynamic database credentials
+
+path "database/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

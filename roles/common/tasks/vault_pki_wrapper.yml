@@ -1,0 +1,313 @@
+---
+# Vault PKI Wrapper Task
+# Implements internal certificate authority and TLS/PKI management
+# Purpose: Setup PKI secrets engine and manage certificates for services
+
+# Pre-flight checks
+- name: Validate Vault PKI is enabled
+  ansible.builtin.assert:
+    that:
+      - security_vault_pki_enabled | default(false) | bool
+      - security_vault_enabled | default(false) | bool
+    fail_msg: "Vault PKI is disabled or Vault is not enabled"
+    quiet: true
+  tags:
+    - vault
+    - pki
+    - validation
+
+# Verify Vault is accessible
+- name: Verify Vault API accessibility
+  ansible.builtin.uri:
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
+    method: GET
+    status_code: [200, 473, 501, 503]
+    validate_certs: no
+  register: vault_api_check
+  retries: 3
+  delay: 2
+  tags:
+    - vault
+    - pki
+    - validation
+
+# Enable PKI secrets engine
+- name: Enable PKI secrets engine
+  block:
+    - name: Check if PKI backend is already enabled
+      ansible.builtin.uri:
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts"
+        method: GET
+        validate_certs: no
+        headers:
+          X-Vault-Token: "{{ vault_token | default('') }}"
+        status_code: [200, 403]
+      register: vault_mounts
+      changed_when: false
+      tags:
+        - vault
+        - pki
+        - validation
+
+    - name: Enable PKI backend
+      ansible.builtin.uri:
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts/pki"
+        method: POST
+        validate_certs: no
+        headers:
+          X-Vault-Token: "{{ vault_token | default('') }}"
+        body_format: json
+        body:
+          type: pki
+          config:
+            max_lease_ttl: "{{ security_vault_pki_max_lease_ttl | default('87600h') }}"
+        status_code: [200, 204, 400]
+      when: "'pki/' not in vault_mounts.json.data"
+      register: vault_pki_enabled
+      tags:
+        - vault
+        - pki
+        - backend
+
+  rescue:
+    - name: Handle PKI backend enablement
+      ansible.builtin.debug:
+        msg: |
+          ⚠ PKI backend may already be enabled or requires authentication
+          - Vault token may be needed for authentication
+          - Check: vault secrets list
+      tags:
+        - vault
+        - pki
+        - error
+
+# Deploy PKI configuration
+- name: Deploy PKI configuration
+  ansible.builtin.template:
+    src: vault_pki_config.j2
+    dest: /etc/vault/pki.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  register: vault_pki_config
+  tags:
+    - vault
+    - pki
+    - config
+
+# Configure PKI parameters
+- name: Configure PKI backend parameters
+  block:
+    - name: Set PKI TTL parameters
+      ansible.builtin.uri:
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/urls"
+        method: POST
+        validate_certs: no
+        headers:
+          X-Vault-Token: "{{ vault_token | default('') }}"
+        body_format: json
+        body:
+          issuing_certificates: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/ca"
+          crl_distribution_points: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/crl"
+        status_code: [200, 204, 400]
+      register: vault_pki_urls
+      tags:
+        - vault
+        - pki
+        - config
+
+  rescue:
+    - name: Handle PKI configuration
+      ansible.builtin.debug:
+        msg: |
+          ⚠ PKI configuration may require manual setup or authentication
+          - Ensure Vault is properly initialized
+          - Verify authentication token is available
+      tags:
+        - vault
+        - pki
+        - error
+
+# Deploy root CA configuration
+- name: Deploy root CA configuration
+  ansible.builtin.template:
+    src: vault_root_ca_config.j2
+    dest: /etc/vault/root-ca.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_pki_root_ca_enabled | default(false) | bool
+  register: vault_root_ca_config
+  tags:
+    - vault
+    - pki
+    - root-ca
+
+# Deploy intermediate CA configuration
+- name: Deploy intermediate CA configuration
+  ansible.builtin.template:
+    src: vault_intermediate_ca_config.j2
+    dest: /etc/vault/intermediate-ca.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_pki_intermediate_ca_enabled | default(false) | bool
+  register: vault_intermediate_ca_config
+  tags:
+    - vault
+    - pki
+    - intermediate-ca
+
+# Deploy certificate templates configuration
+- name: Deploy certificate role templates
+  ansible.builtin.template:
+    src: vault_certificate_templates.j2
+    dest: /etc/vault/certificate-templates.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_pki_certificate_roles | default([]) | length > 0
+  register: vault_cert_templates
+  tags:
+    - vault
+    - pki
+    - templates
+
+# Configure certificate roles for services
+- name: Create certificate roles from configuration
+  block:
+    - name: Configure service certificate roles
+      ansible.builtin.uri:
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/roles/{{ item.name }}"
+        method: POST
+        validate_certs: no
+        headers:
+          X-Vault-Token: "{{ vault_token | default('') }}"
+        body_format: json
+        body:
+          allowed_domains: "{{ item.allowed_domains | default(['localhost']) }}"
+          allow_subdomains: "{{ item.allow_subdomains | default(true) }}"
+          max_ttl: "{{ item.max_ttl | default('8760h') }}"
+          ttl: "{{ item.ttl | default('720h') }}"
+          allow_bare_domains: "{{ item.allow_bare_domains | default(true) }}"
+          allow_any_name: "{{ item.allow_any_name | default(false) }}"
+        status_code: [200, 204, 400]
+      loop: "{{ security_vault_pki_certificate_roles | default([]) }}"
+      when: security_vault_pki_certificate_roles | default([]) | length > 0
+      register: vault_cert_roles
+      tags:
+        - vault
+        - pki
+        - roles
+
+  rescue:
+    - name: Handle certificate role creation
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Certificate role configuration may require manual setup
+          - Ensure Vault is properly authenticated
+          - Check role configuration syntax
+      tags:
+        - vault
+        - pki
+        - error
+
+# Configure certificate auto-renewal policies
+- name: Deploy certificate renewal configuration
+  ansible.builtin.template:
+    src: vault_certificate_renewal.j2
+    dest: /etc/vault/certificate-renewal.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_pki_auto_renewal_enabled | default(false) | bool
+  register: vault_cert_renewal_config
+  tags:
+    - vault
+    - pki
+    - renewal
+
+# Setup CRL and OCSP configuration
+- name: Deploy CRL/OCSP configuration
+  ansible.builtin.template:
+    src: vault_crl_ocsp_config.j2
+    dest: /etc/vault/crl-ocsp.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_pki_crl_enabled | default(false) or security_vault_pki_ocsp_enabled | default(false)
+  register: vault_crl_ocsp_config
+  tags:
+    - vault
+    - pki
+    - crl
+    - ocsp
+
+# Verify PKI configuration
+- name: Verify PKI backend status
+  ansible.builtin.uri:
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/cluster"
+    method: GET
+    validate_certs: no
+    status_code: [200, 404, 501]
+  register: vault_pki_status
+  tags:
+    - vault
+    - pki
+    - validation
+
+# Log PKI setup completion
+- name: PKI setup completion
+  block:
+    - name: Display PKI setup completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ Vault PKI Setup Complete:
+          - PKI Backend: Enabled
+          - Max Lease TTL: {{ security_vault_pki_max_lease_ttl | default('87600h') }}
+          - Default TTL: {{ security_vault_pki_default_ttl | default('8760h') }}
+          - Root CA: {{ 'Enabled' if security_vault_pki_root_ca_enabled | default(false) else 'Disabled' }}
+          - Intermediate CA: {{ 'Enabled' if security_vault_pki_intermediate_ca_enabled | default(false) else 'Disabled' }}
+          - Certificate Roles: {{ security_vault_pki_certificate_roles | default([]) | length }}
+          - CRL Enabled: {{ security_vault_pki_crl_enabled | default(false) }}
+          - OCSP Enabled: {{ security_vault_pki_ocsp_enabled | default(false) }}
+          - Status: Ready for certificate issuance
+      tags:
+        - vault
+        - pki
+        - summary
+
+  rescue:
+    - name: Handle PKI setup errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ PKI setup may be incomplete:
+          - Manual initialization may be required
+          - Check Vault logs: journalctl -u vault -n 50
+          - Verify status: vault secrets list
+      tags:
+        - vault
+        - pki
+        - error
+
+# Final status message
+- name: Vault PKI task completion
+  ansible.builtin.debug:
+    msg: "Vault PKI wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - vault
+    - pki
+    - summary

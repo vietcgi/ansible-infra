@@ -1,0 +1,10 @@
+# Vault Rotation Audit Configuration
+# Audit logging for all rotation operations
+
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+
+path "sys/audit" {
+  capabilities = ["read"]
+}

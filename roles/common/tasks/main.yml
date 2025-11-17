@@ -45,6 +45,11 @@
     - consul_service_discovery_wrapper.yml
     - haproxy_loadbalancer_wrapper.yml
 
+    # PHASE 2.D: Security & PKI Infrastructure (HashiCorp Vault)
+    - vault_installation_wrapper.yml
+    - vault_pki_wrapper.yml
+    - vault_secrets_rotation_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"
@@ -90,5 +95,22 @@
     - service_discovery
     - load_balancing
     - phase_2_c
+    - summary
+  when: not ansible_check_mode
+
+- name: Display PHASE 2.D status
+  debug:
+    msg: |
+      ✓ PHASE 2.D Security & PKI Infrastructure Status:
+      - Vault: {{ 'Enabled' if security_vault_enabled | default(false) else 'Disabled' }}
+      - PKI: {{ 'Enabled' if security_vault_pki_enabled | default(false) else 'Disabled' }}
+      - Rotation: {{ 'Enabled' if (security_vault_database_rotation_enabled | default(false) or security_vault_ssh_rotation_enabled | default(false) or security_vault_api_key_rotation_enabled | default(false)) else 'Disabled' }}
+      - Audit Logging: {{ 'Enabled' if security_vault_audit_enabled | default(false) else 'Disabled' }}
+  tags:
+    - vault
+    - security
+    - pki
+    - secrets
+    - phase_2_d
     - summary
   when: not ansible_check_mode

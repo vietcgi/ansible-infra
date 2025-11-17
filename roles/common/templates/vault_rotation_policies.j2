@@ -1,0 +1,8 @@
+# Vault Rotation Policies
+# Defines rotation schedules and policies
+
+{% for policy in security_vault_rotation_policies | default([]) %}
+path "{{ policy.path }}" {
+  capabilities = {{ policy.capabilities | default(['read', 'list']) | tojson }}
+}
+{% endfor %}

@@ -584,3 +584,133 @@ loadbalancing_haproxy_backends: []
 loadbalancing_haproxy_defaults_enabled: false
 loadbalancing_haproxy_global_options: {}
 loadbalancing_haproxy_default_options: {}
+
+################################################################################
+## PHASE 2.D: Vault - Secrets Management and PKI Infrastructure
+################################################################################
+
+## Vault Core Configuration
+security_vault_enabled: true
+security_vault_version: "1.16.0"
+security_vault_download_url: "https://releases.hashicorp.com/vault"
+security_vault_checksum: ""
+security_vault_user: "vault"
+security_vault_group: "vault"
+
+## Vault Network Configuration
+security_vault_bind_addr: "127.0.0.1"
+security_vault_advertise_addr: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+security_vault_http_port: 8200
+security_vault_https_port: 8201
+security_vault_cluster_port: 8201
+
+## Vault Storage Backend
+security_vault_storage_backend: "file"
+security_vault_storage_path: "/var/lib/vault"
+security_vault_storage_consul_addr: "127.0.0.1:8500"
+security_vault_storage_consul_path: "vault/"
+
+## Vault High Availability
+security_vault_ha_enabled: false
+security_vault_ha_node_count: 3
+security_vault_ha_cluster_name: "vault-cluster"
+
+## Vault Unsealing Configuration
+security_vault_auto_unseal_enabled: false
+security_vault_seal_type: "shamir"
+security_vault_seal_key_shares: 5
+security_vault_seal_key_threshold: 3
+
+## Vault TLS Configuration
+security_vault_tls_enabled: false
+security_vault_tls_cert_file: "/etc/vault/tls/vault.crt"
+security_vault_tls_key_file: "/etc/vault/tls/vault.key"
+security_vault_tls_ca_file: ""
+security_vault_tls_client_auth: "optional"
+
+## Vault Audit Logging
+security_vault_audit_enabled: true
+security_vault_audit_log_path: "/var/log/vault/audit.log"
+security_vault_audit_retention_days: 90
+security_vault_audit_hmac_accessor: true
+
+## Vault PKI Configuration
+security_vault_pki_enabled: true
+security_vault_pki_max_lease_ttl: "87600h"
+security_vault_pki_default_ttl: "8760h"
+security_vault_pki_root_ca_ttl: "87600h"
+security_vault_pki_intermediate_ca_ttl: "43800h"
+security_vault_pki_crl_expiry: "72h"
+
+## Vault PKI Roles
+security_vault_pki_roles:
+  - name: "server-certs"
+    ttl: "720h"
+    max_ttl: "8760h"
+    allow_subdomains: true
+    allow_any_name: false
+  - name: "client-certs"
+    ttl: "720h"
+    max_ttl: "2160h"
+    allow_subdomains: false
+
+## Vault Authentication Methods
+security_vault_auth_methods:
+  - type: "approle"
+    enabled: true
+    description: "AppRole for applications"
+  - type: "jwt"
+    enabled: false
+    oidc_discovery_url: ""
+
+## Vault Secrets Engines
+security_vault_secrets_engines:
+  - path: "secret"
+    type: "kv"
+    version: 2
+  - path: "database"
+    type: "database"
+    enabled: true
+  - path: "ssh"
+    type: "ssh"
+    enabled: true
+
+## Vault Database Rotation
+security_vault_database_rotation_enabled: true
+security_vault_database_rotation_interval: "24h"
+security_vault_database_static_role_rotation_period: "24h"
+
+## Vault SSH Rotation
+security_vault_ssh_rotation_enabled: true
+security_vault_ssh_ca_public_key: ""
+security_vault_ssh_ca_private_key: ""
+security_vault_ssh_key_signing_algorithm: "rsa-sha2-256"
+
+## Vault API Key Rotation
+security_vault_api_key_rotation_enabled: true
+security_vault_api_key_rotation_interval: "30d"
+security_vault_api_key_prefix: "api"
+
+## Vault Policy Management
+security_vault_policies: []
+security_vault_rotation_policies: []
+security_vault_policy_templates:
+  - name: "read-only"
+    description: "Read-only access policy"
+  - name: "admin"
+    description: "Admin access policy"
+
+## Vault Token Configuration
+security_vault_token_default_ttl: "768h"
+security_vault_token_max_ttl: "2160h"
+security_vault_token_renewal_period: "24h"
+
+## Vault Logging
+security_vault_log_level: "info"
+security_vault_log_path: "/var/log/vault"
+security_vault_log_format: "json"
+
+## Vault Health Check
+security_vault_health_check_enabled: true
+security_vault_health_check_interval: 30
+security_vault_health_check_timeout: 5

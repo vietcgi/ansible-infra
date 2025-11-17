@@ -1,0 +1,6 @@
+# Vault Root CA Configuration
+# Root certificate authority for PKI
+
+path "pki/*" {
+  capabilities = ["sudo", "create", "read", "update", "delete", "list"]
+}

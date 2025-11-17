@@ -1,0 +1,6 @@
+# Vault API Key Rotation
+# Manages API keys and secrets
+
+path "api-keys/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

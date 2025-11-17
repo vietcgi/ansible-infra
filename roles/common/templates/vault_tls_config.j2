@@ -1,0 +1,8 @@
+# Vault TLS Configuration
+# Configures listener SSL/TLS settings
+
+listener "tcp" {
+  tls_cert_file  = "{{ security_vault_tls_cert_file }}"
+  tls_key_file   = "{{ security_vault_tls_key_file }}"
+  tls_min_version = "{{ security_vault_tls_min_version | default('tls12') }}"
+}

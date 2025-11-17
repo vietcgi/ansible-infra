@@ -1,0 +1,10 @@
+# Vault Certificate Renewal Configuration
+# Automatic certificate renewal policies
+
+path "pki/certs" {
+  capabilities = ["list"]
+}
+
+path "pki/certs/*" {
+  capabilities = ["read"]
+}

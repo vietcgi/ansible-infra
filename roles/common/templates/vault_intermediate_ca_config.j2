@@ -1,0 +1,6 @@
+# Vault Intermediate CA Configuration
+# Intermediate certificate authority for signing
+
+path "pki/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

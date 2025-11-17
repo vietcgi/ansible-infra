@@ -1,0 +1,49 @@
+# Vault Authentication Methods Configuration
+# Defines auth method policies and access control
+
+{% if security_vault_approle_enabled | default(false) %}
+# AppRole authentication method configuration
+path "auth/approle/role/+/secret-id" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "auth/approle/role/+/role-id" {
+  capabilities = ["read"]
+}
+
+path "auth/approle/role" {
+  capabilities = ["list"]
+}
+
+path "auth/approle/role/+" {
+  capabilities = ["read"]
+}
+{% endif %}
+
+{% if security_vault_jwt_enabled | default(false) %}
+# JWT/OIDC authentication method configuration
+path "auth/jwt/config" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "auth/jwt/role/+" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "auth/jwt/role" {
+  capabilities = ["list"]
+}
+{% endif %}
+
+# Token auth policies
+path "auth/token/accessors" {
+  capabilities = ["list"]
+}
+
+path "auth/token/lookup-accessor" {
+  capabilities = ["read"]
+}
+
+path "auth/token/revoke-accessor" {
+  capabilities = ["create", "update"]
+}

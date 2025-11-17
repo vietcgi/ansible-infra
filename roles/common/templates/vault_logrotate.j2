@@ -1,0 +1,13 @@
+/var/log/vault/*.log {
+  daily
+  rotate 7
+  compress
+  delaycompress
+  missingok
+  notifempty
+  create 0640 vault vault
+  sharedscripts
+  postrotate
+    systemctl reload vault > /dev/null 2>&1 || true
+  endscript
+}

@@ -1,0 +1,12 @@
+# Vault Certificate Role Templates
+# Defines certificate roles for different service types
+
+{% for role in security_vault_pki_certificate_roles | default([]) %}
+path "pki/issue/{{ role.name }}" {
+  capabilities = ["create"]
+}
+
+path "pki/sign/{{ role.name }}" {
+  capabilities = ["create"]
+}
+{% endfor %}

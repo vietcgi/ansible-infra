@@ -1,0 +1,6 @@
+# Vault SSH Key Rotation
+# Manages SSH certificates and keys
+
+path "ssh/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

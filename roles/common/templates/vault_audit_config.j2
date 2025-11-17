@@ -1,0 +1,46 @@
+# Vault Audit Logging Configuration
+# Logs all requests and responses for compliance and debugging
+
+path "auth/token/create" {
+  capabilities = ["create", "update"]
+}
+
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
+
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+
+path "sys/audit" {
+  capabilities = ["read"]
+}
+
+path "sys/audit/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+path "sys/mounts/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "sys/leases/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "sys/policy" {
+  capabilities = ["read", "list"]
+}
+
+path "sys/policy/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "identity/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}

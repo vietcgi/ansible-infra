@@ -1,0 +1,42 @@
+# Vault PKI Backend Configuration
+# Manages certificate authorities and certificate issuance
+
+path "pki/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+path "pki/config/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+
+path "pki/roles/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "pki/issue/*" {
+  capabilities = ["create"]
+}
+
+path "pki/sign/*" {
+  capabilities = ["create"]
+}
+
+path "pki/certs" {
+  capabilities = ["list"]
+}
+
+path "pki/certs/*" {
+  capabilities = ["read"]
+}
+
+path "pki/revoke" {
+  capabilities = ["create", "update"]
+}
+
+path "pki/tidy" {
+  capabilities = ["create"]
+}
+
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}

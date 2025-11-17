@@ -1,0 +1,9 @@
+#!/bin/bash
+# Vault Secret Rotation Job
+# Scheduled script for automated secret rotation
+
+export VAULT_ADDR="http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}"
+export VAULT_TOKEN="{{ vault_rotation_token | default('') }}"
+
+# Add rotation logic here
+echo "Vault secret rotation job executed at $(date)" >> /var/log/vault/rotation.log

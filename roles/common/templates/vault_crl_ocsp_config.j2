@@ -1,0 +1,10 @@
+# Vault CRL/OCSP Configuration
+# Certificate revocation and OCSP stapling
+
+path "pki/crl" {
+  capabilities = ["read"]
+}
+
+path "pki/ocsp" {
+  capabilities = ["read"]
+}

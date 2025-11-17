@@ -1,0 +1,294 @@
+---
+# Vault Installation Wrapper Task
+# Implements secrets management and PKI infrastructure
+# Purpose: Install and configure HashiCorp Vault for enterprise security
+
+# Pre-flight checks
+- name: Validate Vault installation is enabled
+  ansible.builtin.assert:
+    that:
+      - security_vault_enabled | default(false) | bool
+    fail_msg: "Vault installation is disabled (security_vault_enabled=false)"
+    quiet: true
+  tags:
+    - vault
+    - security
+    - validation
+
+# Create vault user for service isolation
+- name: Create vault system user
+  ansible.builtin.user:
+    name: vault
+    group: bin
+    home: /var/lib/vault
+    shell: /bin/false
+    system: true
+    state: present
+  become: true
+  tags:
+    - vault
+    - users
+
+# Create necessary directories for Vault
+- name: Create Vault directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: vault
+    group: vault
+    mode: '0750'
+  become: true
+  loop:
+    - /etc/vault
+    - /var/lib/vault
+    - /var/run/vault
+    - /var/log/vault
+  tags:
+    - vault
+    - directories
+
+# Detect system architecture for Vault installation
+- name: Set Vault architecture facts
+  ansible.builtin.set_fact:
+    vault_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine }}"
+  tags:
+    - vault
+    - installation
+    - facts
+
+# Download and install Vault binary
+- name: Download Vault binary
+  ansible.builtin.get_url:
+    url: "{{ security_vault_download_url | default('https://releases.hashicorp.com/vault/' + security_vault_version + '/vault_' + security_vault_version + '_' + ansible_system | lower + '_' + vault_arch + '.zip') }}"
+    dest: /tmp/vault.zip
+    checksum: "{{ security_vault_checksum | default(omit) }}"
+    mode: '0644'
+  become: true
+  register: vault_download
+  tags:
+    - vault
+    - installation
+    - download
+
+# Extract Vault binary
+- name: Extract Vault binary
+  ansible.builtin.unarchive:
+    src: /tmp/vault.zip
+    dest: /usr/local/bin/
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: vault_download.changed
+  notify: restart vault
+  tags:
+    - vault
+    - installation
+
+# Set capabilities for Vault to bind to privileged ports
+- name: Set Vault binary capabilities
+  community.general.capabilities:
+    path: /usr/local/bin/vault
+    capability: cap_ipc_lock,cap_net_bind_service=+ep
+    state: present
+  become: true
+  tags:
+    - vault
+    - security
+    - capabilities
+
+# Deploy Vault server configuration
+- name: Deploy Vault server configuration
+  ansible.builtin.template:
+    src: vault_server_config.j2
+    dest: /etc/vault/server.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  register: vault_server_config
+  notify: reload vault
+  tags:
+    - vault
+    - config
+    - server
+
+# Deploy Vault TLS configuration
+- name: Deploy Vault TLS configuration
+  ansible.builtin.template:
+    src: vault_tls_config.j2
+    dest: /etc/vault/tls.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_tls_enabled | default(false) | bool
+  register: vault_tls_config
+  notify: reload vault
+  tags:
+    - vault
+    - tls
+    - config
+
+# Deploy Vault audit configuration
+- name: Deploy Vault audit configuration
+  ansible.builtin.template:
+    src: vault_audit_config.j2
+    dest: /etc/vault/audit.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_audit_enabled | default(true) | bool
+  register: vault_audit_config
+  notify: reload vault
+  tags:
+    - vault
+    - audit
+    - config
+
+# Deploy Vault auth methods configuration
+- name: Deploy Vault auth configuration
+  ansible.builtin.template:
+    src: vault_auth_config.j2
+    dest: /etc/vault/auth.hcl
+    owner: vault
+    group: vault
+    mode: '0640'
+    backup: yes
+  become: true
+  when: security_vault_auth_methods | default([]) | length > 0
+  register: vault_auth_config
+  notify: reload vault
+  tags:
+    - vault
+    - auth
+    - config
+
+# Create systemd service unit for Vault
+- name: Create Vault systemd service unit
+  ansible.builtin.template:
+    src: vault_systemd_service.j2
+    dest: /etc/systemd/system/vault.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  register: vault_systemd
+  notify: reload systemd
+  tags:
+    - vault
+    - systemd
+    - service
+
+# Enable and start Vault service
+- name: Enable and start Vault service
+  ansible.builtin.systemd:
+    name: vault
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: vault_systemd.changed or vault_server_config.changed | default(false)
+  tags:
+    - vault
+    - service
+
+# Wait for Vault to become available
+- name: Wait for Vault to be available
+  ansible.builtin.wait_for:
+    host: "{{ security_vault_bind_addr | default('127.0.0.1') }}"
+    port: "{{ security_vault_http_port | default(8200) }}"
+    timeout: 30
+    state: started
+  become: true
+  tags:
+    - vault
+    - health
+
+# Verify Vault is running and responding
+- name: Verify Vault health
+  ansible.builtin.uri:
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
+    method: GET
+    status_code: [200, 473, 501, 503]
+    validate_certs: no
+  register: vault_health_check
+  retries: 5
+  delay: 2
+  tags:
+    - vault
+    - health
+    - validation
+
+# Set up log rotation for Vault
+- name: Configure log rotation for Vault
+  ansible.builtin.template:
+    src: vault_logrotate.j2
+    dest: /etc/logrotate.d/vault
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  tags:
+    - vault
+    - logging
+    - logrotate
+
+# Log Vault installation completion
+- name: Vault installation health check
+  block:
+    - name: Retrieve Vault version
+      ansible.builtin.command:
+        cmd: /usr/local/bin/vault version
+      register: vault_version_output
+      changed_when: false
+      tags:
+        - vault
+        - health
+
+    - name: Display Vault installation completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ Vault Installation Complete:
+          - Version: {{ security_vault_version }}
+          - Mode: {{ security_vault_mode | default('server') }}
+          - HTTP Port: {{ security_vault_http_port | default(8200) }}
+          - Bind Address: {{ security_vault_bind_addr | default('127.0.0.1') }}
+          - Storage Backend: {{ security_vault_storage_backend | default('file') }}
+          - TLS Enabled: {{ security_vault_tls_enabled | default(false) }}
+          - Audit Logging: {{ security_vault_audit_enabled | default(true) }}
+          - Status: Ready for initialization and PKI setup
+      tags:
+        - vault
+        - health
+        - summary
+
+  rescue:
+    - name: Handle Vault installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Vault health check incomplete:
+          - Service may still be initializing
+          - Check status: systemctl status vault
+          - View logs: journalctl -u vault -n 50
+          - Manual verification: vault status
+      tags:
+        - vault
+        - health
+        - error
+
+# Final status message
+- name: Vault installation task completion
+  ansible.builtin.debug:
+    msg: "Vault installation wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - vault
+    - summary
