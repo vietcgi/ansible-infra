@@ -1,0 +1,50 @@
+[Unit]
+Description=Prometheus Node Exporter
+Documentation=https://github.com/prometheus/node_exporter
+After=network.target
+
+[Service]
+Type=simple
+User=node_exporter
+Group=node_exporter
+ExecStart=/usr/local/bin/node_exporter \
+  --collector.filesystem.fs-types-exclude=^(tmpfs|fuse\.lowerfs|squashfs|vfat|autofs)$ \
+  --collector.netdev.device-exclude=^(veth.*)$ \
+  --web.listen-address=:{{ metrics_listen_port | default(9100) }} \
+  --web.telemetry-path={{ metrics_telemetry_path | default('/metrics') }} \
+  --web.enable-lifecycle={{ metrics_enable_lifecycle | default('false') }} \
+  --web.max-requests={{ metrics_max_requests | default(40) }}
+
+# Security options
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/proc /sys /dev
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=no
+
+# Performance options
+CPUQuota={{ metrics_cpu_quota | default('100%') }}
+MemoryLimit={{ metrics_memory_limit | default('256M') }}
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node_exporter
+
+[Install]
+WantedBy=multi-user.target
