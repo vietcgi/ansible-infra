@@ -1,0 +1,138 @@
+---
+# Vietcgi Customer Configuration
+# Production deployment with Auth0 integration
+
+client_name: "vietcgi"
+client_domain: "vietcgi.us"
+client_env: "production"
+client_timezone: "America/Los_Angeles"
+
+# ============================================================================
+# Common Role Configuration (OS Baseline)
+# ============================================================================
+
+common_users:
+  - name: "app"
+    shell: "/bin/bash"
+    groups: ["sudo"]
+
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - python3
+  - python3-pip
+  - htop
+  - net-tools
+
+common_hostname: "vietcgi-prod"
+common_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4
+  - 1.1.1.1
+
+common_ufw_rules:
+  - { rule: "allow", port: "22", proto: "tcp" }
+  - { rule: "allow", port: "80", proto: "tcp" }
+  - { rule: "allow", port: "443", proto: "tcp" }
+
+common_fail2ban_enabled: true
+common_automatic_security_updates: true
+common_ssh_permit_root_login: false
+common_ssh_password_authentication: false
+
+# ============================================================================
+# Auth0 Configuration - PRODUCTION CREDENTIALS
+# ============================================================================
+
+# Your Auth0 Tenant
+auth0_domain: "vietcgi.us.auth0.com"
+
+# M2M Application Credentials (Machine-to-Machine)
+# These are encrypted in vault, not shown here
+auth0_client_id: "{{ vault_auth0_client_id }}"
+auth0_client_secret: "{{ vault_auth0_client_secret }}"
+
+# Production Applications to Create
+auth0_applications:
+  # Main Application Portal
+  - name: "vietcgi-portal"
+    type: "regular_web"
+    description: "Vietcgi Main Application Portal"
+    redirect_uris:
+      - "https://vietcgi.us/auth/callback"
+      - "https://www.vietcgi.us/auth/callback"
+    allowed_logout_urls:
+      - "https://vietcgi.us"
+      - "https://www.vietcgi.us"
+    web_origins:
+      - "https://vietcgi.us"
+      - "https://www.vietcgi.us"
+
+  # API Application (for backend services)
+  - name: "vietcgi-api"
+    type: "non_interactive"
+    description: "Vietcgi Backend API (M2M)"
+
+# Production Users
+auth0_users:
+  - email: "admin@vietcgi.us"
+    given_name: "Admin"
+    family_name: "User"
+    password: "{{ vault_initial_admin_password }}"
+    email_verified: true
+
+  - email: "support@vietcgi.us"
+    given_name: "Support"
+    family_name: "Team"
+    password: "{{ vault_support_user_password }}"
+    email_verified: true
+
+# Production Roles
+auth0_roles:
+  - name: "admin"
+    description: "Administrator - Full access"
+
+  - name: "manager"
+    description: "Manager - Team management"
+
+  - name: "user"
+    description: "Standard User - Basic access"
+
+  - name: "viewer"
+    description: "Viewer - Read-only access"
+
+# MFA and Security
+auth0_mfa_enabled: true
+auth0_password_policy: "good"
+
+# ============================================================================
+# Application Integration Configuration
+# ============================================================================
+
+# Framework for Portal Application
+app_framework: "nodejs"
+app_name: "portal"
+app_env: "production"
+app_root_path: "/opt/vietcgi-portal"
+app_env_path: "/opt/vietcgi-portal/.env"
+
+# Application Environment Variables
+app_env_vars:
+  DEBUG: "false"
+  NODE_ENV: "production"
+  PORT: "3000"
+  DOMAIN: "vietcgi.us"
+  LOG_LEVEL: "info"
+  API_ENDPOINT: "https://api.vietcgi.us"
+  AUTH0_AUDIENCE: "https://api.vietcgi.us"
+
+# ============================================================================
+# Ansible Configuration
+# ============================================================================
+
+ansible_user: "ubuntu"
+ansible_become: true
+ansible_become_method: "sudo"
+ansible_python_interpreter: "/usr/bin/python3"
