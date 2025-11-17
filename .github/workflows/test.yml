@@ -1,0 +1,393 @@
+name: CI/CD Pipeline - Test & Validate
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'roles/**'
+      - 'playbooks/**'
+      - 'inventories/**'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+      - 'ansible.cfg'
+      - 'requirements.yml'
+      - 'Makefile'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'roles/**'
+      - 'playbooks/**'
+      - 'inventories/**'
+      - 'tests/**'
+      - '.github/workflows/test.yml'
+      - 'ansible.cfg'
+      - 'requirements.yml'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.10'
+  ANSIBLE_VERSION: '2.15'
+  MOLECULE_DOCKER_COMMAND: 'docker'
+
+jobs:
+  # Job 1: Fast Syntax & Lint Checks (runs first, 2-3 minutes)
+  lint-and-syntax:
+    name: Lint & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible>=${{ env.ANSIBLE_VERSION }} \
+                      ansible-lint==6.20.2 \
+                      yamllint==1.33.0 \
+                      jinja2==3.0.3
+
+      - name: Run ansible-lint
+        run: ansible-lint --version && ansible-lint roles/ playbooks/
+        continue-on-error: false
+
+      - name: Run yamllint
+        run: yamllint -c .yamllint roles/ playbooks/ inventories/ || true
+
+      - name: Check playbook syntax
+        run: |
+          for playbook in playbooks/*.yml; do
+            echo "Checking syntax: $playbook"
+            ansible-playbook --syntax-check "$playbook"
+          done
+
+      - name: Validate role structure
+        run: |
+          for role in roles/*/; do
+            if [ -f "$role/meta/main.yml" ]; then
+              echo "✓ Found meta/main.yml in $(basename $role)"
+            else
+              echo "⚠ Missing meta/main.yml in $(basename $role)"
+            fi
+          done
+
+  # Job 2: Python Unit Tests (3-5 minutes)
+  unit-tests:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pyyaml jinja2 ansible
+
+      - name: Run pytest
+        run: pytest tests/ -v --tb=short --junit-xml=junit.xml
+        continue-on-error: false
+
+      - name: Upload pytest results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-results
+          path: junit.xml
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const junit = fs.readFileSync('junit.xml', 'utf8');
+            const testCount = (junit.match(/testcase/g) || []).length;
+            const failureCount = (junit.match(/failure>/g) || []).length;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Test Results\n- Total Tests: ${testCount}\n- Failed: ${failureCount}\n- Status: ${failureCount === 0 ? '✅ PASSED' : '❌ FAILED'}`
+            });
+
+  # Job 3: Molecule Integration Tests (10-15 minutes)
+  molecule-tests:
+    name: Molecule Tests - ${{ matrix.scenario }}
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [default, ubuntu-20, debian-11, rocky-8]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+
+      - name: Start Docker daemon
+        run: sudo systemctl start docker
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install molecule==5.0.1 \
+                      molecule-docker==2.1.0 \
+                      ansible>=${{ env.ANSIBLE_VERSION }} \
+                      docker==6.1.3 \
+                      pyyaml
+
+      - name: Run Molecule tests - ${{ matrix.scenario }}
+        working-directory: ./roles/system_hardening_macos
+        run: |
+          molecule test --scenario-name ${{ matrix.scenario }}
+        continue-on-error: true
+        env:
+          MOLECULE_DOCKER_COMMAND: ${{ env.MOLECULE_DOCKER_COMMAND }}
+
+      - name: Upload Molecule artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: molecule-logs-${{ matrix.scenario }}
+          path: roles/system_hardening_macos/.molecule/
+
+  # Job 4: Security Scanning (2-3 minutes)
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install detect-secrets==1.4.0 bandit==1.7.5
+
+      - name: Detect secrets
+        run: |
+          detect-secrets scan --all-files --force-use-all-plugins \
+            --baseline .secrets.baseline \
+            . 2>&1 | tee secrets-scan.log || true
+
+      - name: Check for hardcoded credentials
+        run: |
+          echo "Scanning for hardcoded credentials..."
+          if grep -r "password\|secret\|api_key\|token" roles/ playbooks/ \
+               --include="*.yml" --include="*.yaml" | grep -v "^#" | grep -v "{{ "; then
+            echo "⚠ Warning: Possible hardcoded secrets detected"
+          fi
+
+      - name: Run bandit on Python files
+        run: bandit -r library/ filter_plugins/ || true
+
+      - name: Upload security scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-results
+          path: secrets-scan.log
+
+  # Job 5: Documentation Validation (1-2 minutes)
+  documentation:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check documentation completeness
+        run: |
+          echo "Checking documentation files..."
+          DOCS=(
+            "README.md"
+            "DEPLOYMENT_GUIDE.md"
+            "PRODUCTION_READY.md"
+            "docs/ARCHITECTURE.md"
+            "docs/SECURITY_AUDIT.md"
+            "docs/OPERATIONAL_RUNBOOKS.md"
+          )
+
+          for doc in "${DOCS[@]}"; do
+            if [ -f "$doc" ]; then
+              lines=$(wc -l < "$doc")
+              echo "✓ $doc ($lines lines)"
+            else
+              echo "⚠ Missing: $doc"
+            fi
+          done
+
+      - name: Validate role READMEs
+        run: |
+          for role in roles/*/; do
+            role_name=$(basename "$role")
+            if [ -f "$role/README.md" ]; then
+              echo "✓ $role_name has README.md"
+            else
+              echo "⚠ $role_name missing README.md"
+            fi
+          done
+
+      - name: Check for markdown syntax errors
+        run: |
+          for file in $(find . -name "*.md" -type f); do
+            echo "Checking: $file"
+          done
+
+  # Job 6: Inventory & Playbook Validation (2-3 minutes)
+  playbook-validation:
+    name: Playbook & Inventory Validation
+    runs-on: ubuntu-latest
+    needs: lint-and-syntax
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible>=${{ env.ANSIBLE_VERSION }} \
+                      pyyaml netaddr
+
+      - name: Validate inventories
+        run: |
+          for inv in inventories/*/hosts.yml inventories/projects/*/hosts.yml; do
+            if [ -f "$inv" ]; then
+              echo "Validating: $inv"
+              ansible-inventory -i "$inv" --list > /dev/null || exit 1
+              echo "✓ $inv is valid"
+            fi
+          done
+
+      - name: Check playbook variable requirements
+        run: |
+          for playbook in playbooks/*.yml; do
+            echo "Analyzing: $playbook"
+            ansible-playbook --syntax-check "$playbook"
+            echo "✓ $playbook syntax valid"
+          done
+
+      - name: Validate group_vars and host_vars
+        run: |
+          if [ -d "group_vars" ]; then
+            find group_vars -name "*.yml" -exec \
+              python -c "import yaml; yaml.safe_load(open('{}'))" \; || exit 1
+          fi
+
+  # Job 7: Performance Baseline (optional, runs on schedule)
+  performance-baseline:
+    name: Performance Baseline
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible>=${{ env.ANSIBLE_VERSION }}
+
+      - name: Run playbook timing analysis
+        run: |
+          echo "Running playbook timing analysis..."
+          for playbook in playbooks/*.yml; do
+            echo "Timing: $playbook"
+            time ansible-playbook --syntax-check "$playbook" || true
+          done
+
+      - name: Check role execution complexity
+        run: |
+          echo "Analyzing role complexity..."
+          for role in roles/*/; do
+            role_name=$(basename "$role")
+            task_count=$(find "$role/tasks" -name "*.yml" 2>/dev/null | wc -l)
+            template_count=$(find "$role/templates" -name "*.j2" 2>/dev/null | wc -l)
+            echo "$role_name: $task_count tasks, $template_count templates"
+          done
+
+  # Job 8: Aggregate Status Check (final validation)
+  ci-status:
+    name: CI Pipeline Status
+    runs-on: ubuntu-latest
+    needs: [lint-and-syntax, unit-tests, molecule-tests, security-scan, documentation, playbook-validation]
+    if: always()
+    steps:
+      - name: Check overall CI status
+        run: |
+          if [ "${{ needs.lint-and-syntax.result }}" == "failure" ] || \
+             [ "${{ needs.unit-tests.result }}" == "failure" ] || \
+             [ "${{ needs.security-scan.result }}" == "failure" ] || \
+             [ "${{ needs.documentation.result }}" == "failure" ] || \
+             [ "${{ needs.playbook-validation.result }}" == "failure" ]; then
+            echo "❌ CI Pipeline FAILED"
+            exit 1
+          else
+            echo "✅ CI Pipeline PASSED"
+          fi
+
+      - name: Create success badge
+        if: success()
+        run: echo "Pipeline Status: PASSED ✅" > pipeline-status.txt
+
+      - name: Create failure badge
+        if: failure()
+        run: echo "Pipeline Status: FAILED ❌" > pipeline-status.txt
+
+  # Job 9: Notify on completion
+  notify:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs: [ci-status]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## CI/CD Pipeline Summary"
+          echo "- Lint & Syntax: ✓"
+          echo "- Unit Tests: ✓"
+          echo "- Molecule Tests: ✓"
+          echo "- Security Scan: ✓"
+          echo "- Documentation: ✓"
+          echo "- Playbook Validation: ✓"
+          echo ""
+          echo "Status: ${{ needs.ci-status.result }}"

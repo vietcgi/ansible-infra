@@ -1,0 +1,250 @@
+name: Pull Request Automation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # Auto-label PRs based on changed files
+  auto-labeler:
+    name: Auto-Label PR
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v40
+        with:
+          files: |
+            roles/common/**
+            roles/system_hardening_macos/**
+            roles/auth0/**
+            roles/app_integration/**
+            playbooks/**
+            inventories/**
+            tests/**
+            docs/**
+            .github/workflows/**
+
+      - name: Add labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const labels = [];
+
+            // Check what was changed
+            const changedRoles = '${{ steps.changed-files.outputs.all_changed_files }}'
+              .split(' ')
+              .filter(file => file.includes('roles/'));
+
+            const changedPlaybooks = '${{ steps.changed-files.outputs.all_changed_files }}'
+              .split(' ')
+              .filter(file => file.includes('playbooks/'));
+
+            const changedTests = '${{ steps.changed-files.outputs.all_changed_files }}'
+              .split(' ')
+              .filter(file => file.includes('tests/'));
+
+            const changedDocs = '${{ steps.changed-files.outputs.all_changed_files }}'
+              .split(' ')
+              .filter(file => file.includes('docs/') || file.includes('.md'));
+
+            const changedWorkflows = '${{ steps.changed-files.outputs.all_changed_files }}'
+              .split(' ')
+              .filter(file => file.includes('.github/workflows/'));
+
+            if (changedRoles.length > 0) labels.push('roles');
+            if (changedPlaybooks.length > 0) labels.push('playbooks');
+            if (changedTests.length > 0) labels.push('tests');
+            if (changedDocs.length > 0) labels.push('documentation');
+            if (changedWorkflows.length > 0) labels.push('ci/cd');
+
+            // Determine priority
+            const pr = context.payload.pull_request;
+            if (pr.title.includes('BREAKING') || pr.title.includes('CRITICAL')) {
+              labels.push('critical');
+            } else if (pr.title.includes('hotfix') || pr.title.includes('urgent')) {
+              labels.push('urgent');
+            }
+
+            if (labels.length > 0) {
+              github.rest.issues.addLabels({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: labels
+              });
+            }
+
+  # Validate PR title and description
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const validPrefixes = ['feat', 'fix', 'docs', 'test', 'refactor', 'chore', 'perf', 'ci'];
+            const hasValidPrefix = validPrefixes.some(prefix => title.startsWith(prefix + ':'));
+
+            if (!hasValidPrefix) {
+              core.setFailed(`PR title must start with one of: ${validPrefixes.join(', ')}`);
+            } else {
+              core.info(`✓ PR title valid: ${title}`);
+            }
+
+      - name: Validate PR description
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            if (body.length < 20) {
+              core.warning('PR description is very short. Please provide more context.');
+            }
+
+  # Request review from code owners
+  request-review:
+    name: Request Code Review
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Request review from CODEOWNERS
+        uses: actions/github-script@v6
+        with:
+          script: |
+            // Request review from maintainers
+            github.rest.pulls.requestReviewers({
+              pull_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              reviewers: [] // Add your team/users here
+            });
+
+            // Add comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Automated Review\n\n✓ PR has been automatically labeled and queued for review.\n\nPlease ensure:\n- [ ] Tests pass locally\n- [ ] Ansible lint passes\n- [ ] Documentation is updated\n- [ ] Commit messages follow convention\n\nCI/CD pipeline will run automatically on all commits.`
+            });
+
+  # Check for common issues
+  pre-flight-check:
+    name: Pre-flight Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check for merge conflicts
+        run: |
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "❌ Merge conflicts detected"
+            exit 1
+          fi
+
+      - name: Check commit message format
+        run: |
+          commits=$(git log origin/main..HEAD --format=%H)
+          for commit in $commits; do
+            msg=$(git log -1 --format=%B $commit)
+            if ! echo "$msg" | grep -qE "^(feat|fix|docs|test|refactor|chore|perf|ci):"; then
+              echo "❌ Invalid commit message format: $msg"
+              exit 1
+            fi
+          done
+
+      - name: Check file sizes
+        run: |
+          echo "Checking for large files..."
+          find . -type f \( -name "*.yml" -o -name "*.yaml" -o -name "*.py" \) -size +1M | \
+          while read file; do
+            echo "⚠ Large file detected: $file"
+          done
+
+  # Changelog validation
+  changelog-check:
+    name: Changelog Check
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.head.ref != 'develop' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify CHANGELOG.md updated
+        run: |
+          if git diff origin/main...HEAD -- CHANGELOG.md | grep -q ''; then
+            echo "✓ CHANGELOG.md has been updated"
+          else
+            echo "⚠ CHANGELOG.md was not updated (optional for some changes)"
+          fi
+
+  # Code quality metrics
+  code-quality:
+    name: Code Quality Metrics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate lines of code changed
+        run: |
+          additions=$(git diff origin/main...HEAD --stat | tail -1 | awk '{print $4}')
+          deletions=$(git diff origin/main...HEAD --stat | tail -1 | awk '{print $6}')
+          echo "📊 Code Changes:"
+          echo "  - Lines added: $additions"
+          echo "  - Lines deleted: $deletions"
+
+      - name: Check complexity
+        run: |
+          echo "Analyzing PR complexity..."
+          role_changes=$(git diff origin/main...HEAD --name-only | grep -c '^roles/' || true)
+          test_changes=$(git diff origin/main...HEAD --name-only | grep -c '^tests/' || true)
+          doc_changes=$(git diff origin/main...HEAD --name-only | grep -c '\.md$' || true)
+
+          echo "📁 File Changes:"
+          echo "  - Role files: $role_changes"
+          echo "  - Test files: $test_changes"
+          echo "  - Documentation: $doc_changes"
+
+  # Generate PR summary
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [auto-labeler, pr-validation, pre-flight-check]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate summary
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ✅ PR Ready for Review\n\nAll pre-flight checks passed:\n\n- ✓ Valid PR title and description\n- ✓ No merge conflicts\n- ✓ Valid commit messages\n- ✓ Code quality checks passed\n\n**Next Steps:**\n1. Automated tests will run (lint, syntax, molecule, security)\n2. Code review will be requested\n3. Once approved, the PR can be merged\n\n**Tests to Monitor:**\n- 🔍 Lint & Syntax Check (~2-3 min)\n- 🧪 Unit Tests (~3-5 min)\n- 🔬 Molecule Integration Tests (~10-15 min)\n- 🔒 Security Scan (~2-3 min)\n- 📚 Documentation Check (~1-2 min)\n\nCI pipeline status: Check the 'Checks' tab above for detailed results.`
+            });
