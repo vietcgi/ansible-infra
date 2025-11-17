@@ -1,0 +1,59 @@
+---
+# Generate environment variables file for application
+
+- name: Ensure application config directory exists
+  file:
+    path: "{{ app_config_path }}"
+    state: directory
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0755"
+  tags:
+    - app_integration
+    - env_generation
+
+- name: Generate .env file with Auth0 credentials
+  copy:
+    content: |
+      # Auth0 Configuration
+      # Generated: {{ ansible_date_time.iso8601 }}
+      # Application: {{ app_name }}
+
+      # Auth0 Tenant
+      AUTH0_DOMAIN={{ auth0_domain }}
+      AUTH0_CLIENT_ID={{ auth0_client_id }}
+      {% if auth0_client_secret is defined and auth0_client_secret | length > 0 %}
+      AUTH0_CLIENT_SECRET={{ auth0_client_secret }}
+      {% endif %}
+      {% if auth0_audience is defined and auth0_audience | length > 0 %}
+      AUTH0_AUDIENCE={{ auth0_audience }}
+      {% endif %}
+
+      # Application Configuration
+      APP_NAME={{ app_name }}
+      APP_ENV={{ app_env }}
+      {% for key, value in app_env_vars.items() %}
+      {{ key }}={{ value }}
+      {% endfor %}
+
+    dest: "{{ app_env_path }}"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "{{ app_config_mode | default('0640') }}"
+    backup: yes
+  register: env_file_result
+  tags:
+    - app_integration
+    - env_generation
+
+- name: Display environment file location
+  debug:
+    msg: |
+      Environment file generated:
+      Path: {{ app_env_path }}
+      Owner: {{ app_config_user }}
+      Mode: {{ app_config_mode }}
+  when: env_file_result.changed
+  tags:
+    - app_integration
+    - env_generation

@@ -1,0 +1,154 @@
+---
+# Configure Python/Django application with Auth0 integration
+
+- name: Display Python configuration
+  debug:
+    msg: |
+      Configuring Python Application
+      ===============================
+      Application: {{ app_name }}
+      Root Path: {{ app_root_path }}
+      Environment File: {{ app_env_path }}
+      Framework: {{ app_framework }}
+
+      Auth0 Settings:
+      - Domain: {{ auth0_domain }}
+      - Client ID: {{ auth0_client_id }}
+      - Environment: {{ app_env }}
+  tags:
+    - app_integration
+    - python
+
+- name: Check for requirements.txt
+  stat:
+    path: "{{ app_root_path }}/requirements.txt"
+  register: requirements_stat
+  tags:
+    - app_integration
+    - python
+
+- name: Check for Django settings.py
+  stat:
+    path: "{{ app_root_path }}/settings.py"
+  register: django_settings_stat
+  when: app_framework == "django"
+  tags:
+    - app_integration
+    - python
+
+- name: Create Python Auth0 config module
+  copy:
+    content: |
+      """
+      Auth0 Configuration for {{ app_name }}
+      Generated: {{ ansible_date_time.iso8601 }}
+      """
+      import os
+      from dotenv import load_dotenv
+
+      # Load environment variables from .env file
+      load_dotenv()
+
+      class Auth0Config:
+          """Auth0 configuration for OIDC/OAuth integration"""
+          DOMAIN = os.getenv('AUTH0_DOMAIN', '{{ auth0_domain }}')
+          CLIENT_ID = os.getenv('AUTH0_CLIENT_ID', '{{ auth0_client_id }}')
+          CLIENT_SECRET = os.getenv('AUTH0_CLIENT_SECRET', '')
+          AUDIENCE = os.getenv('AUTH0_AUDIENCE', f'https://{DOMAIN}/api/v2/')
+
+          # OAuth settings
+          AUTH0_DISCOVERY = f'https://{DOMAIN}/.well-known/openid-configuration'
+          AUTH0_TOKEN_ENDPOINT = f'https://{DOMAIN}/oauth/token'
+          AUTH0_AUTHORIZE_ENDPOINT = f'https://{DOMAIN}/authorize'
+          AUTH0_USERINFO_ENDPOINT = f'https://{DOMAIN}/userinfo'
+
+          # Session/callback settings
+          SESSION_COOKIE_SECURE = True
+          SESSION_COOKIE_HTTPONLY = True
+          SESSION_COOKIE_SAMESITE = 'Lax'
+
+      if __name__ == '__main__':
+          print(f'Auth0 Domain: {Auth0Config.DOMAIN}')
+          print(f'Client ID: {Auth0Config.CLIENT_ID}')
+    dest: "{{ app_root_path }}/auth0_config.py"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - python
+
+- name: Create Django Auth0 settings snippet
+  copy:
+    content: |
+      # Auth0 Django Integration
+      # Add these settings to your Django settings.py
+      # Generated: {{ ansible_date_time.iso8601 }}
+
+      import os
+      from auth0_config import Auth0Config
+
+      # Auth0 Configuration
+      AUTH0_DOMAIN = Auth0Config.DOMAIN
+      AUTH0_CLIENT_ID = Auth0Config.CLIENT_ID
+      AUTH0_CLIENT_SECRET = Auth0Config.CLIENT_SECRET
+      AUTH0_AUDIENCE = Auth0Config.AUDIENCE
+
+      # Authentication backends
+      AUTHENTICATION_BACKENDS = [
+          'django.contrib.auth.backends.ModelBackend',
+          'social_core.backends.open_id_connect.OpenIdConnectAuth',  # For OIDC
+      ]
+
+      # Social Auth OpenID Connect settings
+      SOCIAL_AUTH_OIDC_ENDPOINT = f'https://{AUTH0_DOMAIN}/'
+      SOCIAL_AUTH_OIDC_KEY = AUTH0_CLIENT_ID
+      SOCIAL_AUTH_OIDC_SECRET = AUTH0_CLIENT_SECRET
+
+      # Session security
+      SESSION_COOKIE_SECURE = Auth0Config.SESSION_COOKIE_SECURE
+      SESSION_COOKIE_HTTPONLY = Auth0Config.SESSION_COOKIE_HTTPONLY
+      SESSION_COOKIE_SAMESITE = Auth0Config.SESSION_COOKIE_SAMESITE
+
+      # CORS settings (if using separate frontend)
+      CORS_ALLOWED_ORIGINS = [
+          "http://localhost:3000",
+          "http://localhost:8000",
+      ]
+    dest: "{{ app_root_path }}/auth0_settings_snippet.py"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  when: app_framework == "django"
+  tags:
+    - app_integration
+    - python
+
+- name: Python configuration complete
+  debug:
+    msg: |
+      Python Auth0 Integration: ✓
+
+      Configuration Files:
+      - .env: {{ app_env_path }}
+      - auth0_config.py: {{ app_root_path }}/auth0_config.py
+      {% if app_framework == "django" %}
+      - settings snippet: {{ app_root_path }}/auth0_settings_snippet.py
+      {% endif %}
+
+      Required Python Packages:
+      - python-dotenv (for .env loading)
+      - auth0-python (for Auth0 Management API)
+      {% if app_framework == "django" %}
+      - django-social-auth (for OIDC/OAuth)
+      {% endif %}
+
+      Next Steps:
+      1. Install dependencies: pip install -r requirements.txt
+      2. Load configuration in your app: from auth0_config import Auth0Config
+      3. Use Auth0Config.DOMAIN, CLIENT_ID, etc. in your code
+  tags:
+    - app_integration
+    - python

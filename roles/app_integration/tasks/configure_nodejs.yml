@@ -1,0 +1,102 @@
+---
+# Configure Node.js application with Auth0 integration
+
+- name: Check if .env already exists
+  stat:
+    path: "{{ app_env_path }}"
+  register: env_file_stat
+  tags:
+    - app_integration
+    - nodejs
+
+- name: Display Node.js configuration
+  debug:
+    msg: |
+      Configuring Node.js Application
+      ================================
+      Application: {{ app_name }}
+      Root Path: {{ app_root_path }}
+      Environment File: {{ app_env_path }}
+
+      Auth0 Settings:
+      - Domain: {{ auth0_domain }}
+      - Client ID: {{ auth0_client_id }}
+      - Environment: {{ app_env }}
+  tags:
+    - app_integration
+    - nodejs
+
+- name: Check for package.json
+  stat:
+    path: "{{ app_root_path }}/package.json"
+  register: package_json_stat
+  tags:
+    - app_integration
+    - nodejs
+
+- name: Verify auth0 npm package in dependencies
+  debug:
+    msg: |
+      Next Steps for Node.js Application:
+      1. Ensure 'auth0' npm package is installed:
+         npm install auth0
+
+      2. Import Auth0 client in your application:
+         const { ManagementClient } = require('auth0');
+         const client = new ManagementClient({
+           domain: process.env.AUTH0_DOMAIN,
+           clientId: process.env.AUTH0_CLIENT_ID,
+           clientSecret: process.env.AUTH0_CLIENT_SECRET
+         });
+
+      3. Load environment from .env file:
+         - Use dotenv package: npm install dotenv
+         - At application startup: require('dotenv').config()
+
+      Environment file is ready at: {{ app_env_path }}
+  when: package_json_stat.stat.exists
+  tags:
+    - app_integration
+    - nodejs
+
+- name: Create sample Node.js Auth0 config (if needed)
+  copy:
+    content: |
+      // Auth0 Configuration for {{ app_name }}
+      // Generated: {{ ansible_date_time.iso8601 }}
+      // Load environment variables from .env file
+      require('dotenv').config();
+
+      const Auth0Config = {
+        domain: process.env.AUTH0_DOMAIN,
+        clientId: process.env.AUTH0_CLIENT_ID,
+        clientSecret: process.env.AUTH0_CLIENT_SECRET,
+        audience: process.env.AUTH0_AUDIENCE || `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+        baseURL: process.env.BASE_URL || 'http://localhost:3000'
+      };
+
+      module.exports = Auth0Config;
+    dest: "{{ app_root_path }}/auth0.config.js"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  register: nodejs_config_result
+  tags:
+    - app_integration
+    - nodejs
+
+- name: Node.js configuration complete
+  debug:
+    msg: |
+      Node.js Auth0 Integration: ✓
+
+      Configuration Files:
+      - .env: {{ app_env_path }}
+      - auth0.config.js: {{ app_root_path }}/auth0.config.js
+
+      Status: Ready for application startup
+      Environment variables will be loaded from .env file
+  tags:
+    - app_integration
+    - nodejs

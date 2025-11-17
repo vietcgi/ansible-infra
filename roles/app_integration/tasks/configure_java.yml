@@ -1,0 +1,250 @@
+---
+# Configure Java application with Auth0 integration
+
+- name: Display Java configuration
+  debug:
+    msg: |
+      Configuring Java Application
+      =============================
+      Application: {{ app_name }}
+      Root Path: {{ app_root_path }}
+      Environment File: {{ app_env_path }}
+
+      Auth0 Settings:
+      - Domain: {{ auth0_domain }}
+      - Client ID: {{ auth0_client_id }}
+      - Environment: {{ app_env }}
+  tags:
+    - app_integration
+    - java
+
+- name: Check for pom.xml (Maven)
+  stat:
+    path: "{{ app_root_path }}/pom.xml"
+  register: pom_stat
+  tags:
+    - app_integration
+    - java
+
+- name: Check for build.gradle (Gradle)
+  stat:
+    path: "{{ app_root_path }}/build.gradle"
+  register: gradle_stat
+  tags:
+    - app_integration
+    - java
+
+- name: Create Java Auth0 configuration class
+  copy:
+    content: |
+      package com.{{ app_name }}.config;
+
+      import org.springframework.beans.factory.annotation.Value;
+      import org.springframework.stereotype.Component;
+      import org.springframework.boot.context.properties.ConfigurationProperties;
+
+      /**
+       * Auth0 Configuration
+       * Generated: {{ ansible_date_time.iso8601 }}
+       */
+      @Component
+      @ConfigurationProperties(prefix = "auth0")
+      public class Auth0Config {
+
+          @Value("${auth0.domain:{{ auth0_domain }}}")
+          private String domain;
+
+          @Value("${AUTH0_CLIENT_ID:{{ auth0_client_id }}}")
+          private String clientId;
+
+          @Value("${AUTH0_CLIENT_SECRET:}")
+          private String clientSecret;
+
+          @Value("${AUTH0_AUDIENCE:}")
+          private String audience;
+
+          // Constructors
+          public Auth0Config() {
+          }
+
+          public Auth0Config(String domain, String clientId, String clientSecret) {
+              this.domain = domain;
+              this.clientId = clientId;
+              this.clientSecret = clientSecret;
+          }
+
+          // Getters and Setters
+          public String getDomain() {
+              return domain;
+          }
+
+          public void setDomain(String domain) {
+              this.domain = domain;
+          }
+
+          public String getClientId() {
+              return clientId;
+          }
+
+          public void setClientId(String clientId) {
+              this.clientId = clientId;
+          }
+
+          public String getClientSecret() {
+              return clientSecret;
+          }
+
+          public void setClientSecret(String clientSecret) {
+              this.clientSecret = clientSecret;
+          }
+
+          public String getAudience() {
+              return audience;
+          }
+
+          public void setAudience(String audience) {
+              this.audience = audience;
+          }
+
+          // Auth0 API endpoints
+          public String getTokenUrl() {
+              return String.format("https://%s/oauth/token", domain);
+          }
+
+          public String getAuthorizationUrl() {
+              return String.format("https://%s/authorize", domain);
+          }
+
+          public String getUserInfoUrl() {
+              return String.format("https://%s/userinfo", domain);
+          }
+
+          public String getJwksUrl() {
+              return String.format("https://%s/.well-known/jwks.json", domain);
+          }
+
+          @Override
+          public String toString() {
+              return String.format(
+                  "Auth0Config{domain='%s', clientId='%s', audience='%s'}",
+                  domain, clientId, audience
+              );
+          }
+      }
+    dest: "{{ app_root_path }}/src/main/java/com/{{ app_name }}/config/Auth0Config.java"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - java
+
+- name: Create application.properties for Spring Boot
+  copy:
+    content: |
+      # Auth0 Configuration
+      # Generated: {{ ansible_date_time.iso8601 }}
+
+      auth0.domain={{ auth0_domain }}
+      auth0.client-id={{ auth0_client_id }}
+      auth0.audience=https://{{ auth0_domain }}/api/v2/
+
+      # Spring Security OAuth2
+      spring.security.oauth2.client.registration.auth0.client-id={{ auth0_client_id }}
+      spring.security.oauth2.client.registration.auth0.client-secret=${AUTH0_CLIENT_SECRET}
+      spring.security.oauth2.client.registration.auth0.scope=openid,profile,email
+      spring.security.oauth2.client.provider.auth0.issuer-uri=https://{{ auth0_domain }}/
+
+      # Application
+      server.servlet.context-path=/
+      server.port=8080
+      spring.application.name={{ app_name }}
+    dest: "{{ app_root_path }}/src/main/resources/application.properties"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - java
+
+- name: Create Maven pom.xml snippet for Auth0 dependencies
+  copy:
+    content: |
+      <!-- Auth0 Dependencies for Spring Boot -->
+      <!-- Add these to your pom.xml dependencies section -->
+      <!-- Generated: {{ ansible_date_time.iso8601 }} -->
+
+      <!-- Auth0 Java SDK -->
+      <dependency>
+          <groupId>com.auth0</groupId>
+          <artifactId>auth0</artifactId>
+          <version>2.5.0</version>
+      </dependency>
+
+      <!-- Spring Security OAuth2 -->
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-oauth2-client</artifactId>
+      </dependency>
+
+      <!-- Spring Security -->
+      <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-security</artifactId>
+      </dependency>
+
+      <!-- JWT -->
+      <dependency>
+          <groupId>io.jsonwebtoken</groupId>
+          <artifactId>jjwt</artifactId>
+          <version>0.11.5</version>
+      </dependency>
+    dest: "{{ app_root_path }}/POM_AUTH0_SNIPPET.xml"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - java
+
+- name: Java configuration complete
+  debug:
+    msg: |
+      Java Auth0 Integration: ✓
+
+      Configuration Files:
+      - .env: {{ app_env_path }}
+      - Config Class: {{ app_root_path }}/src/main/java/com/{{ app_name }}/config/Auth0Config.java
+      - application.properties: {{ app_root_path }}/src/main/resources/application.properties
+      - POM Snippet: {{ app_root_path }}/POM_AUTH0_SNIPPET.xml
+
+      Required Dependencies:
+      - com.auth0:auth0 (Auth0 Java SDK)
+      - Spring Security OAuth2 Client
+      - Spring Security
+      - JWT (io.jsonwebtoken:jjwt)
+
+      Next Steps:
+      1. Add dependencies from POM_AUTH0_SNIPPET.xml to your pom.xml
+      2. Update application.properties with your configuration
+      3. Create SecurityConfiguration class to enable OAuth2 login
+      4. Environment variables from .env will be loaded automatically
+
+      Example Security Configuration:
+      @Configuration
+      public class SecurityConfiguration {
+          @Bean
+          public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+              http.oauth2Login()
+                  .and()
+                  .authorizeRequests()
+                  .anyRequest().authenticated();
+              return http.build();
+          }
+      }
+  tags:
+    - app_integration
+    - java

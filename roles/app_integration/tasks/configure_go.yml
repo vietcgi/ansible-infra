@@ -1,0 +1,182 @@
+---
+# Configure Go application with Auth0 integration
+
+- name: Display Go configuration
+  debug:
+    msg: |
+      Configuring Go Application
+      ===========================
+      Application: {{ app_name }}
+      Root Path: {{ app_root_path }}
+      Environment File: {{ app_env_path }}
+
+      Auth0 Settings:
+      - Domain: {{ auth0_domain }}
+      - Client ID: {{ auth0_client_id }}
+      - Environment: {{ app_env }}
+  tags:
+    - app_integration
+    - go
+
+- name: Check for go.mod
+  stat:
+    path: "{{ app_root_path }}/go.mod"
+  register: gomod_stat
+  tags:
+    - app_integration
+    - go
+
+- name: Create Go Auth0 config struct
+  copy:
+    content: |
+      package config
+
+      import (
+      	"fmt"
+      	"os"
+
+      	"github.com/joho/godotenv"
+      )
+
+      // Auth0Config holds Auth0 configuration
+      type Auth0Config struct {
+      	Domain       string
+      	ClientID     string
+      	ClientSecret string
+      	Audience     string
+      	TokenURL     string
+      	AuthURL      string
+      	UserInfoURL  string
+      }
+
+      // LoadAuth0Config loads Auth0 configuration from environment
+      func LoadAuth0Config() *Auth0Config {
+      	// Load .env file if it exists
+      	_ = godotenv.Load()
+
+      	domain := os.Getenv("AUTH0_DOMAIN")
+      	if domain == "" {
+      		domain = "{{ auth0_domain }}"
+      	}
+
+      	return &Auth0Config{
+      		Domain:       domain,
+      		ClientID:     os.Getenv("AUTH0_CLIENT_ID"),
+      		ClientSecret: os.Getenv("AUTH0_CLIENT_SECRET"),
+      		Audience:     os.Getenv("AUTH0_AUDIENCE"),
+      		TokenURL:     fmt.Sprintf("https://%s/oauth/token", domain),
+      		AuthURL:      fmt.Sprintf("https://%s/authorize", domain),
+      		UserInfoURL:  fmt.Sprintf("https://%s/userinfo", domain),
+      	}
+      }
+    dest: "{{ app_root_path }}/config/auth0.go"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - go
+
+- name: Create Go Auth0 helper functions
+  copy:
+    content: |
+      package auth
+
+      import (
+      	"context"
+      	"encoding/json"
+      	"errors"
+      	"net/http"
+
+      	"{{ app_name }}/config"
+      	"golang.org/x/oauth2"
+      )
+
+      // Auth0Provider handles Auth0 OAuth2 flow
+      type Auth0Provider struct {
+      	config *config.Auth0Config
+      	oauth2 *oauth2.Config
+      }
+
+      // NewAuth0Provider creates a new Auth0 provider
+      func NewAuth0Provider(cfg *config.Auth0Config) *Auth0Provider {
+      	return &Auth0Provider{
+      		config: cfg,
+      		oauth2: &oauth2.Config{
+      			ClientID:     cfg.ClientID,
+      			ClientSecret: cfg.ClientSecret,
+      			Scopes:       []string{"openid", "profile", "email"},
+      			Endpoint: oauth2.Endpoint{
+      				AuthURL:  cfg.AuthURL,
+      				TokenURL: cfg.TokenURL,
+      			},
+      		},
+      	}
+      }
+
+      // GetLoginURL returns the Auth0 login URL
+      func (p *Auth0Provider) GetLoginURL(state string) string {
+      	return p.oauth2.AuthCodeURL(state)
+      }
+
+      // ExchangeCode exchanges the authorization code for tokens
+      func (p *Auth0Provider) ExchangeCode(ctx context.Context, code string) (*oauth2.Token, error) {
+      	return p.oauth2.Exchange(ctx, code)
+      }
+
+      // GetUserInfo retrieves user information from Auth0
+      func (p *Auth0Provider) GetUserInfo(ctx context.Context, token *oauth2.Token) (map[string]interface{}, error) {
+      	client := p.oauth2.Client(ctx, token)
+      	resp, err := client.Get(p.config.UserInfoURL)
+      	if err != nil {
+      		return nil, err
+      	}
+      	defer resp.Body.Close()
+
+      	if resp.StatusCode != http.StatusOK {
+      		return nil, errors.New("failed to get user info")
+      	}
+
+      	var userInfo map[string]interface{}
+      	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+      		return nil, err
+      	}
+
+      	return userInfo, nil
+      }
+    dest: "{{ app_root_path }}/auth/auth0.go"
+    owner: "{{ app_config_user | default('root') }}"
+    group: "{{ app_config_group | default('root') }}"
+    mode: "0644"
+    backup: yes
+  tags:
+    - app_integration
+    - go
+
+- name: Go configuration complete
+  debug:
+    msg: |
+      Go Auth0 Integration: ✓
+
+      Configuration Files:
+      - .env: {{ app_env_path }}
+      - config/auth0.go: {{ app_root_path }}/config/auth0.go
+      - auth/auth0.go: {{ app_root_path }}/auth/auth0.go
+
+      Required Go Modules:
+      - github.com/joho/godotenv (for .env loading)
+      - golang.org/x/oauth2 (for OAuth2 flow)
+      - auth0.com (optional, for Auth0 Management API)
+
+      Get dependencies:
+      go get github.com/joho/godotenv
+      go get golang.org/x/oauth2
+
+      Usage:
+      cfg := config.LoadAuth0Config()
+      provider := auth.NewAuth0Provider(cfg)
+      loginURL := provider.GetLoginURL(state)
+  tags:
+    - app_integration
+    - go

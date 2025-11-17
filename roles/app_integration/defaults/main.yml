@@ -1,0 +1,63 @@
+---
+# App Integration Role - Default Variables
+# Configure Auth0 credentials and environment variables for applications
+
+# Application framework type: nodejs, python, django, go, java, etc.
+app_framework: "nodejs"
+
+# Auth0 configuration (typically passed from auth0 role output)
+auth0_domain: ""
+auth0_audience: ""
+
+# Application configuration
+app_name: ""
+app_env: "development"  # development, staging, production
+
+# Auth0 application credentials (passed from auth0 role)
+auth0_client_id: ""
+auth0_client_secret: ""
+
+# Application paths (where configs should be placed)
+app_root_path: "/opt/app"
+app_config_path: "{{ app_root_path }}/config"
+app_env_path: "{{ app_root_path }}/.env"
+
+# Framework-specific settings
+nodejs_config:
+  env_file: ".env"
+  config_file: "config.js"
+  package_json: "package.json"
+
+python_config:
+  env_file: ".env"
+  settings_file: "settings.py"
+  requirements_file: "requirements.txt"
+
+django_config:
+  env_file: ".env"
+  settings_file: "settings.py"
+
+go_config:
+  env_file: ".env"
+  config_file: "config.go"
+
+java_config:
+  properties_file: "application.properties"
+  env_file: ".env"
+
+# Generic environment variables to set
+app_env_vars: {}
+# Example:
+# app_env_vars:
+#   APP_NAME: "{{ app_name }}"
+#   APP_ENV: "{{ app_env }}"
+#   DATABASE_URL: "{{ db_url }}"
+
+# File permissions
+app_config_user: "app"
+app_config_group: "app"
+app_config_mode: "0640"
+
+# Tags for selective task execution
+app_integration_tags:
+  - app_integration

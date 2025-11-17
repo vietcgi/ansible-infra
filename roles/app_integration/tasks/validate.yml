@@ -1,0 +1,65 @@
+---
+# Validate application integration requirements
+
+- name: Validate required variables
+  assert:
+    that:
+      - app_framework is defined
+      - app_framework | length > 0
+      - app_name is defined
+      - app_name | length > 0
+    fail_msg: |
+      Required variables not set:
+      - app_framework: Framework type (nodejs, python, django, go, java)
+      - app_name: Application name
+  tags:
+    - app_integration
+    - validation
+
+- name: Validate Auth0 configuration
+  assert:
+    that:
+      - auth0_domain is defined
+      - auth0_domain | length > 0
+      - auth0_client_id is defined
+      - auth0_client_id | length > 0
+    fail_msg: |
+      Auth0 configuration incomplete:
+      - auth0_domain: Auth0 tenant domain (e.g., acme-corp.auth0.com)
+      - auth0_client_id: Application client ID
+  tags:
+    - app_integration
+    - validation
+
+- name: Validate application paths
+  assert:
+    that:
+      - app_root_path is defined
+      - app_root_path | length > 0
+    fail_msg: "app_root_path must be defined (e.g., /opt/app)"
+  tags:
+    - app_integration
+    - validation
+
+- name: Check application framework is supported
+  assert:
+    that:
+      - app_framework in ['nodejs', 'python', 'django', 'go', 'java', 'generic']
+    fail_msg: |
+      Unsupported framework: {{ app_framework }}
+      Supported: nodejs, python, django, go, java, generic
+  tags:
+    - app_integration
+    - validation
+
+- name: Display validation result
+  debug:
+    msg: |
+      Application Integration Validation: ✓
+      Framework: {{ app_framework }}
+      Application: {{ app_name }}
+      Auth0 Domain: {{ auth0_domain }}
+      Application Path: {{ app_root_path }}
+  tags:
+    - app_integration
+    - validation
