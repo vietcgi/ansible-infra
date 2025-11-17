@@ -25,15 +25,44 @@
     - users
     - user_create
 
-- name: Remove disabled users from sudoers (if in sudo group)
-  ansible.builtin.lineinfile:
+- name: Configure sudo access for enabled users
+  block:
+    - name: Add sudo privileges for users with sudo_access enabled
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/{{ item.key }}
+        line: "{{ item.key }} ALL=(ALL) NOPASSWD:ALL"
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+      loop: "{{ managed_users | dict2items }}"
+      when:
+        - managed_users is defined
+        - item.value.enabled | bool
+        - item.value.rbac.sudo_access | default(false) | bool
+      tags:
+        - users
+        - user_sudo
+
+    - name: Remove sudo privileges for users with sudo_access disabled
+      ansible.builtin.file:
+        path: /etc/sudoers.d/{{ item.key }}
+        state: absent
+      loop: "{{ managed_users | dict2items }}"
+      when:
+        - managed_users is defined
+        - not item.value.rbac.sudo_access | default(false) | bool
+      tags:
+        - users
+        - user_sudo
+
+- name: Remove disabled users from sudoers
+  ansible.builtin.file:
     path: /etc/sudoers.d/{{ item.key }}
     state: absent
   loop: "{{ managed_users | dict2items }}"
   when:
     - managed_users is defined
     - not item.value.enabled | bool
-    - "'sudo' in item.value.system.groups"
   ignore_errors: yes
   tags:
     - users
