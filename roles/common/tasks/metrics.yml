@@ -1,0 +1,231 @@
+---
+# Metrics Collection: node_exporter
+# Exposes Prometheus metrics on port 9100
+# Provides system metrics: CPU, memory, disk, network, process, filesystem
+
+- name: Ensure metrics collection is enabled
+  ansible.builtin.assert:
+    that:
+      - metrics_enabled is defined
+      - metrics_listen_port is defined and metrics_listen_port | int > 0
+    fail_msg: "metrics_enabled and metrics_listen_port must be defined"
+  tags:
+    - metrics
+    - always
+
+- name: Install node_exporter from distribution repositories
+  ansible.builtin.package:
+    name: prometheus-node-exporter
+    state: present
+  ignore_errors: yes
+  register: node_exporter_repo_install
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - packages
+
+- name: Fallback to manual node_exporter installation if package unavailable
+  block:
+    - name: Check node_exporter version
+      ansible.builtin.command: node_exporter --version
+      register: node_exporter_version
+      changed_when: false
+      failed_when: false
+
+    - name: Download node_exporter if not installed
+      block:
+        - name: Create node_exporter download directory
+          ansible.builtin.file:
+            path: /tmp/node_exporter
+            state: directory
+            mode: '0755'
+
+        - name: Download node_exporter binary
+          ansible.builtin.get_url:
+            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ metrics_node_exporter_version }}/node_exporter-{{ metrics_node_exporter_version }}.linux-{{ ansible_architecture }}.tar.gz"
+            dest: "/tmp/node_exporter/node_exporter-{{ metrics_node_exporter_version }}.tar.gz"
+            checksum: "sha256:{{ metrics_node_exporter_checksum }}"
+            mode: '0644'
+          register: node_exporter_download
+          retries: 3
+          delay: 5
+
+        - name: Extract node_exporter archive
+          ansible.builtin.unarchive:
+            src: "/tmp/node_exporter/node_exporter-{{ metrics_node_exporter_version }}.tar.gz"
+            dest: /tmp/node_exporter
+            remote_src: yes
+
+        - name: Install node_exporter binary
+          ansible.builtin.copy:
+            src: "/tmp/node_exporter/node_exporter-{{ metrics_node_exporter_version }}.linux-{{ ansible_architecture }}/node_exporter"
+            dest: /usr/local/bin/node_exporter
+            owner: root
+            group: root
+            mode: '0755'
+            backup: yes
+            remote_src: yes
+
+        - name: Clean up download directory
+          ansible.builtin.file:
+            path: /tmp/node_exporter
+            state: absent
+
+      when: node_exporter_version.rc != 0
+
+  when:
+    - metrics_enabled | bool
+    - node_exporter_repo_install.failed | default(false)
+  tags:
+    - metrics
+    - packages
+
+- name: Create node_exporter systemd service
+  ansible.builtin.template:
+    src: node_exporter_systemd.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart node_exporter
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - configuration
+
+- name: Create node_exporter user for service execution
+  ansible.builtin.user:
+    name: node_exporter
+    shell: /sbin/nologin
+    state: present
+    system: yes
+    home: /var/lib/node_exporter
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - configuration
+
+- name: Create node_exporter directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: '0755'
+  loop:
+    - /var/lib/node_exporter
+    - /var/lib/node_exporter/textfile_collector
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - configuration
+
+- name: Enable and start node_exporter service
+  ansible.builtin.systemd:
+    name: node_exporter
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - services
+
+- name: Configure Prometheus scrape configuration for node_exporter
+  ansible.builtin.template:
+    src: prometheus_scrape_config.j2
+    dest: /etc/prometheus/scrape_configs/node_exporter.yml
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - metrics_enabled | bool
+    - metrics_prometheus_enabled | default(true)
+  notify: restart prometheus
+  tags:
+    - metrics
+    - prometheus
+    - configuration
+
+- name: Create custom metrics collection script
+  ansible.builtin.template:
+    src: custom_metrics_collector.j2
+    dest: /usr/local/bin/collect-custom-metrics
+    owner: root
+    group: root
+    mode: '0755'
+    backup: yes
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - custom-metrics
+
+- name: Schedule custom metrics collection via cron
+  ansible.builtin.cron:
+    name: "Collect custom system metrics"
+    job: "/usr/local/bin/collect-custom-metrics"
+    minute: "*/5"
+    user: root
+    state: "{{ 'present' if metrics_enabled | bool else 'absent' }}"
+  tags:
+    - metrics
+    - scheduling
+
+- name: Verify node_exporter accessibility
+  block:
+    - name: Check node_exporter HTTP endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ metrics_listen_port }}/metrics"
+        method: GET
+        return_content: yes
+        timeout: 5
+      register: metrics_endpoint
+      changed_when: false
+      failed_when: false
+
+    - name: Report metrics endpoint status
+      ansible.builtin.debug:
+        msg: "Metrics endpoint accessible: http://127.0.0.1:{{ metrics_listen_port }}/metrics"
+      when: metrics_endpoint.status | default(0) == 200
+      tags:
+        - metrics
+        - validate
+
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - validate
+
+- name: Display metrics configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Metrics Collection Configuration:
+      ==================================
+      Service: Prometheus node_exporter
+      Status: {{ 'Enabled' if metrics_enabled | bool else 'Disabled' }}
+      Listen Port: {{ metrics_listen_port }}
+      User: node_exporter
+      Endpoint: http://127.0.0.1:{{ metrics_listen_port }}/metrics
+
+      Metrics Exposed:
+      - CPU: cores, seconds, utilization
+      - Memory: total, available, used, buffers, cached
+      - Disk: size, available, used, io operations
+      - Network: bytes in/out, errors, dropped packets
+      - Filesystem: inodes, space, size
+      - Process: file descriptors, context switches, memory
+      - Node: boot time, uptime, load average
+
+      Custom Metrics:
+      - Collection interval: 5 minutes
+      - Location: /var/lib/node_exporter/textfile_collector
+
+      Integration:
+      - Prometheus scrape config: /etc/prometheus/scrape_configs/node_exporter.yml
+      - Scrape interval: {{ metrics_scrape_interval | default('15s') }}
+    verbosity: 1
+  when: metrics_enabled | bool
+  tags:
+    - metrics
