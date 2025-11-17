@@ -5,6 +5,7 @@
 - name: Import task files
   include_tasks: "{{ item }}"
   loop:
+    # Core foundation tasks
     - validate_os.yml
     - system_update.yml
     - core_packages.yml
@@ -17,6 +18,11 @@
     - limits.yml
     - dns.yml
     - logging.yml
+
+    # PHASE 1: Security, Monitoring, and Backup
+    - firewall.yml
+    - fail2ban.yml
+    - metrics.yml
 
 - name: Display role completion summary
   debug:
