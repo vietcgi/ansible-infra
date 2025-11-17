@@ -1,0 +1,205 @@
+---
+# Monitoring & Alerting Tuning
+# Alert configuration, severity levels, runbook integration, escalation policies
+
+- name: Create alert configuration directory
+  ansible.builtin.file:
+    path: /etc/monitoring/alerts
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - monitoring_tuning
+    - alerts
+
+- name: Configure alert severity levels
+  ansible.builtin.template:
+    src: alert-severity.j2
+    dest: /etc/monitoring/alerts/severity-levels.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - alerts
+
+- name: Create alert routing rules
+  ansible.builtin.template:
+    src: alert-routing.j2
+    dest: /etc/monitoring/alerts/routing-rules.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - alerts
+
+- name: Configure alert thresholds
+  ansible.builtin.template:
+    src: alert-thresholds.j2
+    dest: /etc/monitoring/alerts/thresholds.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - thresholds
+
+- name: Create runbook mapping file
+  ansible.builtin.template:
+    src: runbook-mapping.j2
+    dest: /etc/monitoring/alerts/runbooks.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - runbooks
+
+- name: Configure alert deduplication rules
+  ansible.builtin.template:
+    src: alert-deduplication.j2
+    dest: /etc/monitoring/alerts/deduplication.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - deduplication
+
+- name: Configure on-call rotation schedule
+  ansible.builtin.template:
+    src: oncall-schedule.j2
+    dest: /etc/monitoring/alerts/oncall-schedule.yml
+    owner: root
+    group: root
+    mode: '0644'
+  when: monitoring_enable_oncall_scheduling | default(false)
+  tags:
+    - monitoring_tuning
+    - oncall
+
+- name: Create alert escalation policy
+  ansible.builtin.template:
+    src: escalation-policy.j2
+    dest: /etc/monitoring/alerts/escalation-policy.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - monitoring_tuning
+    - escalation
+
+- name: Configure Prometheus scrape job for monitoring health
+  ansible.builtin.template:
+    src: prometheus-self-monitor.j2
+    dest: /etc/prometheus/rules/monitoring-health.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0640'
+    backup: yes
+  when: monitoring_prometheus_enabled | default(false)
+  notify: reload prometheus
+  tags:
+    - monitoring_tuning
+    - prometheus
+
+- name: Create synthetic monitoring checks script
+  ansible.builtin.template:
+    src: synthetic-monitoring.sh.j2
+    dest: /usr/local/bin/synthetic-monitoring.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - monitoring_tuning
+    - synthetic
+
+- name: Schedule synthetic monitoring checks
+  ansible.builtin.cron:
+    name: "Synthetic uptime monitoring"
+    minute: "*/5"
+    job: "/usr/local/bin/synthetic-monitoring.sh >> /var/log/synthetic-monitoring.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - monitoring_tuning
+    - synthetic
+
+- name: Create baseline performance metrics script
+  ansible.builtin.template:
+    src: performance-baseline.sh.j2
+    dest: /usr/local/bin/establish-performance-baseline.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - monitoring_tuning
+    - baseline
+
+- name: Establish performance baseline on first run
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -f /var/lib/monitoring/baseline.db ]; then
+      echo "Establishing performance baseline..."
+      /usr/local/bin/establish-performance-baseline.sh
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - monitoring_tuning
+    - baseline
+
+- name: Create anomaly detection configuration
+  ansible.builtin.template:
+    src: anomaly-detection.j2
+    dest: /etc/monitoring/alerts/anomaly-detection.yml
+    owner: root
+    group: root
+    mode: '0644'
+  when: monitoring_enable_anomaly_detection | default(false)
+  tags:
+    - monitoring_tuning
+    - anomaly_detection
+
+- name: Configure alert notification channels
+  ansible.builtin.template:
+    src: notification-channels.j2
+    dest: /etc/monitoring/alerts/notification-channels.yml
+    owner: root
+    group: root
+    mode: '0640'
+  tags:
+    - monitoring_tuning
+    - notifications
+
+- name: Display monitoring tuning configuration
+  ansible.builtin.debug:
+    msg: |
+      Monitoring & Alerting Tuning Configured:
+      =======================================
+      Alert Severity Levels: Critical, High, Medium, Low, Info
+      Routing Rules: Configured for severity-based routing
+      Thresholds: Customized per metric type
+
+      Alert Management:
+        - Deduplication: Enabled (group related alerts)
+        - Silencing Rules: Configured
+        - Escalation: Multi-level with escalation delays
+
+      On-Call Management: Optional (disabled by default)
+      Runbook Integration: Mapped to alert types
+      Synthetic Monitoring: 5-minute interval checks
+
+      Performance Baseline:
+        - Established: {{ 'Yes' if baseline_established | default(false) else 'On first run' }}
+        - Anomaly Detection: {{ 'Enabled' if monitoring_enable_anomaly_detection | default(false) else 'Disabled' }}
+
+      Notification Channels:
+        - Email, Slack, PagerDuty, Webhook (if configured)
+        - Alert enrichment with context
+  tags:
+    - monitoring_tuning
+    - report

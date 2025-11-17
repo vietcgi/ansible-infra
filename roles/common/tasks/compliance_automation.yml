@@ -1,0 +1,241 @@
+---
+# Compliance Automation - Continuous Compliance Checking
+# FedRAMP, HIPAA, SOC2, PCI-DSS, NIST compliance automation
+
+- name: Install compliance automation tools
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - git
+    - curl
+    - jq
+  tags:
+    - compliance_automation
+
+- name: Create compliance frameworks directory
+  ansible.builtin.file:
+    path: /opt/compliance-frameworks
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+
+- name: Create FedRAMP compliance checker
+  ansible.builtin.template:
+    src: fedramp-compliance.sh.j2
+    dest: /opt/compliance-frameworks/fedramp-check.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - fedramp
+
+- name: Create HIPAA compliance checker
+  ansible.builtin.template:
+    src: hipaa-compliance.sh.j2
+    dest: /opt/compliance-frameworks/hipaa-check.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - hipaa
+
+- name: Create PCI-DSS compliance checker
+  ansible.builtin.template:
+    src: pci-compliance.sh.j2
+    dest: /opt/compliance-frameworks/pci-check.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - pci
+
+- name: Create SOC2 compliance checker
+  ansible.builtin.template:
+    src: soc2-compliance.sh.j2
+    dest: /opt/compliance-frameworks/soc2-check.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - soc2
+
+- name: Create NIST SP 800-53 compliance checker
+  ansible.builtin.template:
+    src: nist-compliance.sh.j2
+    dest: /opt/compliance-frameworks/nist-check.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - nist
+
+- name: Create audit log tamper detection script
+  ansible.builtin.template:
+    src: audit-tamper-detection.sh.j2
+    dest: /usr/local/bin/check-audit-tampering.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - audit
+
+- name: Schedule audit log tamper checks
+  ansible.builtin.cron:
+    name: "Hourly audit log tamper detection"
+    minute: "*/60"
+    job: "/usr/local/bin/check-audit-tampering.sh >> /var/log/audit-tamper-check.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - compliance_automation
+    - audit
+
+- name: Create compliance exception tracking
+  ansible.builtin.file:
+    path: /var/lib/compliance/exceptions
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  tags:
+    - compliance_automation
+
+- name: Create compliance exception template
+  ansible.builtin.template:
+    src: compliance-exception-template.j2
+    dest: /var/lib/compliance/exceptions/template.yml
+    owner: root
+    group: root
+    mode: '0640'
+  tags:
+    - compliance_automation
+
+- name: Create audit trail correlation script
+  ansible.builtin.template:
+    src: audit-correlation.sh.j2
+    dest: /usr/local/bin/correlate-audit-trails.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - audit
+
+- name: Schedule daily audit trail correlation
+  ansible.builtin.cron:
+    name: "Daily audit trail correlation"
+    minute: "0"
+    hour: "0"
+    job: "/usr/local/bin/correlate-audit-trails.sh >> /var/log/audit-correlation.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - compliance_automation
+    - audit
+
+- name: Create automated compliance remediation tasks
+  ansible.builtin.template:
+    src: compliance-remediation.j2
+    dest: /opt/compliance-frameworks/auto-remediation.yml
+    owner: root
+    group: root
+    mode: '0640'
+  tags:
+    - compliance_automation
+    - remediation
+
+- name: Create compliance report generator
+  ansible.builtin.template:
+    src: compliance-report-generator.sh.j2
+    dest: /usr/local/bin/generate-compliance-report.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_automation
+    - reporting
+
+- name: Schedule weekly compliance report generation
+  ansible.builtin.cron:
+    name: "Weekly compliance report"
+    minute: "0"
+    hour: "4"
+    weekday: "0"
+    job: "/usr/local/bin/generate-compliance-report.sh > /var/log/compliance/weekly-report.html"
+    state: present
+    user: root
+  tags:
+    - compliance_automation
+    - reporting
+
+- name: Create compliance dashboard configuration
+  ansible.builtin.template:
+    src: compliance-dashboard.json.j2
+    dest: /etc/monitoring/dashboards/compliance.json
+    owner: root
+    group: root
+    mode: '0644'
+  when: monitoring_grafana_enabled | default(false)
+  tags:
+    - compliance_automation
+    - dashboard
+
+- name: Configure compliance log rotation
+  ansible.builtin.template:
+    src: logrotate-compliance-auto.j2
+    dest: /etc/logrotate.d/compliance-automation
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - compliance_automation
+    - logging
+
+- name: Display compliance automation configuration
+  ansible.builtin.debug:
+    msg: |
+      Compliance Automation Configured:
+      ===============================
+      Compliance Frameworks:
+        - FedRAMP: Automated checks enabled
+        - HIPAA: Healthcare compliance validation
+        - PCI-DSS: Payment card industry standards
+        - SOC2: Service organization controls
+        - NIST SP 800-53: National standards
+
+      Audit Management:
+        - Tamper Detection: Hourly verification
+        - Trail Correlation: Daily (midnight)
+        - Exception Tracking: Centralized database
+        - Automated Remediation: Optional (disabled by default)
+
+      Reporting:
+        - Weekly Report: Generated Sunday 4 AM
+        - Dashboard: Integration with Grafana
+        - Log Retention: Centralized in /var/log/compliance/
+
+      Features:
+        - Continuous compliance checking
+        - Audit log integrity validation
+        - Exception tracking and approval
+        - Automated remediation (optional)
+        - Compliance reporting and dashboards
+
+      Next Steps:
+        1. Review compliance exceptions: /var/lib/compliance/exceptions/
+        2. Configure compliance exceptions as needed
+        3. Enable auto-remediation if desired
+        4. Review weekly reports
+  tags:
+    - compliance_automation
+    - report

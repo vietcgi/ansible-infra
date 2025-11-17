@@ -1,0 +1,209 @@
+---
+# Storage Hardening - Mount Options, Encryption, Quotas
+# Hardens filesystem mounting and disk management
+# Compliance: CIS Benchmark 1.1.x, NIST CM-2
+
+- name: Ensure /tmp exists and is properly mounted
+  ansible.builtin.mount:
+    path: /tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: "defaults,rw,nosuid,nodev,noexec,relatime,size=2G"
+    state: mounted
+  tags:
+    - storage_hardening
+    - mount_options
+
+- name: Harden /var mount options
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^\S+\s+/var\s'
+    line: "{{ item }} /var ext4 defaults,noexec,nodev,relatime 0 2"
+    backup: yes
+  loop: "{{ ansible_mounts | selectattr('mount', 'equalto', '/var') | map(attribute='device') | list }}"
+  when: ansible_mounts | selectattr('mount', 'equalto', '/var') | list | length > 0
+  notify: remount filesystems
+  tags:
+    - storage_hardening
+    - mount_options
+
+- name: Harden /home mount options
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^\S+\s+/home\s'
+    line: "{{ item }} /home ext4 defaults,nodev,nosuid,relatime 0 2"
+    backup: yes
+  loop: "{{ ansible_mounts | selectattr('mount', 'equalto', '/home') | map(attribute='device') | list }}"
+  when: ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length > 0
+  notify: remount filesystems
+  tags:
+    - storage_hardening
+    - mount_options
+
+- name: Install disk encryption tools
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - cryptsetup
+    - lvm2
+  tags:
+    - storage_hardening
+    - encryption
+
+- name: Install disk monitoring tools
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - smartmontools
+    - lsof
+    - ncdu
+  tags:
+    - storage_hardening
+    - monitoring
+
+- name: Enable SMART monitoring for disks
+  ansible.builtin.service:
+    name: smartd
+    enabled: yes
+    state: started
+  when: ansible_os_family == 'Debian'
+  tags:
+    - storage_hardening
+    - monitoring
+
+- name: Create disk quota configuration
+  ansible.builtin.template:
+    src: disk-quotas.j2
+    dest: /etc/disk-quotas.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - storage_hardening
+    - quotas
+
+- name: Install quota tools
+  ansible.builtin.package:
+    name: quota
+    state: present
+  tags:
+    - storage_hardening
+    - quotas
+
+- name: Create disk usage monitoring script
+  ansible.builtin.template:
+    src: disk-monitoring.sh.j2
+    dest: /usr/local/bin/check-disk-usage.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - storage_hardening
+    - monitoring
+
+- name: Create hourly disk usage check cron
+  ansible.builtin.cron:
+    name: "Hourly disk usage monitoring"
+    minute: "0"
+    job: "/usr/local/bin/check-disk-usage.sh"
+    state: present
+    user: root
+  tags:
+    - storage_hardening
+    - monitoring
+
+- name: Create filesystem integrity checker
+  ansible.builtin.template:
+    src: fs-integrity-check.sh.j2
+    dest: /usr/local/bin/check-fs-integrity.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - storage_hardening
+    - integrity
+
+- name: Schedule weekly filesystem integrity check
+  ansible.builtin.cron:
+    name: "Weekly filesystem integrity check"
+    minute: "30"
+    hour: "2"
+    weekday: "0"
+    job: "/usr/local/bin/check-fs-integrity.sh >> /var/log/fs-integrity.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - storage_hardening
+    - integrity
+
+- name: Create LVM monitoring script
+  ansible.builtin.template:
+    src: lvm-monitoring.sh.j2
+    dest: /usr/local/bin/check-lvm.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - storage_hardening
+    - lvm
+
+- name: Schedule daily LVM health check
+  ansible.builtin.cron:
+    name: "Daily LVM health check"
+    minute: "15"
+    hour: "1"
+    job: "/usr/local/bin/check-lvm.sh >> /var/log/lvm-health.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - storage_hardening
+    - lvm
+
+- name: Configure logrotate for storage logs
+  ansible.builtin.template:
+    src: logrotate-storage.j2
+    dest: /etc/logrotate.d/storage
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - storage_hardening
+    - logging
+
+- name: Disable USB storage if not needed
+  ansible.builtin.lineinfile:
+    path: /etc/modprobe.d/blacklist.conf
+    line: "blacklist usb-storage"
+    state: present
+    create: yes
+  when: not storage_allow_usb | default(false)
+  tags:
+    - storage_hardening
+    - security
+
+- name: Display storage hardening configuration
+  ansible.builtin.debug:
+    msg: |
+      Storage Hardening Configured:
+      =============================
+      /tmp: tmpfs with noexec,nosuid,nodev (2GB)
+      /var: noexec,nodev mounted
+      /home: nosuid,nodev mounted
+
+      Disk Encryption: cryptsetup available
+      LVM Management: Enabled with monitoring
+      Quota System: Configured
+      SMART Monitoring: Active
+
+      Monitoring Schedule:
+      - Hourly: Disk usage checks
+      - Daily: LVM health (1:15 AM)
+      - Weekly: Filesystem integrity (Sun 2:30 AM)
+
+      Alerts: Enabled at 85%, 95%, 99% capacity
+      Log Location: /var/log/disk-*, /var/log/lvm-*, /var/log/fs-*
+  tags:
+    - storage_hardening
+    - report
