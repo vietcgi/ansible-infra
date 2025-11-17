@@ -91,3 +91,194 @@ common_dns_servers:
 common_hostname_environment: production
 common_ntp_synchronize_on_boot: true
 common_disable_swap: false
+
+################################################################################
+# PHASE 1: SECURITY, MONITORING, AND BACKUP (New in this phase)
+################################################################################
+
+## Firewall Configuration (UFW/firewalld)
+firewall_enabled: true
+firewall_allow_ssh: true
+firewall_ssh_port: 22
+firewall_allow_icmp: true
+firewall_allow_icmp_rate: 10/minute
+firewall_enable_ddos_protection: true
+firewall_custom_rules: []
+# Example custom rules:
+#  - rule: "allow"
+#    port: "8080"
+#    protocol: "tcp"
+
+## fail2ban: Intrusion Prevention System
+fail2ban_enabled: true
+
+# Global fail2ban settings
+fail2ban_bantime: 3600                    # Ban duration in seconds (1 hour)
+fail2ban_findtime: 600                    # Time window for counting failures (10 minutes)
+fail2ban_maxretry: 5                      # Max failures before banning
+fail2ban_destemail: "root"                # Email for notifications
+fail2ban_sendername: "Fail2Ban"           # Sender name in emails
+fail2ban_enable_email_notifications: true # Send emails on ban
+fail2ban_dbpurgeage: 86400                # Database purge age (1 day)
+fail2ban_loglevel: "INFO"                 # Log level (DEBUG, INFO, WARN, ERROR, CRIT)
+fail2ban_syslog_facility: "daemon"        # Syslog facility
+fail2ban_usedns: "warn"                   # DNS usage (yes, no, warn)
+fail2ban_ignoreself: true                 # Never ban localhost
+fail2ban_ignoreips: []                    # Additional IPs to whitelist
+# Example:
+#  - 192.168.1.100
+#  - 203.0.113.0/24
+
+# SSH jail settings
+fail2ban_bantime_ssh: 3600                # SSH ban duration
+fail2ban_findtime_ssh: 600                # SSH detection window
+fail2ban_maxretry_ssh: 5                  # SSH max retries
+fail2ban_ssh_port: "ssh"                  # SSH port
+fail2ban_ssh_whitelist_ips: []            # SSH-specific whitelist
+
+# Postfix jail settings (mail server)
+fail2ban_enable_postfix: false            # Postfix jail enabled
+fail2ban_bantime_postfix: 3600
+fail2ban_findtime_postfix: 600
+fail2ban_maxretry_postfix: 5
+fail2ban_postfix_whitelist_ips: []
+
+# Nginx jail settings (web server)
+fail2ban_enable_nginx: false              # Nginx jail enabled
+fail2ban_bantime_nginx: 3600
+fail2ban_findtime_nginx: 600
+fail2ban_maxretry_nginx: 5
+fail2ban_enable_nginx_limit: false
+fail2ban_enable_nginx_noscript: false
+fail2ban_enable_nginx_badbots: false
+fail2ban_nginx_whitelist_ips: []
+
+# Apache jail settings (web server)
+fail2ban_enable_apache: false             # Apache jail enabled
+fail2ban_bantime_apache: 3600
+fail2ban_findtime_apache: 600
+fail2ban_maxretry_apache: 5
+fail2ban_enable_apache_limit: false
+fail2ban_enable_apache_noscript: false
+fail2ban_enable_apache_badbots: false
+fail2ban_enable_apache_overflows: false
+fail2ban_enable_apache_modsecurity: false
+fail2ban_apache_whitelist_ips: []
+
+# Recidivism (repeat offender) settings
+fail2ban_enable_recidivism: true
+fail2ban_recidivism_maxretry_1: 1         # First offense threshold
+fail2ban_recidivism_bantime_1: 86400      # 1 day
+fail2ban_recidivism_maxretry_2: 2         # Second offense threshold
+fail2ban_recidivism_bantime_2: 604800     # 7 days
+fail2ban_recidivism_maxretry_3: 3         # Third offense threshold
+fail2ban_recidivism_bantime_3: 2592000    # 30 days
+fail2ban_recidivism_maxretry_4plus: 4     # Fourth+ offense threshold
+fail2ban_recidivism_bantime_4plus: 31536000  # 365 days (permanent)
+
+# Log rotation settings
+fail2ban_log_rotate_frequency: "daily"
+fail2ban_log_rotate_count: 30             # Keep 30 days of logs
+fail2ban_log_rotate_size: "100M"          # Rotate if exceeds 100MB
+fail2ban_log_rotate_postrotate: true      # Flush logs after rotation
+fail2ban_jail_log_rotate_frequency: "weekly"
+fail2ban_jail_log_rotate_count: 20
+fail2ban_audit_log_rotate_frequency: "monthly"
+fail2ban_audit_log_rotate_count: 12
+fail2ban_backup_db_before_rotation: false # Backup database before rotation
+
+# Whitelisting
+fail2ban_internal_network_ips: []         # Internal network ranges
+# Examples:
+#  - 10.0.0.0/8
+#  - 172.16.0.0/12
+#  - 192.168.0.0/16
+fail2ban_monitoring_ips: []               # Monitoring/automation IPs
+fail2ban_custom_ignoreips: []             # Custom whitelist entries
+
+## Prometheus Metrics Collection
+metrics_enabled: true
+metrics_listen_port: 9100                 # node_exporter listen port
+metrics_telemetry_path: "/metrics"        # Metrics endpoint path
+metrics_enable_lifecycle: false           # Allow runtime reload
+metrics_max_requests: 40                  # Max concurrent requests
+
+# node_exporter installation
+metrics_node_exporter_version: "1.8.2"    # node_exporter version
+metrics_node_exporter_checksum: "8bf9c1dcadf7e8b45bd0f0db6fb6275e9af1fb2e1a9c34da85b8a9f8b1af5c67"  # SHA256 checksum
+metrics_client_path: "/usr/bin/fail2ban-client"
+
+# Prometheus integration
+metrics_scrape_interval: "15s"            # Scrape interval
+metrics_scrape_timeout: "10s"             # Scrape timeout
+metrics_evaluation_interval: "15s"        # Evaluation interval
+metrics_retention_period: "15d"           # Metrics retention
+metrics_scheme: "http"                    # http or https
+metrics_environment: "production"         # Environment label
+metrics_datacenter: "unknown"             # Datacenter label
+
+# Alertmanager (optional)
+metrics_alertmanager_enabled: false
+metrics_alertmanager_host: "localhost"
+metrics_alertmanager_port: 9093
+
+# Consul service discovery (optional)
+metrics_consul_enabled: false
+metrics_consul_host: "localhost"
+metrics_consul_port: 8500
+
+# Remote storage (optional)
+metrics_remote_write_enabled: false
+metrics_remote_write_url: "http://localhost:9009/api/v1/write"
+metrics_remote_read_enabled: false
+metrics_remote_read_url: "http://localhost:9009/api/v1/read"
+
+# Custom metrics collection
+metrics_critical_services:                # Services to monitor
+  - ssh
+metrics_custom_apps: []                   # Custom applications to monitor
+metrics_drop_high_cardinality: false      # Drop high-cardinality metrics
+metrics_cpu_quota: "100%"                 # CPU quota for node_exporter
+metrics_memory_limit: "256M"              # Memory limit for node_exporter
+
+## Log Shipping & Centralization (Placeholder for PHASE 1.B)
+log_shipping_enabled: false
+log_shipping_elasticsearch_host: "localhost"
+log_shipping_elasticsearch_port: 9200
+log_shipping_logstash_host: "localhost"
+log_shipping_logstash_port: 5000
+log_shipping_filebeat_version: "8.12.0"
+log_shipping_buffer_size: "4096"
+
+## HashiCorp Vault Integration (Placeholder for PHASE 1.B)
+vault_enabled: false
+vault_address: "https://vault.example.com:8200"
+vault_token: ""
+vault_skip_verify: false
+vault_auth_method: "token"                # token, approle, jwt, etc.
+vault_unseal_keys: []
+
+## Backup Configuration (Placeholder for PHASE 1.B)
+backup_enabled: false
+backup_client: "bacula"                   # bacula, veeam, restic, etc.
+backup_schedule: "0 2 * * *"              # 2 AM daily
+backup_retention_days: 30
+backup_verify_after_backup: true
+
+## Sudo Hardening (Placeholder for PHASE 1.B)
+sudo_hardening_enabled: true
+sudo_require_tty: true
+sudo_use_pty: true
+sudo_log_input: true
+sudo_log_output: true
+sudo_log_file: "/var/log/sudo.log"
+sudo_max_env_lines: 100
+
+## AppArmor/SELinux Hardening (Placeholder for PHASE 1.B)
+apparmor_enabled: false                   # Ubuntu/Debian
+apparmor_enforce_mode: true               # enforce vs complain
+apparmor_update_profiles: true
+
+selinux_enabled: false                    # RHEL/CentOS
+selinux_policy: "targeted"                # targeted, mls, strict
+selinux_mode: "enforcing"                 # enforcing, permissive, disabled
