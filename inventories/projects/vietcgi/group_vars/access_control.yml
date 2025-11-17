@@ -1,0 +1,220 @@
+---
+# ============================================================================
+# SYNCHRONIZED ACCESS CONTROL
+# ============================================================================
+# Disable a user in ONE place, access revoked EVERYWHERE
+# ============================================================================
+
+# User status tracking (single source of truth for access)
+user_access_status:
+  admin:
+    enabled: true              # ← Change to false to disable everywhere
+    reason: "Active administrator"
+    disabled_date: null
+    revoke_reason: null
+
+  support:
+    enabled: true              # ← Change to false to disable everywhere
+    reason: "Active support staff"
+    disabled_date: null
+    revoke_reason: null
+
+# ============================================================================
+# HOW IT WORKS
+# ============================================================================
+#
+# 1. Define user_access_status above (ONE place to control access)
+#
+# 2. When enabled: true
+#    ✓ User created in /etc/passwd (SSH access allowed)
+#    ✓ User created in Auth0 (app login allowed)
+#    ✓ Public key added to authorized_keys (SSH keys work)
+#    ✓ Auth0 account active (password works)
+#
+# 3. When enabled: false
+#    ✓ SSH public key removed from authorized_keys
+#    ✓ User disabled in /etc/passwd (nologin shell)
+#    ✓ Auth0 account disabled (password fails)
+#    ✓ Session tokens invalidated
+#
+# RESULT: Access revoked EVERYWHERE at once
+#
+# ============================================================================
+
+# Immediate revocation procedures
+immediate_revocation:
+  enabled: true
+  actions:
+    - disable_ssh_keys           # Remove from authorized_keys immediately
+    - disable_system_user        # Set shell to /sbin/nologin
+    - revoke_auth0_account       # Disable in Auth0
+    - kill_active_sessions       # Terminate any open SSH sessions
+    - audit_log_revocation       # Log the action with timestamp
+
+# Revocation audit trail
+revocation_audit:
+  enabled: true
+  log_location: "/var/log/user-revocation.log"
+  retention_days: 365
+  log_format: |
+    [{{ timestamp }}] User: {{ username }}
+    Revoked By: {{ revoked_by }}
+    Reason: {{ revocation_reason }}
+    Access Removed From:
+      - SSH: authorized_keys removed
+      - Auth0: account disabled
+      - Active Sessions: killed
+      - Reason: {{ revocation_reason }}
+
+# ============================================================================
+# EXAMPLE: DISABLE USER IN ONE PLACE
+# ============================================================================
+#
+# Scenario: admin is no longer authorized, needs immediate access revocation
+#
+# Step 1: Edit this file (access_control.yml)
+#
+#   user_access_status:
+#     admin:
+#       enabled: false              # ← Change from true to false
+#       reason: "Terminated employee"
+#       disabled_date: "2025-11-17"
+#       revoke_reason: "Employee no longer with company"
+#
+# Step 2: Run playbook
+#
+#   ansible-playbook playbooks/client_onboarding.yml \
+#     -i inventories/projects/vietcgi/hosts.yml
+#
+# Step 3: What happens automatically:
+#
+#   On Server:
+#   ├─ Remove admin's SSH key from /home/admin/.ssh/authorized_keys
+#   ├─ Set admin's shell to /sbin/nologin (cannot login)
+#   ├─ Kill all active SSH sessions for admin
+#   └─ Log revocation: admin disabled at 2025-11-17 10:30:45
+#
+#   In Auth0:
+#   ├─ Disable admin@vietcgi.us account
+#   ├─ Invalidate all access tokens
+#   └─ Prevent password authentication
+#
+# Result: admin cannot:
+#   ✗ SSH into server (no key access + nologin shell)
+#   ✗ Login to web app (Auth0 account disabled)
+#   ✗ Use any existing tokens (invalidated)
+#
+# ============================================================================
+
+# Session management during revocation
+session_management:
+  kill_active_sessions: true
+  session_timeout_on_disable:
+    ssh: "immediate"            # Kill SSH sessions immediately
+    auth0: "immediate"          # Invalidate Auth0 tokens immediately
+  notification:
+    notify_user: false          # Don't warn them
+    notify_admins: true         # Alert admins of revocation
+    alert_email: "security@vietcgi.us"
+
+# Escalation procedures for compromised accounts
+compromise_procedure:
+  enabled: true
+  on_compromise:
+    - action: "immediate_revocation"
+      severity: "CRITICAL"
+      steps:
+        1. "Kill all active sessions"
+        2. "Disable SSH keys"
+        3. "Disable Auth0 account"
+        4. "Force password reset on re-enable"
+        5. "Review account activity logs"
+        6. "Alert security team"
+
+    - action: "audit_investigation"
+      severity: "CRITICAL"
+      retention: "730 days"  # 2 years for compliance
+      check:
+        - "All SSH login attempts"
+        - "All Auth0 login attempts"
+        - "All API calls made"
+        - "All files accessed/modified"
+        - "All network connections"
+
+# Temporary access (contractors, temp staff)
+temporary_access:
+  # Example: contractor with time-limited access
+  contractor_john:
+    username: "contractor_john"
+    enabled: false  # Start disabled
+    access_type: "temporary"
+    start_date: "2025-12-01"
+    end_date: "2025-12-31"
+    auto_revoke: true
+    reason: "3-month contract - security audit project"
+
+    # Access is automatically enabled on start_date
+    # Access is automatically disabled on end_date
+    # No manual intervention required
+
+# Re-enablement procedures
+re_enablement:
+  requires_approval: true
+  approver: "admin"
+  steps:
+    1. "Request re-enablement with business justification"
+    2. "Admin reviews and approves"
+    3. "User credentials reset"
+    4. "New SSH key generated"
+    5. "New Auth0 password generated"
+    6. "Audit trail updated"
+    7. "Access restored"
+
+  after_disable_minimum_wait: "24 hours"  # Must wait 24h before re-enabling
+
+  re_enablement_checklist:
+    - "MFA re-enabled"
+    - "Password changed"
+    - "SSH key rotated"
+    - "Previous sessions terminated"
+    - "Activity logs reviewed"
+
+# Access control matrix by status
+access_matrix_by_status:
+  enabled_true:
+    ssh_access: "ALLOWED"
+    app_access: "ALLOWED"
+    api_access: "ALLOWED"
+    sudo_access: "as configured"
+    audit: "all actions logged"
+
+  enabled_false:
+    ssh_access: "DENIED - nologin shell + key removed"
+    app_access: "DENIED - Auth0 account disabled"
+    api_access: "DENIED - tokens invalidated"
+    sudo_access: "DENIED"
+    audit: "revocation logged with timestamp"
+
+# Integration with Ansible roles
+sync_implementation:
+  common_role:
+    # Checks user_access_status.{{ username }}.enabled
+    # If false:
+    #   - Set shell to /sbin/nologin
+    #   - Remove from authorized_keys
+    #   - Kill active sessions
+    #   - Log action
+
+  auth0_role:
+    # Checks user_access_status.{{ username }}.enabled
+    # If false:
+    #   - Disable Auth0 account via API
+    #   - Revoke all tokens
+    #   - Log action
+
+  app_integration_role:
+    # Checks user_access_status.{{ username }}.enabled
+    # If false:
+    #   - Revoke application-level permissions
+    #   - Kill active app sessions
+    #   - Log action

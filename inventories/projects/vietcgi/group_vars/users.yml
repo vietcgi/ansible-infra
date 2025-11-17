@@ -9,14 +9,20 @@
 # ============================================================================
 
 # Define users in ONE place - all systems stay synchronized
+# Access status controlled via access_control.yml (synchronized revocation)
 managed_users:
   admin:
+    # Access status (controls SSH AND Auth0 access)
+    # EDIT: access_control.yml to enable/disable
+    enabled: "{{ user_access_status.admin.enabled }}"
+    status_reason: "{{ user_access_status.admin.reason }}"
+
     # SSH/System Configuration
     system:
-      shell: "/bin/bash"
+      shell: "{{ '/sbin/nologin' if not user_access_status.admin.enabled else '/bin/bash' }}"  # nologin if disabled
       groups: ["sudo"]
       home: "/home/admin"
-      manage_ssh_key: true
+      manage_ssh_key: "{{ user_access_status.admin.enabled }}"  # Remove keys if disabled
 
     # Auth0 Configuration
     auth0:
@@ -25,27 +31,34 @@ managed_users:
       family_name: "User"
       email_verified: true
       password: "{{ vault_initial_admin_password }}"
+      account_active: "{{ user_access_status.admin.enabled }}"  # Disable if not enabled
 
     # Role-Based Access Control
     rbac:
       auth0_roles: ["admin"]           # Full access
-      sudo_access: true
-      can_deploy: true
-      can_manage_users: true
+      sudo_access: "{{ user_access_status.admin.enabled }}"
+      can_deploy: "{{ user_access_status.admin.enabled }}"
+      can_manage_users: "{{ user_access_status.admin.enabled }}"
 
     # SSH Key Management
     ssh_keys:
       - name: "primary"
         fingerprint: "SHA256:..."       # Optional: track key fingerprints
         rotation_days: 90               # Auto-rotation policy
+        active: "{{ user_access_status.admin.enabled }}"  # Disable if user disabled
 
   support:
+    # Access status (controls SSH AND Auth0 access)
+    # EDIT: access_control.yml to enable/disable
+    enabled: "{{ user_access_status.support.enabled }}"
+    status_reason: "{{ user_access_status.support.reason }}"
+
     # SSH/System Configuration
     system:
-      shell: "/bin/bash"
+      shell: "{{ '/sbin/nologin' if not user_access_status.support.enabled else '/bin/bash' }}"  # nologin if disabled
       groups: ["sudo"]
       home: "/home/support"
-      manage_ssh_key: true
+      manage_ssh_key: "{{ user_access_status.support.enabled }}"  # Remove keys if disabled
 
     # Auth0 Configuration
     auth0:
@@ -54,11 +67,12 @@ managed_users:
       family_name: "Team"
       email_verified: true
       password: "{{ vault_support_user_password }}"
+      account_active: "{{ user_access_status.support.enabled }}"  # Disable if not enabled
 
     # Role-Based Access Control
     rbac:
       auth0_roles: ["manager"]         # Team management
-      sudo_access: true
+      sudo_access: "{{ user_access_status.support.enabled }}"
       can_deploy: false
       can_manage_users: false
 
@@ -67,6 +81,7 @@ managed_users:
       - name: "primary"
         fingerprint: "SHA256:..."
         rotation_days: 90
+        active: "{{ user_access_status.support.enabled }}"  # Disable if user disabled
 
 # ============================================================================
 # CENTRALIZED ROLE DEFINITIONS
