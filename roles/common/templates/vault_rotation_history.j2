@@ -1,0 +1,42 @@
+{
+  "rotation_history": {
+    "last_rotation": "{{ ansible_date_time.iso8601 }}",
+    "rotation_schedule": {
+      "hour": "{{ security_vault_rotation_schedule_hour | default('2') }}",
+      "minute": "{{ security_vault_rotation_schedule_minute | default('0') }}",
+      "day": "{{ security_vault_rotation_schedule_day | default('*') }}",
+      "month": "{{ security_vault_rotation_schedule_month | default('*') }}",
+      "weekday": "{{ security_vault_rotation_schedule_weekday | default('*') }}"
+    },
+    "enabled_rotations": {
+      "database": {{ security_vault_database_rotation_enabled | default(false) | lower }},
+      "ssh": {{ security_vault_ssh_rotation_enabled | default(false) | lower }},
+      "api_keys": {{ security_vault_api_key_rotation_enabled | default(false) | lower }}
+    },
+    "features": {
+      "monitoring": {{ security_vault_rotation_monitoring_enabled | default(false) | lower }},
+      "audit_logging": {{ security_vault_rotation_audit_logging | default(true) | lower }},
+      "testing": {{ security_vault_rotation_test_enabled | default(true) | lower }},
+      "history_tracking": {{ security_vault_rotation_tracking_enabled | default(true) | lower }}
+    },
+    "statistics": {
+      "total_rotations_completed": 0,
+      "total_rotations_failed": 0,
+      "last_successful_rotation": null,
+      "last_failed_rotation": null,
+      "average_rotation_time_seconds": 0
+    },
+    "next_scheduled_rotation": "{{ ansible_date_time.iso8601 }}",
+    "rotation_policies": {{ security_vault_rotation_policies | default([]) | tojson }},
+    "systems": {
+      "host": "{{ ansible_fqdn }}",
+      "os_family": "{{ ansible_os_family }}",
+      "vault_version": "{{ security_vault_version | default('unknown') }}"
+    },
+    "audit": {
+      "created_at": "{{ ansible_date_time.iso8601 }}",
+      "created_by": "ansible-vault-rotation",
+      "last_verified": "{{ ansible_date_time.iso8601 }}"
+    }
+  }
+}

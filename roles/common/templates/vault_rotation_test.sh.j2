@@ -1,0 +1,184 @@
+#!/bin/bash
+# Vault Rotation Test Script
+# Tests credential rotation before executing in production
+
+set -euo pipefail
+
+# Configuration
+VAULT_ADDR="{{ 'https' if security_vault_tls_enabled | default(false) else 'http' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}"
+VAULT_TOKEN="{{ vault_token | default('') }}"
+TEST_TIMEOUT=30
+DRY_RUN=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+# Logging
+log_info() { echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') $1"; }
+log_error() { echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') $1" >&2; }
+log_success() { echo "[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') $1"; }
+
+log_info "Starting Vault rotation test"
+log_info "Vault Address: $VAULT_ADDR"
+log_info "Dry Run Mode: $DRY_RUN"
+
+# Test functions
+test_vault_connectivity() {
+  log_info "Testing Vault connectivity..."
+  if ! curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
+    "$VAULT_ADDR/v1/sys/health" > /dev/null 2>&1; then
+    log_error "Failed to connect to Vault at $VAULT_ADDR"
+    return 1
+  fi
+  log_success "Vault connectivity OK"
+  return 0
+}
+
+test_database_rotation() {
+  log_info "Testing database credential rotation..."
+
+  if [[ "{{ security_vault_database_rotation_enabled | default(false) }}" != "true" ]]; then
+    log_info "Database rotation not enabled, skipping"
+    return 0
+  fi
+
+  # Check if database secrets engine is configured
+  if ! curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
+    "$VAULT_ADDR/v1/sys/mounts" | grep -q "database"; then
+    log_error "Database secrets engine not configured"
+    return 1
+  fi
+
+  log_success "Database rotation configuration valid"
+  return 0
+}
+
+test_ssh_rotation() {
+  log_info "Testing SSH key rotation..."
+
+  if [[ "{{ security_vault_ssh_rotation_enabled | default(false) }}" != "true" ]]; then
+    log_info "SSH rotation not enabled, skipping"
+    return 0
+  fi
+
+  # Verify SSH engine exists
+  if ! curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
+    "$VAULT_ADDR/v1/sys/mounts" | grep -q "ssh"; then
+    log_error "SSH secrets engine not configured"
+    return 1
+  fi
+
+  log_success "SSH rotation configuration valid"
+  return 0
+}
+
+test_api_key_rotation() {
+  log_info "Testing API key rotation..."
+
+  if [[ "{{ security_vault_api_key_rotation_enabled | default(false) }}" != "true" ]]; then
+    log_info "API key rotation not enabled, skipping"
+    return 0
+  fi
+
+  # Verify KV v2 engine exists
+  if ! curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
+    "$VAULT_ADDR/v1/sys/mounts" | grep -q "api-keys"; then
+    log_error "KV v2 secrets engine for API keys not configured"
+    return 1
+  fi
+
+  log_success "API key rotation configuration valid"
+  return 0
+}
+
+test_rotation_job_status() {
+  log_info "Testing rotation job scheduler..."
+
+  # Check if rotation job cron exists
+  if ! crontab -u vault -l 2>/dev/null | grep -q "vault-rotation-job"; then
+    log_error "Rotation job not scheduled in cron"
+    return 1
+  fi
+
+  log_success "Rotation job is properly scheduled"
+  return 0
+}
+
+test_rotation_policies() {
+  log_info "Testing rotation policies..."
+
+  if [[ "{{ security_vault_rotation_policies | default([]) | length }}" -eq "0" ]]; then
+    log_info "No rotation policies defined"
+    return 0
+  fi
+
+  # Verify policy files exist
+  if [[ ! -f "/etc/vault/rotation-policies.hcl" ]]; then
+    log_error "Rotation policies file not found"
+    return 1
+  fi
+
+  log_success "Rotation policies are configured"
+  return 0
+}
+
+test_rotation_monitoring() {
+  log_info "Testing rotation monitoring setup..."
+
+  if [[ ! -f "/etc/vault/rotation-monitoring.hcl" ]]; then
+    log_error "Rotation monitoring configuration not found"
+    return 1
+  fi
+
+  log_success "Rotation monitoring is configured"
+  return 0
+}
+
+# Main test execution
+main() {
+  local failed_tests=0
+  local passed_tests=0
+
+  log_info "Running rotation tests..."
+  echo ""
+
+  # Run all tests
+  test_vault_connectivity || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_database_rotation || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_ssh_rotation || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_api_key_rotation || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_rotation_job_status || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_rotation_policies || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+  test_rotation_monitoring || ((failed_tests++)) && ((passed_tests++)) || ((passed_tests++))
+
+  echo ""
+  log_info "Test Results:"
+  log_info "  Passed: $passed_tests"
+  log_info "  Failed: $failed_tests"
+
+  if [[ $failed_tests -eq 0 ]]; then
+    log_success "All rotation tests passed!"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "Dry-run mode: No actual rotations will be performed"
+    else
+      log_info "Ready to perform credential rotation"
+    fi
+    return 0
+  else
+    log_error "Some rotation tests failed - cannot proceed with rotation"
+    return 1
+  fi
+}
+
+main "$@"
