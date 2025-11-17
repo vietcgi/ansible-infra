@@ -1,0 +1,341 @@
+---
+# Client Onboarding Playbook
+# Automates complete client infrastructure setup with Auth0 integration
+#
+# Usage:
+#   ansible-playbook playbooks/client_onboarding.yml -i inventories/projects/acme_corp/hosts.yml --ask-vault-pass
+#
+# State-based execution:
+#   - state: present (default) = Create all infrastructure
+#   - state: absent = Tear down infrastructure
+#
+
+- name: Client Infrastructure Onboarding
+  hosts: all
+  gather_facts: yes
+  vars:
+    # Default state: present (create), absent (destroy)
+    onboarding_state: "present"
+
+    # Client information (override in inventory)
+    client_name: "{{ inventory_hostname }}"
+    client_domain: "{{ client_name }}.example.com"
+    client_env: "production"
+
+  pre_tasks:
+    - name: Display onboarding configuration
+      debug:
+        msg: |
+          Client Onboarding Configuration
+          ================================
+          Client Name: {{ client_name }}
+          Client Domain: {{ client_domain }}
+          Environment: {{ client_env }}
+          State: {{ onboarding_state }}
+          Host: {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      tags:
+        - always
+
+    - name: Validate required variables for onboarding
+      assert:
+        that:
+          - client_name is defined
+          - client_name | length > 0
+          - auth0_domain is defined
+          - auth0_domain | length > 0
+          - auth0_client_id is defined
+          - auth0_client_id | length > 0
+        fail_msg: |
+          Required variables not configured:
+          - client_name: Name of client/project
+          - auth0_domain: Auth0 tenant domain
+          - auth0_client_id: Auth0 Machine-to-Machine client ID
+      tags:
+        - always
+
+    - name: Display infrastructure plan
+      debug:
+        msg: |
+          Onboarding Plan
+          ===============
+
+          Step 1: OS Baseline Configuration
+          → Apply common role for system configuration
+          → Installs security updates, configures networking
+          → Ensures consistent Linux baseline across distributions
+
+          Step 2: Auth0 Identity Setup
+          → Apply auth0 role to configure Auth0 tenant
+          → Creates OIDC/OAuth applications
+          → Sets up user management and roles
+          → Configures social login connections
+
+          Step 3: Application Integration
+          → Apply app_integration role for each application
+          → Generates .env files with Auth0 credentials
+          → Creates framework-specific configuration templates
+          → Deploys applications with Auth0 enabled
+
+          Expected Artifacts:
+          - OS baseline configuration
+          - Auth0 applications and credentials
+          - Application .env files
+          - Framework-specific config files
+      tags:
+        - always
+
+  roles:
+    # Step 1: OS Baseline Configuration
+    - role: common
+      name: Apply OS baseline configuration
+      when: onboarding_state == "present"
+      vars:
+        common_state: "present"
+      tags:
+        - common
+        - baseline
+
+    # Step 2: Auth0 Identity Management Setup
+    - role: auth0
+      name: Configure Auth0 identity service
+      when:
+        - onboarding_state == "present"
+        - auth0_domain is defined
+        - auth0_client_id is defined
+      vars:
+        auth0_state: "present"
+      tags:
+        - auth0
+        - identity
+
+    # Step 3: Application Integration (if applications defined)
+    - role: app_integration
+      name: Configure applications with Auth0
+      when:
+        - onboarding_state == "present"
+        - auth0_domain is defined
+        - auth0_client_id is defined
+        - app_framework is defined
+        - app_framework | length > 0
+      vars:
+        integration_state: "present"
+      tags:
+        - app_integration
+        - applications
+
+  post_tasks:
+    - name: Display onboarding summary (create)
+      debug:
+        msg: |
+          Client Onboarding Complete
+          ===========================
+
+          Infrastructure Status: ✓
+
+          Completed Steps:
+          1. OS Baseline Configuration
+             - Security patches applied
+             - System networking configured
+             - Essential packages installed
+
+          2. Auth0 Identity Setup
+             - Auth0 applications created
+             - User management configured
+             - Roles and permissions defined
+             - Social login connections enabled
+
+          3. Application Integration
+             - .env files generated
+             - Framework configs created
+             - Applications ready for deployment
+
+          Next Steps:
+          1. Deploy applications using generated credentials
+          2. Test Auth0 login flows
+          3. Configure monitoring and logging
+          4. Set up CI/CD pipelines
+          5. Enable SSL/TLS certificates
+
+          Generated Artifacts:
+          - Auth0 Credentials: /path/to/{{ client_name }}_auth0_credentials.txt
+          - Application Configs: /path/to/{{ client_name }}_auth0_configs/
+          - .env Files: {{ app_env_path | default('/opt/app/.env') }}
+
+          Security Reminders:
+          - Store credentials securely (use Ansible Vault)
+          - Rotate client secrets regularly
+          - Enable MFA on Auth0 admin accounts
+          - Monitor Auth0 logs for suspicious activity
+          - Keep applications updated with security patches
+      when: onboarding_state == "present"
+      tags:
+        - always
+
+    - name: Display offboarding summary (destroy)
+      debug:
+        msg: |
+          Client Infrastructure Teardown
+          ===============================
+
+          Infrastructure Status: Removed
+
+          Cleanup Steps:
+          1. OS Baseline Configuration
+             - System packages removed
+             - System configuration reset
+
+          2. Auth0 Identity Management
+             - Auth0 applications deleted
+             - Users and roles removed
+             - Connections disabled
+
+          3. Application Integration
+             - Configuration files removed
+             - .env files deleted
+
+          Verification:
+          - Confirm all services are offline
+          - Verify DNS entries are updated
+          - Check Auth0 dashboard for removed applications
+          - Audit logs for cleanup activity
+      when: onboarding_state == "absent"
+      tags:
+        - always
+
+    - name: Generate onboarding report
+      copy:
+        content: |
+          # Client Onboarding Report
+
+          **Date**: {{ ansible_date_time.iso8601 }}
+          **Client**: {{ client_name }}
+          **Host**: {{ inventory_hostname }}
+          **OS**: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          **State**: {{ onboarding_state }}
+
+          ## Onboarding Summary
+
+          ### Configuration Applied
+          - **Common Role**: OS baseline configuration
+          - **Auth0 Role**: Identity management service
+          - **App Integration Role**: Application configuration
+
+          ### Auth0 Configuration
+          - **Domain**: {{ auth0_domain }}
+          - **Environment**: {{ client_env }}
+
+          ### Generated Files
+          - Auth0 Credentials: /path/to/{{ client_name }}_auth0_credentials.txt
+          - Application Configs: /path/to/{{ client_name }}_auth0_configs/
+          - Environment File: {{ app_env_path | default('/opt/app/.env') }}
+
+          ### Security Status
+          - MFA Enabled: {% if auth0_mfa_enabled | default(false) %}✓{% else %}Disabled{% endif %}
+
+          - Password Policy: {{ auth0_password_policy | default('standard') }}
+          - Log Retention: {{ auth0_log_retention_days | default(30) }} days
+
+          ## Deployment Checklist
+
+          - [ ] Verify OS baseline configuration applied
+          - [ ] Test Auth0 login flow
+          - [ ] Verify application .env files created
+          - [ ] Deploy applications with Auth0 credentials
+          - [ ] Test end-to-end authentication
+          - [ ] Enable monitoring and alerting
+          - [ ] Configure backup and disaster recovery
+          - [ ] Document client-specific configuration
+
+          ## Support Resources
+
+          - [Auth0 Documentation](https://auth0.com/docs)
+          - [Ansible Documentation](https://docs.ansible.com/)
+          - [Infrastructure Documentation](../../docs/)
+
+          ---
+
+          **Generated by**: Ansible Infrastructure Automation
+          **Version**: 1.0
+        dest: "/tmp/{{ client_name }}_onboarding_report_{{ ansible_date_time.iso8601 }}.md"
+      delegate_to: localhost
+      become: no
+      tags:
+        - always
+
+    - name: Display report location
+      debug:
+        msg: "Onboarding report saved to: /tmp/{{ client_name }}_onboarding_report_{{ ansible_date_time.iso8601 }}.md"
+      tags:
+        - always
+
+# ============================================================================
+# Example Usage - Client Onboarding with Different Scenarios
+# ============================================================================
+
+# Scenario 1: Create new client with all defaults
+# ================================================
+# ansible-playbook playbooks/client_onboarding.yml \
+#   -i inventories/projects/acme_corp/hosts.yml \
+#   --ask-vault-pass \
+#   -e "client_name=acme-corp client_domain=acme.example.com"
+
+# Scenario 2: Onboard Node.js application
+# =========================================
+# ansible-playbook playbooks/client_onboarding.yml \
+#   -i inventories/projects/acme_corp/hosts.yml \
+#   --ask-vault-pass \
+#   -e "client_name=acme-corp" \
+#   -e "app_framework=nodejs" \
+#   -e "app_name=api-gateway"
+
+# Scenario 3: Onboard multiple applications
+# ===========================================
+# Create separate playbook with loop over applications
+
+# Scenario 4: Destroy client infrastructure
+# ==========================================
+# ansible-playbook playbooks/client_onboarding.yml \
+#   -i inventories/projects/acme_corp/hosts.yml \
+#   --ask-vault-pass \
+#   -e "onboarding_state=absent"
+
+# Scenario 5: Dry run to preview changes
+# =======================================
+# ansible-playbook playbooks/client_onboarding.yml \
+#   -i inventories/projects/acme_corp/hosts.yml \
+#   --ask-vault-pass \
+#   --check \
+#   --diff
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# 1. VAULT REQUIREMENTS:
+#    - Ensure Ansible Vault is configured with all credentials
+#    - Protect vault files from version control (add to .gitignore)
+#    - Rotate vault password regularly
+#
+# 2. INVENTORY STRUCTURE:
+#    inventories/projects/acme_corp/
+#    ├── hosts.yml          # Client hosts configuration
+#    ├── group_vars/
+#    │   └── all.yml        # Client-specific variables
+#    └── auth0_vault.yml    # Encrypted Auth0 credentials
+#
+# 3. IDEMPOTENCY:
+#    - All tasks are idempotent (safe to run multiple times)
+#    - Re-running creates missing resources, skips existing ones
+#    - Use --check to preview changes before applying
+#
+# 4. MONITORING:
+#    - Monitor Auth0 logs during onboarding
+#    - Verify application connectivity after deployment
+#    - Check system logs for configuration errors
+#
+# 5. ROLLBACK:
+#    - Set onboarding_state: absent to remove infrastructure
+#    - This removes all Auth0 applications and configurations
+#    - Keep backups of credential files before running cleanup
+#

@@ -1,0 +1,260 @@
+---
+# Client Configuration Template
+# Copy this file and customize for each new client
+#
+# Usage:
+#   cp inventories/projects/_templates/client_template.yml inventories/projects/CLIENT_NAME/
+#   cp inventories/projects/_templates/client_template.yml inventories/projects/CLIENT_NAME/group_vars/all.yml
+#   ansible-vault create inventories/projects/CLIENT_NAME/auth0_vault.yml
+#
+
+# ============================================================================
+# Client Information (Customize these)
+# ============================================================================
+
+client_name: "acme-corp"                      # Client short name (used in configs)
+client_domain: "acme.example.com"             # Client domain
+client_env: "production"                      # Environment: development, staging, production
+client_timezone: "America/New_York"           # Client timezone
+
+# ============================================================================
+# Common Role Configuration (OS Baseline)
+# ============================================================================
+
+# System users to create
+common_users:
+  - name: "app"
+    shell: "/bin/bash"
+    groups: ["sudo", "docker"]
+  - name: "ubuntu"
+    shell: "/bin/bash"
+    groups: ["sudo"]
+
+# System packages to install
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - python3
+  - python3-pip
+  - htop
+  - net-tools
+
+# Network configuration
+common_hostname: "{{ client_name }}-prod"
+common_dns_servers:
+  - 8.8.8.8           # Google
+  - 8.8.4.4           # Google backup
+  - 1.1.1.1           # Cloudflare
+
+# Firewall rules (ufw)
+common_ufw_rules:
+  - { rule: "allow", port: "22", proto: "tcp" }      # SSH
+  - { rule: "allow", port: "80", proto: "tcp" }      # HTTP
+  - { rule: "allow", port: "443", proto: "tcp" }     # HTTPS
+  - { rule: "allow", port: "3000", proto: "tcp" }    # Node.js (example app)
+
+# Security settings
+common_fail2ban_enabled: true
+common_automatic_security_updates: true
+common_ssh_permit_root_login: false
+common_ssh_password_authentication: false
+
+# ============================================================================
+# Auth0 Configuration (Identity Management)
+# ============================================================================
+
+# Auth0 tenant
+auth0_domain: "{{ vault_auth0_domain }}"              # Must be defined in vault
+auth0_client_id: "{{ vault_auth0_client_id }}"        # M2M app credentials
+auth0_client_secret: "{{ vault_auth0_client_secret }}"
+
+# Auth0 Applications to create
+auth0_applications:
+  - name: "{{ client_name }}-webapp"
+    type: "regular_web"
+    redirect_uris:
+      - "https://{{ client_domain }}/callback"
+      - "https://www.{{ client_domain }}/callback"
+      - "http://localhost:3000/callback"              # Local development
+    allowed_logout_urls:
+      - "https://{{ client_domain }}/logout"
+      - "https://www.{{ client_domain }}/logout"
+    web_origins:
+      - "https://{{ client_domain }}"
+      - "https://www.{{ client_domain }}"
+
+  - name: "{{ client_name }}-api"
+    type: "non_interactive"                           # Backend-to-backend
+
+# Auth0 Users (initial team members)
+auth0_users:
+  - email: "admin@{{ client_domain }}"
+    given_name: "Admin"
+    family_name: "User"
+    password: "{{ vault_initial_admin_password }}"
+    email_verified: true
+
+# Auth0 Roles and Permissions (RBAC)
+auth0_roles:
+  - name: "admin"
+    description: "Administrator with full access"
+    permissions:
+      - resource: "api://{{ client_name }}-api"
+        permission: "admin:*"
+
+  - name: "user"
+    description: "Regular user access"
+    permissions:
+      - resource: "api://{{ client_name }}-api"
+        permission: "read:*"
+
+# Auth0 API (if backend needs Auth0 access)
+auth0_api:
+  name: "{{ client_name }}-api"
+  identifier: "api://{{ client_name }}-api"
+  scopes:
+    - value: "read:users"
+      description: "Read user information"
+    - value: "write:users"
+      description: "Write/update user information"
+    - value: "admin:*"
+      description: "Full admin access"
+
+# Auth0 Connections (Social login)
+auth0_connections:
+  - name: "google-oauth2"
+    enabled: true
+    strategy: "google-oauth2"
+    options:
+      client_id: "{{ vault_google_oauth_client_id }}"
+      client_secret: "{{ vault_google_oauth_secret }}"
+
+  # Uncomment for Microsoft login
+  # - name: "windowslive"
+  #   enabled: false
+  #   strategy: "windowslive"
+  #   options:
+  #     client_id: "{{ vault_microsoft_client_id }}"
+  #     client_secret: "{{ vault_microsoft_client_secret }}"
+
+# Auth0 Settings
+auth0_mfa_enabled: true
+auth0_mfa_methods:
+  - "sms"
+  - "totp"
+
+auth0_password_policy: "good"                 # Options: low, good, excellent
+auth0_log_retention_days: 30
+
+auth0_rate_limits:
+  enabled: true
+  requests_per_second: 10                     # API rate limit
+
+# ============================================================================
+# Application Integration Configuration
+# ============================================================================
+
+# Application framework and configuration
+# Choose ONE framework for initial setup, add more in separate playbook runs
+
+# Example: Node.js Application
+app_framework: "nodejs"                       # Options: nodejs, python, django, go, java
+app_name: "{{ client_name }}-app"
+app_env: "{{ client_env }}"
+app_root_path: "/opt/{{ client_name }}"
+app_config_path: "/opt/{{ client_name }}/config"
+app_env_path: "/opt/{{ client_name }}/.env"
+
+# Example: Additional environment variables for application
+app_env_vars:
+  API_PORT: "3000"
+  LOG_LEVEL: "info"
+  CACHE_ENABLED: "true"
+  CACHE_TTL: "3600"
+  # Database connection (if needed)
+  # DATABASE_URL: "postgresql://user:pass@db.example.com/{{ client_name }}"
+  # REDIS_URL: "redis://cache.example.com:6379"
+
+# Application user/group
+app_config_user: "app"
+app_config_group: "app"
+app_config_mode: "0640"
+
+# ============================================================================
+# Ansible Configuration
+# ============================================================================
+
+# Ansible connection settings
+ansible_user: "ubuntu"                        # Remote user for SSH
+ansible_become: true                          # Use sudo for privilege escalation
+ansible_become_method: "sudo"
+ansible_python_interpreter: "/usr/bin/python3"
+
+# Host variables (override per-host in hosts.yml)
+ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+
+# ============================================================================
+# Notes and Instructions
+# ============================================================================
+#
+# 1. SETUP STEPS:
+#    a) Copy this template to a new client directory:
+#       mkdir -p inventories/projects/acme_corp
+#       cp inventories/projects/_templates/client_template.yml \
+#          inventories/projects/acme_corp/group_vars/all.yml
+#
+#    b) Create encrypted vault file for secrets:
+#       ansible-vault create inventories/projects/acme_corp/auth0_vault.yml
+#
+#    c) Add vault variables to auth0_vault.yml:
+#       vault_auth0_domain: "acme-corp.auth0.com"
+#       vault_auth0_client_id: "your_m2m_client_id"
+#       vault_auth0_client_secret: "your_m2m_secret"
+#       vault_google_oauth_client_id: "google_client_id"
+#       vault_google_oauth_secret: "google_client_secret"
+#       vault_initial_admin_password: "strong_initial_password"
+#
+#    d) Create hosts file:
+#       mkdir -p inventories/projects/acme_corp
+#       Create hosts.yml with your servers
+#
+#    e) Run client onboarding:
+#       ansible-playbook playbooks/client_onboarding.yml \
+#         -i inventories/projects/acme_corp/hosts.yml \
+#         --ask-vault-pass
+#
+# 2. CUSTOMIZATION:
+#    - Update client_name, client_domain, client_env
+#    - Add/remove users and applications as needed
+#    - Modify Auth0 roles and permissions for your use case
+#    - Add social login providers (Google, Microsoft, etc.)
+#    - Configure application-specific settings
+#
+# 3. VAULT SECURITY:
+#    - Never commit vault files to git
+#    - Add to .gitignore: "inventories/projects/*/auth0_vault.yml"
+#    - Store vault password securely (not in code)
+#    - Rotate vault password and secrets regularly
+#
+# 4. APPLICATION SELECTION:
+#    - Use app_framework: "nodejs" for Node.js/Express apps
+#    - Use app_framework: "python" for Flask/FastAPI apps
+#    - Use app_framework: "django" for Django apps
+#    - Use app_framework: "go" for Go applications
+#    - Use app_framework: "java" for Spring Boot apps
+#    - For multiple apps, run playbook multiple times with different app_*
+#
+# 5. MONITORING:
+#    - Check Auth0 logs after onboarding
+#    - Verify application .env files created correctly
+#    - Test Auth0 login flow
+#    - Monitor system logs for any issues
+#
+# 6. TROUBLESHOOTING:
+#    - Use --check to preview changes: --check --diff
+#    - Use -vvv for verbose output
+#    - Check role task files for implementation details
+#    - Review Auth0 dashboard for created applications
+#
