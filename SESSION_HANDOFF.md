@@ -72,19 +72,37 @@ This extended session successfully:
 
 ### Upstream Roles to Use:
 
-1. **Prometheus**: `prometheus-community.prometheus.prometheus`
-   - Well-maintained upstream role
-   - Handles binary installation, config, systemd
-   - Cross-platform support
+**Collection**: `prometheus-community.prometheus` (v0.27.5+)
+Available at: https://prometheus-community.github.io/ansible/
 
-2. **Grafana**: `grafana.grafana.grafana`
+1. **prometheus** - `prometheus-community.prometheus.prometheus`
+   - Installs and configures Prometheus server
+   - Binary management, systemd service, configuration
+   - Cross-platform support (Ubuntu, Debian, RHEL, Alpine)
+
+2. **node_exporter** - `prometheus-community.prometheus.node_exporter`
+   - System metrics collection (CPU, memory, disk, network)
+   - Textfile collector for custom metrics
+   - Service management and monitoring
+
+3. **alertmanager** - `prometheus-community.prometheus.alertmanager`
+   - Prometheus Alertmanager service
+   - Notification routing, grouping, receivers
+   - Multiple notification channels support
+
+**Collection**: `grafana.grafana` (v1.0.0+)
+Available at: Ansible Galaxy
+
+4. **grafana** - `grafana.grafana.grafana`
    - Official Grafana community role
-   - Datasource and dashboard provisioning
-   - Full feature parity
+   - Datasource provisioning
+   - Dashboard provisioning
+   - Authentication and user management
 
-3. **AlertManager**: `prometheus-community.prometheus.alertmanager`
-   - Upstream AlertManager role
-   - Notification routing, receivers, rules
+**Additional available roles** (for future use):
+- nginx_exporter, mysql_exporter, postgres_exporter, mongodb_exporter
+- blackbox_exporter, consul_exporter, redis_exporter
+- cadvisor, pushgateway (28+ roles total)
 
 ### New Approach: Wrapper Tasks
 
