@@ -1,0 +1,392 @@
+---
+# HashiCorp Vault Integration
+# Installs and configures Vault agent for secrets management
+# Supports authentication via token, AppRole, JWT, and more
+
+- name: Ensure Vault configuration is defined
+  ansible.builtin.assert:
+    that:
+      - vault_address is defined
+      - vault_address | length > 0
+    fail_msg: "vault_address must be defined for Vault integration"
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - always
+
+- name: Download and install Vault
+  block:
+    - name: Check current Vault version
+      ansible.builtin.command: vault version
+      register: vault_version_check
+      changed_when: false
+      failed_when: false
+
+    - name: Download Vault binary
+      ansible.builtin.get_url:
+        url: "https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version | default('1.16.3') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.zip"
+        dest: /tmp/vault.zip
+        checksum: "sha256:https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version | default('1.16.3') }}_SHA256SUMS"
+        timeout: 30
+      when: vault_version_check.rc != 0
+      register: vault_download
+
+    - name: Extract Vault binary
+      ansible.builtin.unarchive:
+        src: /tmp/vault.zip
+        dest: /usr/local/bin/
+        owner: root
+        group: root
+        mode: '0755'
+        remote_src: yes
+      when: vault_download is changed
+
+    - name: Enable Vault binary capabilities
+      ansible.builtin.command: setcap cap_ipc_lock=+ep /usr/local/bin/vault
+      when: vault_download is changed
+      changed_when: false
+
+    - name: Create vault user
+      ansible.builtin.user:
+        name: vault
+        system: yes
+        shell: /bin/false
+        home: /var/lib/vault
+        createhome: yes
+        state: present
+
+    - name: Set vault directory permissions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: vault
+        group: vault
+        mode: '0750'
+        state: directory
+      loop:
+        - /var/lib/vault
+        - /etc/vault
+        - /var/log/vault
+
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - packages
+
+- name: Configure Vault TLS certificates
+  block:
+    - name: Create Vault TLS directory
+      ansible.builtin.file:
+        path: /etc/vault/tls
+        owner: vault
+        group: vault
+        mode: '0700'
+        state: directory
+
+    - name: Copy Vault CA certificate
+      ansible.builtin.copy:
+        src: "{{ vault_ca_cert_path | default('files/vault-ca.crt') }}"
+        dest: /etc/vault/tls/ca.crt
+        owner: vault
+        group: vault
+        mode: '0644'
+      when: vault_ca_cert_path is defined
+      notify: restart vault
+
+    - name: Copy Vault client certificate
+      ansible.builtin.copy:
+        src: "{{ vault_client_cert_path | default('files/vault-client.crt') }}"
+        dest: /etc/vault/tls/client.crt
+        owner: vault
+        group: vault
+        mode: '0644'
+      when: vault_client_cert_path is defined
+      notify: restart vault
+
+    - name: Copy Vault client key
+      ansible.builtin.copy:
+        src: "{{ vault_client_key_path | default('files/vault-client.key') }}"
+        dest: /etc/vault/tls/client.key
+        owner: vault
+        group: vault
+        mode: '0600'
+      when: vault_client_key_path is defined
+      notify: restart vault
+
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - configuration
+    - tls
+
+- name: Configure Vault agent
+  ansible.builtin.template:
+    src: vault_agent.j2
+    dest: /etc/vault/agent.hcl
+    owner: vault
+    group: vault
+    mode: '0600'
+    backup: yes
+  notify: restart vault
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - configuration
+
+- name: Create Vault systemd service
+  ansible.builtin.template:
+    src: vault_systemd.j2
+    dest: /etc/systemd/system/vault.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart vault
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - services
+
+- name: Configure Vault auto-unseal (if enabled)
+  block:
+    - name: Create auto-unseal configuration
+      ansible.builtin.template:
+        src: vault_autounseal.j2
+        dest: /etc/vault/autounseal.hcl
+        owner: vault
+        group: vault
+        mode: '0600'
+        backup: yes
+      when: vault_autounseal_enabled | default(false) | bool
+      notify: restart vault
+
+    - name: Configure Vault KMS auto-unseal provider
+      ansible.builtin.lineinfile:
+        path: /etc/vault/agent.hcl
+        insertafter: "# Auto-unseal configuration"
+        line: "kms_provider = \"{{ vault_autounseal_provider | default('aws-kms') }}\""
+        state: present
+      when: vault_autounseal_enabled | default(false) | bool
+
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - autounseal
+    - configuration
+
+- name: Set up Vault authentication
+  block:
+    - name: Configure AppRole authentication
+      ansible.builtin.template:
+        src: vault_approle.j2
+        dest: /etc/vault/approle.conf
+        owner: vault
+        group: vault
+        mode: '0600'
+      when: vault_auth_method == "approle"
+      notify: restart vault
+
+    - name: Configure JWT authentication
+      ansible.builtin.template:
+        src: vault_jwt.j2
+        dest: /etc/vault/jwt.conf
+        owner: vault
+        group: vault
+        mode: '0600'
+      when: vault_auth_method == "jwt"
+      notify: restart vault
+
+    - name: Store Vault token securely
+      ansible.builtin.copy:
+        content: "{{ vault_token }}"
+        dest: /etc/vault/token.txt
+        owner: vault
+        group: vault
+        mode: '0600'
+      when: vault_auth_method == "token" and vault_token | length > 0
+      no_log: yes
+      notify: restart vault
+
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - authentication
+    - configuration
+
+- name: Enable and start Vault service
+  ansible.builtin.systemd:
+    name: vault
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - services
+
+- name: Wait for Vault to be ready
+  ansible.builtin.uri:
+    url: "{{ vault_address }}/v1/sys/health"
+    method: GET
+    status_code: [200, 473, 501, 503]
+    validate_certs: "{{ not vault_skip_verify }}"
+    timeout: 5
+  register: vault_health
+  until: vault_health.status in [200, 473, 501, 503]
+  retries: 12
+  delay: 5
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - validate
+
+- name: Configure secrets injection
+  block:
+    - name: Create secrets injection directory
+      ansible.builtin.file:
+        path: /etc/vault/secrets
+        owner: vault
+        group: vault
+        mode: '0700'
+        state: directory
+
+    - name: Configure Vault secrets template
+      ansible.builtin.template:
+        src: vault_secrets_template.j2
+        dest: "/etc/vault/secrets/{{ item.name }}.tpl"
+        owner: vault
+        group: vault
+        mode: '0600'
+      loop: "{{ vault_secrets_templates | default([]) }}"
+      when: vault_secrets_templates is defined
+      notify: restart vault
+
+    - name: Set up secret injection for services
+      ansible.builtin.lineinfile:
+        path: "/etc/vault/agent.hcl"
+        insertafter: "# Secrets injection"
+        line: |
+          template {
+            source = "/etc/vault/secrets/{{ item.name }}.tpl"
+            destination = "{{ item.destination }}"
+            command = "{{ item.reload_command | default('systemctl reload ' + item.service) }}"
+          }
+        state: present
+      loop: "{{ vault_secrets_templates | default([]) }}"
+      when: vault_secrets_templates is defined
+      notify: restart vault
+
+  when:
+    - vault_enabled | bool
+    - vault_secrets_injection_enabled | default(false) | bool
+  tags:
+    - vault
+    - secrets
+    - configuration
+
+- name: Set up Vault audit logging
+  block:
+    - name: Enable file audit backend
+      ansible.builtin.file:
+        path: /var/log/vault/audit
+        owner: vault
+        group: vault
+        mode: '0700'
+        state: directory
+
+    - name: Configure Vault audit logs
+      ansible.builtin.lineinfile:
+        path: /etc/vault/agent.hcl
+        insertafter: "# Audit logging"
+        line: |
+          audit {
+            file {
+              path = "/var/log/vault/audit/vault.log"
+            }
+          }
+        state: present
+      notify: restart vault
+
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - audit
+    - logging
+
+- name: Configure log rotation for Vault
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/vault
+    content: |
+      /var/log/vault/vault.log {
+        daily
+        rotate 30
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0600 vault vault
+      }
+      /var/log/vault/audit/vault.log {
+        daily
+        rotate 90
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0600 vault vault
+      }
+    owner: root
+    group: root
+    mode: '0644'
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - logging
+
+- name: Verify Vault configuration
+  ansible.builtin.command: vault status
+  register: vault_status
+  changed_when: false
+  failed_when: false
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - validate
+
+- name: Display Vault configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Vault Agent Configuration:
+      ==========================
+      Status: {{ 'Enabled' if vault_enabled | bool else 'Disabled' }}
+      Address: {{ vault_address }}
+      Authentication: {{ vault_auth_method }}
+      TLS Verification: {{ not vault_skip_verify }}
+      Auto-Unseal: {{ vault_autounseal_enabled | default(false) }}
+
+      Features Enabled:
+      - Vault Agent service management
+      {% if vault_ca_cert_path is defined %}- TLS certificate validation{% endif %}
+      {% if vault_autounseal_enabled | default(false) %}- Auto-unseal via {{ vault_autounseal_provider | default('AWS KMS') }}{% endif %}
+      {% if vault_secrets_injection_enabled | default(false) %}- Secrets injection for applications{% endif %}
+      - Audit logging to /var/log/vault/audit/
+      - Log rotation (30/90 day retention)
+
+      Vault User: vault (system user with cap_ipc_lock)
+      Configuration: /etc/vault/agent.hcl
+      Data Directory: /var/lib/vault
+      Log Directory: /var/log/vault
+
+      Verification Commands:
+      - Status: systemctl status vault
+      - Logs: journalctl -u vault -f
+      - Health: vault status
+      - Audit: tail -f /var/log/vault/audit/vault.log
+      - Token info: vault token lookup
+    verbosity: 1
+  when: vault_enabled | bool
+  tags:
+    - vault
+

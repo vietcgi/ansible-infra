@@ -23,6 +23,9 @@
     - firewall.yml
     - fail2ban.yml
     - metrics.yml
+    - log_shipping.yml
+    - sudo_hardening.yml
+    - vault.yml
 
 - name: Display role completion summary
   debug:

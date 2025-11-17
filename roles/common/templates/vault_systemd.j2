@@ -1,0 +1,64 @@
+[Unit]
+Description=HashiCorp Vault
+Documentation=https://www.vaultproject.io/docs/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/vault/agent.hcl
+
+[Service]
+Type=notify
+User=vault
+Group=vault
+ProtectSystem=full
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+Capabilities=CAP_IPC_LOCK=ep
+CapabilityBoundingSet=CAPABILITY
+LimitNOFILE={{ vault_limit_nofile | default(65536) }}
+LimitNPROC={{ vault_limit_nproc | default(512) }}
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitMEMLOCK=infinity
+ExecStart=/usr/local/bin/vault agent -config=/etc/vault/agent.hcl
+ExecReload=/bin/kill -HUP $MAINPID
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vault
+
+# Logging
+# Enable this to redirect output to a log file
+# StandardOutput=append:/var/log/vault/vault.log
+# StandardError=append:/var/log/vault/vault.log
+
+# Environment variables
+Environment="VAULT_ADDR={{ vault_address }}"
+Environment="VAULT_SKIP_VERIFY={{ vault_skip_verify | lower }}"
+{% if vault_ca_cert_path is defined %}
+Environment="VAULT_CACERT=/etc/vault/tls/ca.crt"
+{% endif %}
+
+{% if vault_enable_debug_logging | default(false) %}
+# Debug mode
+Environment="VAULT_LOG_LEVEL=debug"
+{% endif %}
+
+# Security context
+PrivateIPC=yes
+RemoveIPC=yes
+PrivateUsers=no
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
+
