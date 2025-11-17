@@ -139,7 +139,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Automated Review\n\n✓ PR has been automatically labeled and queued for review.\n\nPlease ensure:\n- [ ] Tests pass locally\n- [ ] Ansible lint passes\n- [ ] Documentation is updated\n- [ ] Commit messages follow convention\n\nCI/CD pipeline will run automatically on all commits.`
+              body: `## Automated Review\n\nPR has been automatically labeled and queued for review.\n\nPlease ensure:\n- [ ] Tests pass locally\n- [ ] Ansible lint passes\n- [ ] Documentation is updated\n- [ ] Commit messages follow convention\n\nCI/CD pipeline will run automatically on all commits.`
             });
 
   # Check for common issues
@@ -159,7 +159,7 @@ jobs:
       - name: Check for merge conflicts
         run: |
           if git diff --name-only --diff-filter=U | grep -q .; then
-            echo "❌ Merge conflicts detected"
+            echo "Merge conflicts detected"
             exit 1
           fi
 
@@ -169,7 +169,7 @@ jobs:
           for commit in $commits; do
             msg=$(git log -1 --format=%B $commit)
             if ! echo "$msg" | grep -qE "^(feat|fix|docs|test|refactor|chore|perf|ci):"; then
-              echo "❌ Invalid commit message format: $msg"
+              echo "Invalid commit message format: $msg"
               exit 1
             fi
           done
@@ -195,9 +195,9 @@ jobs:
       - name: Verify CHANGELOG.md updated
         run: |
           if git diff origin/main...HEAD -- CHANGELOG.md | grep -q ''; then
-            echo "✓ CHANGELOG.md has been updated"
+            echo "CHANGELOG.md has been updated"
           else
-            echo "⚠ CHANGELOG.md was not updated (optional for some changes)"
+            echo "WARNING: CHANGELOG.md was not updated (optional for some changes)"
           fi
 
   # Code quality metrics
@@ -213,7 +213,7 @@ jobs:
         run: |
           additions=$(git diff origin/main...HEAD --stat | tail -1 | awk '{print $4}')
           deletions=$(git diff origin/main...HEAD --stat | tail -1 | awk '{print $6}')
-          echo "📊 Code Changes:"
+          echo "Code Changes:"
           echo "  - Lines added: $additions"
           echo "  - Lines deleted: $deletions"
 
@@ -224,7 +224,7 @@ jobs:
           test_changes=$(git diff origin/main...HEAD --name-only | grep -c '^tests/' || true)
           doc_changes=$(git diff origin/main...HEAD --name-only | grep -c '\.md$' || true)
 
-          echo "📁 File Changes:"
+          echo "File Changes:"
           echo "  - Role files: $role_changes"
           echo "  - Test files: $test_changes"
           echo "  - Documentation: $doc_changes"
@@ -246,5 +246,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## ✅ PR Ready for Review\n\nAll pre-flight checks passed:\n\n- ✓ Valid PR title and description\n- ✓ No merge conflicts\n- ✓ Valid commit messages\n- ✓ Code quality checks passed\n\n**Next Steps:**\n1. Automated tests will run (lint, syntax, molecule, security)\n2. Code review will be requested\n3. Once approved, the PR can be merged\n\n**Tests to Monitor:**\n- 🔍 Lint & Syntax Check (~2-3 min)\n- 🧪 Unit Tests (~3-5 min)\n- 🔬 Molecule Integration Tests (~10-15 min)\n- 🔒 Security Scan (~2-3 min)\n- 📚 Documentation Check (~1-2 min)\n\nCI pipeline status: Check the 'Checks' tab above for detailed results.`
+              body: `## PR Ready for Review\n\nAll pre-flight checks passed:\n\n- Valid PR title and description\n- No merge conflicts\n- Valid commit messages\n- Code quality checks passed\n\n**Next Steps:**\n1. Automated tests will run (lint, syntax, molecule, security)\n2. Code review will be requested\n3. Once approved, the PR can be merged\n\n**Tests to Monitor:**\n- Lint & Syntax Check (~2-3 min)\n- Unit Tests (~3-5 min)\n- Molecule Integration Tests (~10-15 min)\n- Security Scan (~2-3 min)\n- Documentation Check (~1-2 min)\n\nCI pipeline status: Check the 'Checks' tab above for detailed results.`
             });

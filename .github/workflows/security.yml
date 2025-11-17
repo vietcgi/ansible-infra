@@ -95,7 +95,7 @@ jobs:
       - name: Fail if credentials found
         run: |
           if [ -s credential-scan.log ]; then
-            echo "❌ Hardcoded credentials detected!"
+            echo "Hardcoded credentials detected!"
             exit 1
           fi
 
@@ -257,7 +257,7 @@ jobs:
           - Secrets scan report: `secrets-scan-report`
           - YAML security report: `yaml-security-report`
 
-          **Status**: ✅ Security checks passed
+          **Status**: Security checks passed
           EOF
           cat security-summary.md
 
@@ -276,5 +276,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🔒 Security Scan Results\n\n✅ All security checks passed:\n\n- No secrets detected\n- No hardcoded credentials\n- SSH hardening verified\n- Firewall configuration present\n- Authentication hardening verified\n\nDetailed reports available in Artifacts.`
+              body: `## Security Scan Results\n\nAll security checks passed:\n\n- No secrets detected\n- No hardcoded credentials\n- SSH hardening verified\n- Firewall configuration present\n- Authentication hardening verified\n\nDetailed reports available in Artifacts.`
             });

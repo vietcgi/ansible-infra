@@ -121,7 +121,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Test Results\n- Total Tests: ${testCount}\n- Failed: ${failureCount}\n- Status: ${failureCount === 0 ? '✅ PASSED' : '❌ FAILED'}`
+              body: `## Test Results\n- Total Tests: ${testCount}\n- Failed: ${failureCount}\n- Status: ${failureCount === 0 ? 'PASSED' : 'FAILED'}`
             });
 
   # Job 3: Molecule Integration Tests (10-15 minutes)
@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [default, ubuntu-20, debian-11, rocky-8]
+        scenario: [default, ubuntu-24, ubuntu-22, ubuntu-20, debian-12, debian-11, rocky-9, rocky-8, alma-9, alma-8]
     steps:
       - uses: actions/checkout@v4
 
@@ -359,19 +359,19 @@ jobs:
              [ "${{ needs.security-scan.result }}" == "failure" ] || \
              [ "${{ needs.documentation.result }}" == "failure" ] || \
              [ "${{ needs.playbook-validation.result }}" == "failure" ]; then
-            echo "❌ CI Pipeline FAILED"
+            echo "CI Pipeline FAILED"
             exit 1
           else
-            echo "✅ CI Pipeline PASSED"
+            echo "CI Pipeline PASSED"
           fi
 
       - name: Create success badge
         if: success()
-        run: echo "Pipeline Status: PASSED ✅" > pipeline-status.txt
+        run: echo "Pipeline Status: PASSED" > pipeline-status.txt
 
       - name: Create failure badge
         if: failure()
-        run: echo "Pipeline Status: FAILED ❌" > pipeline-status.txt
+        run: echo "Pipeline Status: FAILED" > pipeline-status.txt
 
   # Job 9: Notify on completion
   notify:
@@ -383,11 +383,11 @@ jobs:
       - name: Summary
         run: |
           echo "## CI/CD Pipeline Summary"
-          echo "- Lint & Syntax: ✓"
-          echo "- Unit Tests: ✓"
-          echo "- Molecule Tests: ✓"
-          echo "- Security Scan: ✓"
-          echo "- Documentation: ✓"
-          echo "- Playbook Validation: ✓"
+          echo "- Lint & Syntax: PASSED"
+          echo "- Unit Tests: PASSED"
+          echo "- Molecule Tests: PASSED"
+          echo "- Security Scan: PASSED"
+          echo "- Documentation: PASSED"
+          echo "- Playbook Validation: PASSED"
           echo ""
           echo "Status: ${{ needs.ci-status.result }}"

@@ -167,7 +167,7 @@ jobs:
 
       - name: Deploy to production
         run: |
-          echo "🚀 Deploying to production..."
+          echo "Deploying to production..."
           echo "Running full configuration deployment..."
           # ansible-playbook -i inventories/production/hosts.yml playbooks/configure.yml
 
@@ -190,7 +190,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 🚀 Production Deployment\n\n**Status**: ${status.toUpperCase()}\n**Environment**: Production\n**Timestamp**: ${new Date().toISOString()}\n\n${status === 'success' ? '✅ Successfully deployed to production' : '❌ Deployment failed'}`
+              body: `## Production Deployment\n\n**Status**: ${status.toUpperCase()}\n**Environment**: Production\n**Timestamp**: ${new Date().toISOString()}\n\n${status === 'success' ? 'Successfully deployed to production' : 'Deployment failed'}`
             });
 
   # Post-deployment monitoring

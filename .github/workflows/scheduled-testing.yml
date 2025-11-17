@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22, ubuntu-20, debian-11, rocky-8, alma-9]
+        os: [ubuntu-24, ubuntu-22, debian-12, debian-11, rocky-9, rocky-8, alma-9, alma-8]
     steps:
       - uses: actions/checkout@v4
 
@@ -226,7 +226,7 @@ jobs:
           # Nightly Testing Report
 
           **Date**: $(date)
-          **Status**: ✅ Complete
+          **Status**: Complete
 
           ## Test Results
           - Python Version Tests: Passed
@@ -242,10 +242,10 @@ jobs:
           - Full CI/CD pipeline: ~20 minutes
 
           ## Compliance Status
-          - ansible-lint: ✓ Passing
-          - yamllint: ✓ Passing
-          - Security scan: ✓ Clean
-          - Dependency audit: ✓ Current
+          - ansible-lint: Passing
+          - yamllint: Passing
+          - Security scan: Clean
+          - Dependency audit: Current
 
           ## Artifacts Generated
           - benchmark-results.txt
