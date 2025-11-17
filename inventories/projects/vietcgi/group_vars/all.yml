@@ -149,3 +149,213 @@ ansible_user: "kevin"
 ansible_become: true
 ansible_become_method: "sudo"
 ansible_python_interpreter: "/usr/bin/python3"
+
+# ============================================================================
+# MODULAR ACCESS CONTROL SYSTEMS
+# ============================================================================
+# Control which access control systems are enabled for this customer
+# Each system can be independently toggled on/off
+
+access_systems_enabled:
+  # SSH Access Control - Linux user creation and SSH key management
+  ssh:
+    enabled: true
+    description: "SSH key-based access to infrastructure servers"
+    authenticator: "SSH public/private keys"
+    requires: "none"
+
+  # Auth0 Identity Management - Cloud identity and password-based access
+  auth0:
+    enabled: true
+    description: "Auth0 cloud identity service for web applications"
+    authenticator: "Email/password with optional MFA"
+    requires: "none"
+
+  # Application RBAC - Role-Based Access Control within applications
+  rbac:
+    enabled: true
+    description: "Role-based permissions for application features"
+    authenticator: "Auth0 identity (requires auth0 enabled)"
+    requires: "auth0"
+
+  # Boundary - Session proxying and access recording
+  boundary:
+    enabled: false
+    description: "HashiCorp Boundary for session recording and access audit"
+    authenticator: "Auth0 identity (requires auth0 enabled)"
+    requires: "auth0"
+
+# SSH Configuration
+ssh_config:
+  enabled: "{{ access_systems_enabled.ssh.enabled }}"
+  when_enabled:
+    create_users: true
+    manage_keys: true
+    manage_sudo: true
+    manage_groups: true
+  when_disabled:
+    action: "remove_users"
+    preserve_home: true
+
+# Auth0 Configuration
+auth0_config:
+  enabled: "{{ access_systems_enabled.auth0.enabled }}"
+  when_enabled:
+    manage_users: true
+    sync_from_ssh: false
+    mfa_required: true
+  when_disabled:
+    action: "preserve"
+
+# RBAC Configuration
+rbac_config:
+  enabled: "{{ access_systems_enabled.rbac.enabled }}"
+  requires_auth0: "{{ access_systems_enabled.auth0.enabled }}"
+  when_enabled:
+    sync_roles: true
+    enforce_permissions: true
+  when_disabled:
+    action: "revoke_all"
+
+# Boundary Configuration
+boundary_config:
+  enabled: "{{ access_systems_enabled.boundary.enabled }}"
+  requires_auth0: "{{ access_systems_enabled.auth0.enabled }}"
+  when_enabled:
+    controller_url: "https://boundary.example.com"
+    enable_session_recording: true
+    enable_audit_logging: true
+  when_disabled:
+    action: "preserve"
+
+# ============================================================================
+# SYNCHRONIZED ACCESS CONTROL
+# ============================================================================
+# User status tracking (single source of truth for access)
+
+user_access_status:
+  admin:
+    enabled: true
+    reason: "Active administrator"
+    disabled_date: null
+    revoke_reason: null
+
+  support:
+    enabled: true
+    reason: "Active support staff"
+    disabled_date: null
+    revoke_reason: null
+
+# ============================================================================
+# CENTRALIZED USER MANAGEMENT
+# ============================================================================
+# Define all users here - automatically synced to SSH, Auth0, and RBAC
+
+managed_users:
+  admin:
+    enabled: "{{ user_access_status.admin.enabled }}"
+    status_reason: "{{ user_access_status.admin.reason }}"
+
+    system:
+      shell: "{{ '/sbin/nologin' if not user_access_status.admin.enabled else '/bin/bash' }}"
+      groups: ["sudo"]
+      home: "/home/admin"
+      manage_ssh_key: "{{ user_access_status.admin.enabled }}"
+
+    auth0:
+      email: "admin@vietcgi.us"
+      given_name: "Admin"
+      family_name: "User"
+      email_verified: true
+      password: "{{ vault_initial_admin_password }}"
+      account_active: "{{ user_access_status.admin.enabled }}"
+
+    rbac:
+      auth0_roles: ["admin"]
+      sudo_access: "{{ user_access_status.admin.enabled }}"
+      can_deploy: "{{ user_access_status.admin.enabled }}"
+      can_manage_users: "{{ user_access_status.admin.enabled }}"
+
+    ssh_keys:
+      - name: "primary"
+        fingerprint: "SHA256:..."
+        rotation_days: 90
+        active: "{{ user_access_status.admin.enabled }}"
+
+  support:
+    enabled: "{{ user_access_status.support.enabled }}"
+    status_reason: "{{ user_access_status.support.reason }}"
+
+    system:
+      shell: "{{ '/sbin/nologin' if not user_access_status.support.enabled else '/bin/bash' }}"
+      groups: ["sudo"]
+      home: "/home/support"
+      manage_ssh_key: "{{ user_access_status.support.enabled }}"
+
+    auth0:
+      email: "support@vietcgi.us"
+      given_name: "Support"
+      family_name: "Team"
+      email_verified: true
+      password: "{{ vault_support_user_password }}"
+      account_active: "{{ user_access_status.support.enabled }}"
+
+    rbac:
+      auth0_roles: ["manager"]
+      sudo_access: "{{ user_access_status.support.enabled }}"
+      can_deploy: false
+      can_manage_users: false
+
+    ssh_keys:
+      - name: "primary"
+        fingerprint: "SHA256:..."
+        rotation_days: 90
+        active: "{{ user_access_status.support.enabled }}"
+
+# Centralized role definitions
+access_roles:
+  admin:
+    description: "Administrator - Full system and application access"
+    ssh_permissions: "ALL"
+    auth0_permissions:
+      - "read:users"
+      - "create:users"
+      - "update:users"
+      - "delete:users"
+      - "read:applications"
+      - "manage:roles"
+    application_permissions:
+      - "admin_panel"
+      - "user_management"
+      - "system_settings"
+      - "audit_logs"
+
+  manager:
+    description: "Manager - Team and resource management"
+    ssh_permissions: "LIMITED"
+    auth0_permissions:
+      - "read:users"
+      - "update:users"
+      - "read:applications"
+    application_permissions:
+      - "team_management"
+      - "reports"
+      - "resource_allocation"
+
+  user:
+    description: "User - Standard application access"
+    ssh_permissions: "NONE"
+    auth0_permissions:
+      - "read:profile"
+    application_permissions:
+      - "basic_features"
+      - "personal_data"
+
+  viewer:
+    description: "Viewer - Read-only access"
+    ssh_permissions: "NONE"
+    auth0_permissions:
+      - "read:profile"
+    application_permissions:
+      - "read_only"
+      - "reports"

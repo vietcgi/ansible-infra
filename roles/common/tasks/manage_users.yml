@@ -10,13 +10,21 @@
 # When ssh.enabled = false:
 #   - No SSH user management (access through Auth0/RBAC only)
 
+- name: Set default SSH config if not provided
+  ansible.builtin.set_fact:
+    ssh_config: "{{ access_systems_enabled.ssh | combine({'config_loaded': true}) }}"
+  when: ssh_config is not defined or ssh_config | default({}) | length == 0
+  tags:
+    - users
+    - user_create
+
 - name: Display SSH Access Control status
   ansible.builtin.debug:
     msg: |
       SSH Access Control Status:
       ========================
       Enabled: {{ ssh_config.enabled | default(false) }}
-      {% if ssh_config.enabled %}
+      {% if ssh_config.enabled | default(false) %}
         → SSH users will be created and managed
         → SSH keys will be provisioned
         → Sudo access will be controlled
