@@ -3,7 +3,7 @@
 # Provides OS-agnostic server foundation setup
 
 - name: Import task files
-  import_tasks: "{{ item }}"
+  include_tasks: "{{ item }}"
   loop:
     - validate_os.yml
     - system_update.yml

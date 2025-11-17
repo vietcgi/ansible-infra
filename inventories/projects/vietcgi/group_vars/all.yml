@@ -132,7 +132,7 @@ app_env_vars:
 # Ansible Configuration
 # ============================================================================
 
-ansible_user: "ubuntu"
+ansible_user: "kevin"
 ansible_become: true
 ansible_become_method: "sudo"
 ansible_python_interpreter: "/usr/bin/python3"
