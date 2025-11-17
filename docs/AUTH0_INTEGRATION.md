@@ -41,32 +41,32 @@ The Auth0 integration provides:
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Client Onboarding Playbook                 │
-│  (orchestrates all 3 roles)                 │
+│ Client Onboarding Playbook │
+│ (orchestrates all 3 roles) │
 └──────────┬──────────────────────────────────┘
-           │
-     ┌─────┴─────────────────────────────┐
-     │                                   │
-     ▼                                   ▼
-┌──────────────────┐           ┌──────────────────┐
-│  Common Role     │           │  Auth0 Role      │
-│  (OS Baseline)   │           │  (Identity Setup)│
-│                  │           │                  │
-│ • Security       │           │ • Create Apps    │
-│ • Networking     │           │ • Manage Users   │
-│ • System Config  │           │ • Setup Roles    │
-│ • Firewalls      │           │ • Social Login   │
-└──────────────────┘           └──────┬───────────┘
-                                      │
-                                      ▼
-                           ┌──────────────────────┐
-                           │ App Integration Role │
-                           │ (Finalize Apps)      │
-                           │                      │
-                           │ • Generate .env      │
-                           │ • Framework Configs  │
-                           │ • Setup Guidance     │
-                           └──────────────────────┘
+ │
+ ┌─────┴─────────────────────────────┐
+ │ │
+ ▼ ▼
+┌──────────────────┐ ┌──────────────────┐
+│ Common Role │ │ Auth0 Role │
+│ (OS Baseline) │ │ (Identity Setup)│
+│ │ │ │
+│ • Security │ │ • Create Apps │
+│ • Networking │ │ • Manage Users │
+│ • System Config │ │ • Setup Roles │
+│ • Firewalls │ │ • Social Login │
+└──────────────────┘ └──────┬───────────┘
+ │
+ ▼
+ ┌──────────────────────┐
+ │ App Integration Role │
+ │ (Finalize Apps) │
+ │ │
+ │ • Generate .env │
+ │ • Framework Configs │
+ │ • Setup Guidance │
+ └──────────────────────┘
 ```
 
 ### Components
@@ -142,18 +142,18 @@ Orchestrates complete client setup.
 4. Name: "Ansible Management"
 5. Select "Auth0 Management API"
 6. Grant all necessary scopes:
-   - `create:clients` - Create applications
-   - `read:clients` - List applications
-   - `delete:clients` - Delete applications
-   - `create:users` - Create users
-   - `read:users` - List users
-   - `update:users` - Update user information
-   - `create:roles` - Create roles
-   - `read:roles` - List roles
-   - `delete:roles` - Delete roles
-   - `create:connections` - Create connections
-   - `read:connections` - List connections
-   - `update:connections` - Update connections
+ - `create:clients` - Create applications
+ - `read:clients` - List applications
+ - `delete:clients` - Delete applications
+ - `create:users` - Create users
+ - `read:users` - List users
+ - `update:users` - Update user information
+ - `create:roles` - Create roles
+ - `read:roles` - List roles
+ - `delete:roles` - Delete roles
+ - `create:connections` - Create connections
+ - `read:connections` - List connections
+ - `update:connections` - Update connections
 
 ### 2. Ansible & Dependencies
 
@@ -183,9 +183,9 @@ pip install auth0-python
 1. Navigate to Auth0 Dashboard → Applications → Machines to Machines
 2. Click your "Ansible Management" application
 3. Copy and save:
-   - **Domain**: `your-domain.auth0.com`
-   - **Client ID**: `{{ vault_auth0_client_id }}`
-   - **Client Secret**: `{{ vault_auth0_client_secret }}`
+ - **Domain**: `your-domain.auth0.com`
+ - **Client ID**: `{{ vault_auth0_client_id }}`
+ - **Client Secret**: `{{ vault_auth0_client_secret }}`
 
 ⚠️ **IMPORTANT**: Client secret is only shown once. Store securely!
 
@@ -245,15 +245,15 @@ const passport = require('passport');
 const Auth0Strategy = require('passport-auth0');
 
 passport.use(new Auth0Strategy(
-  {
-    domain: Auth0Config.domain,
-    clientID: Auth0Config.clientId,
-    clientSecret: Auth0Config.clientSecret,
-    callbackURL: 'http://localhost:3000/callback'
-  },
-  (accessToken, refreshToken, extraParams, profile, done) => {
-    return done(null, profile);
-  }
+ {
+ domain: Auth0Config.domain,
+ clientID: Auth0Config.clientId,
+ clientSecret: Auth0Config.clientSecret,
+ callbackURL: 'http://localhost:3000/callback'
+ },
+ (accessToken, refreshToken, extraParams, profile, done) => {
+ return done(null, profile);
+ }
 ));
 ```
 
@@ -276,13 +276,13 @@ from authlib.integrations.flask_client import OAuth
 
 oauth = OAuth()
 oauth.register(
-    'auth0',
-    client_id=Auth0Config.CLIENT_ID,
-    client_secret=Auth0Config.CLIENT_SECRET,
-    api_base_url=f'https://{Auth0Config.DOMAIN}',
-    access_token_url=f'https://{Auth0Config.DOMAIN}/oauth/token',
-    authorize_url=f'https://{Auth0Config.DOMAIN}/authorize',
-    client_kwargs={'scope': 'openid profile email'}
+ 'auth0',
+ client_id=Auth0Config.CLIENT_ID,
+ client_secret=Auth0Config.CLIENT_SECRET,
+ api_base_url=f'https://{Auth0Config.DOMAIN}',
+ access_token_url=f'https://{Auth0Config.DOMAIN}/oauth/token',
+ authorize_url=f'https://{Auth0Config.DOMAIN}/authorize',
+ client_kwargs={'scope': 'openid profile email'}
 )
 ```
 
@@ -303,7 +303,7 @@ pip install python-social-auth[django] python-dotenv
 from auth0_config import Auth0Config
 
 AUTHENTICATION_BACKENDS = [
-    'social_core.backends.open_id_connect.OpenIdConnectAuth',
+ 'social_core.backends.open_id_connect.OpenIdConnectAuth',
 ]
 
 SOCIAL_AUTH_OIDC_ENDPOINT = f'https://{Auth0Config.DOMAIN}/'
@@ -350,8 +350,8 @@ userInfo, err := provider.GetUserInfo(r.Context(), token)
 ```bash
 # Add to pom.xml
 <dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-oauth2-client</artifactId>
+ <groupId>org.springframework.boot</groupId>
+ <artifactId>spring-boot-starter-oauth2-client</artifactId>
 </dependency>
 ```
 
@@ -372,7 +372,7 @@ mkdir -p inventories/projects/acme_corp
 
 # Copy template
 cp inventories/projects/_templates/client_template.yml \
-   inventories/projects/acme_corp/group_vars/all.yml
+ inventories/projects/acme_corp/group_vars/all.yml
 
 # Edit configuration
 vim inventories/projects/acme_corp/group_vars/all.yml
@@ -393,15 +393,15 @@ ansible-vault create inventories/projects/acme_corp/auth0_vault.yml
 cat > inventories/projects/acme_corp/hosts.yml << 'EOF'
 ---
 all:
-  children:
-    app_servers:
-      hosts:
-        acme-prod-01:
-          ansible_host: 10.0.1.10
-          ansible_user: ubuntu
-        acme-prod-02:
-          ansible_host: 10.0.1.11
-          ansible_user: ubuntu
+ children:
+ app_servers:
+ hosts:
+ acme-prod-01:
+ ansible_host: 10.0.1.10
+ ansible_user: ubuntu
+ acme-prod-02:
+ ansible_host: 10.0.1.11
+ ansible_user: ubuntu
 EOF
 ```
 
@@ -410,26 +410,26 @@ EOF
 **Create Infrastructure**:
 ```bash
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -v
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -v
 ```
 
 **Dry Run** (preview changes):
 ```bash
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  --check \
-  --diff
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ --check \
+ --diff
 ```
 
 **Destroy Infrastructure**:
 ```bash
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -e "onboarding_state=absent"
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -e "onboarding_state=absent"
 ```
 
 ### Step 5: Deploy Applications
@@ -442,35 +442,35 @@ ansible-playbook playbooks/client_onboarding.yml \
 ### Step 6: Verify Integration
 
 1. **Check Auth0 Dashboard**:
-   - Applications created and listed
-   - Users created (if configured)
-   - Roles and permissions defined
+ - Applications created and listed
+ - Users created (if configured)
+ - Roles and permissions defined
 
 2. **Verify Application Configuration**:
-   ```bash
-   # Check .env file on application server
-   ssh ubuntu@10.0.1.10
-   cat /opt/acme-corp-app/.env
-   ```
+ ```bash
+ # Check .env file on application server
+ ssh ubuntu@10.0.1.10
+ cat /opt/acme-corp-app/.env
+ ```
 
 3. **Test Login Flow**:
-   - Navigate to application login
-   - Authenticate via Auth0
-   - Verify user information appears
-   - Test logout
+ - Navigate to application login
+ - Authenticate via Auth0
+ - Verify user information appears
+ - Test logout
 
 ## Security Best Practices
 
 ### 1. Credential Management
 
-✅ **DO**:
+ **DO**:
 - Store credentials in Ansible Vault
 - Rotate client secrets quarterly
 - Use separate clients for different environments
 - Limit M2M app scopes to minimum needed
 - Use strong vault passwords (24+ characters)
 
-❌ **DON'T**:
+ **DON'T**:
 - Commit vault credentials to git
 - Hardcode secrets in playbooks
 - Share vault passwords via email
@@ -490,38 +490,38 @@ echo ".env*" >> .gitignore
 
 1. **Enable MFA** on all auth0.com login accounts
 2. **Rotate Client Secrets** regularly:
-   - Generate new secret in Auth0 dashboard
-   - Update vault and redeploy
-   - Revoke old secret
+ - Generate new secret in Auth0 dashboard
+ - Update vault and redeploy
+ - Revoke old secret
 3. **Monitor Auth0 Logs**:
-   - Review suspicious authentication attempts
-   - Audit user creation and deletion
-   - Track role permission changes
+ - Review suspicious authentication attempts
+ - Audit user creation and deletion
+ - Track role permission changes
 4. **Limit Admin Access**:
-   - Use separate admin account
-   - Enable multi-factor authentication
-   - Regular access reviews
+ - Use separate admin account
+ - Enable multi-factor authentication
+ - Regular access reviews
 
 ### 4. Application Security
 
 1. **HTTPS Only**:
-   - Use TLS 1.2+ for all communications
-   - Set secure cookie flags:
-     ```yaml
-     SESSION_COOKIE_SECURE: true
-     SESSION_COOKIE_HTTPONLY: true
-     SESSION_COOKIE_SAMESITE: 'Lax'
-     ```
+ - Use TLS 1.2+ for all communications
+ - Set secure cookie flags:
+ ```yaml
+ SESSION_COOKIE_SECURE: true
+ SESSION_COOKIE_HTTPONLY: true
+ SESSION_COOKIE_SAMESITE: 'Lax'
+ ```
 
 2. **Token Validation**:
-   - Always validate JWT signature
-   - Check token expiration
-   - Verify audience claim
+ - Always validate JWT signature
+ - Check token expiration
+ - Verify audience claim
 
 3. **Rate Limiting**:
-   - Enable Auth0 rate limiting
-   - Set reasonable limits (10 req/sec default)
-   - Monitor for abuse patterns
+ - Enable Auth0 rate limiting
+ - Set reasonable limits (10 req/sec default)
+ - Monitor for abuse patterns
 
 ### 5. Backup & Disaster Recovery
 
@@ -543,16 +543,16 @@ ansible-playbook playbooks/backup_auth0_config.yml
 2. Check client_id and client_secret match
 3. Verify M2M app has Auth0 Management API access
 4. Test credentials manually:
-   ```python
-   from auth0.authentication import GetToken
+ ```python
+ from auth0.authentication import GetToken
 
-   get_token = GetToken('your-domain.auth0.com')
-   token = get_token.client_credentials(
-       'your_client_id',
-       'your_client_secret',
-       'https://your-domain.auth0.com/api/v2/'
-   )
-   ```
+ get_token = GetToken('your-domain.auth0.com')
+ token = get_token.client_credentials(
+ 'your_client_id',
+ 'your_client_secret',
+ 'https://your-domain.auth0.com/api/v2/'
+ )
+ ```
 
 ### Application Already Exists
 
@@ -569,15 +569,15 @@ ansible-playbook playbooks/backup_auth0_config.yml
 
 **Solutions**:
 1. Check file permissions:
-   ```bash
-   ls -la /opt/app/.env
-   # Should show: -rw-r----- app app 0640
-   ```
+ ```bash
+ ls -la /opt/app/.env
+ # Should show: -rw-r----- app app 0640
+ ```
 2. Verify application runs as `app` user
 3. Check user is in `app` group:
-   ```bash
-   groups app
-   ```
+ ```bash
+ groups app
+ ```
 
 ### Auth0 User Creation Fails
 
@@ -594,12 +594,12 @@ ansible-playbook playbooks/backup_auth0_config.yml
 
 **Solutions**:
 1. Verify `.env` file exists:
-   ```bash
-   file /opt/app/.env
-   ```
+ ```bash
+ file /opt/app/.env
+ ```
 2. Check application loads dotenv:
-   - Node.js: `require('dotenv').config()`
-   - Python: `from dotenv import load_dotenv; load_dotenv()`
+ - Node.js: `require('dotenv').config()`
+ - Python: `from dotenv import load_dotenv; load_dotenv()`
 3. Verify file is readable by application user
 4. Check application startup logs
 
@@ -612,24 +612,24 @@ Create separate configurations for dev/staging/prod:
 ```bash
 inventories/projects/acme_corp/
 ├── dev/
-│   ├── hosts.yml
-│   ├── group_vars/all.yml
-│   └── auth0_vault.yml
+│ ├── hosts.yml
+│ ├── group_vars/all.yml
+│ └── auth0_vault.yml
 ├── staging/
-│   ├── hosts.yml
-│   ├── group_vars/all.yml
-│   └── auth0_vault.yml
+│ ├── hosts.yml
+│ ├── group_vars/all.yml
+│ └── auth0_vault.yml
 └── prod/
-    ├── hosts.yml
-    ├── group_vars/all.yml
-    └── auth0_vault.yml
+ ├── hosts.yml
+ ├── group_vars/all.yml
+ └── auth0_vault.yml
 ```
 
 Run for specific environment:
 ```bash
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/prod/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/acme_corp/prod/hosts.yml \
+ --ask-vault-pass
 ```
 
 ### Custom Auth0 Configuration
@@ -639,16 +639,16 @@ Extend auth0 role for additional features:
 ```yaml
 # In your playbook
 - role: auth0
-  vars:
-    # Custom settings
-    auth0_extra_scopes:
-      - "offline_access"
-      - "email_verified"
+ vars:
+ # Custom settings
+ auth0_extra_scopes:
+ - "offline_access"
+ - "email_verified"
 
-    # Custom metadata
-    auth0_user_metadata:
-      preferences:
-        theme: "dark"
+ # Custom metadata
+ auth0_user_metadata:
+ preferences:
+ theme: "dark"
 ```
 
 ### CI/CD Integration
@@ -658,13 +658,13 @@ Integrate with GitLab CI/GitHub Actions:
 ```yaml
 # .gitlab-ci.yml example
 deploy_to_acme:
-  stage: deploy
-  script:
-    - ansible-playbook playbooks/client_onboarding.yml \
-        -i inventories/projects/acme_corp/prod/hosts.yml \
-        --vault-password-file=$ANSIBLE_VAULT_PASS
-  only:
-    - main
+ stage: deploy
+ script:
+ - ansible-playbook playbooks/client_onboarding.yml \
+ -i inventories/projects/acme_corp/prod/hosts.yml \
+ --vault-password-file=$ANSIBLE_VAULT_PASS
+ only:
+ - main
 ```
 
 ### Monitoring & Alerts

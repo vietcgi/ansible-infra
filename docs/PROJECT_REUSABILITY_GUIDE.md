@@ -21,11 +21,11 @@
 
 This repository is designed as a **reusable infrastructure-as-code framework** that can be adapted for multiple projects, teams, and deployment scenarios. Instead of starting from scratch, future projects can:
 
-- ✅ Clone and customize this framework
-- ✅ Reuse proven roles and playbooks
-- ✅ Leverage tested patterns and best practices
-- ✅ Maintain consistency across projects
-- ✅ Reduce deployment time from weeks to hours
+- Clone and customize this framework
+- Reuse proven roles and playbooks
+- Leverage tested patterns and best practices
+- Maintain consistency across projects
+- Reduce deployment time from weeks to hours
 
 ### Core Philosophy
 
@@ -48,14 +48,14 @@ This repository provides:
 
 ```
 roles/
-├── common/                    # OS-independent foundation
-│   ├── defaults/main.yml     # Sensible defaults for all projects
-│   ├── tasks/                # Parameterized tasks
-│   └── templates/            # Generic templates
-└── system_hardening_macos/   # macOS-specific hardening
-    ├── defaults/main.yml
-    ├── tasks/
-    └── README.md
+├── common/ # OS-independent foundation
+│ ├── defaults/main.yml # Sensible defaults for all projects
+│ ├── tasks/ # Parameterized tasks
+│ └── templates/ # Generic templates
+└── system_hardening_macos/ # macOS-specific hardening
+ ├── defaults/main.yml
+ ├── tasks/
+ └── README.md
 ```
 
 **Key Principle**: Each role has `defaults/main.yml` with sensible defaults that can be overridden per project without modifying the role itself.
@@ -64,29 +64,29 @@ roles/
 ```yaml
 # roles/common/defaults/main.yml
 common_ntp_servers:
-  - 0.pool.ntp.org
-  - 1.pool.ntp.org
+ - 0.pool.ntp.org
+ - 1.pool.ntp.org
 common_ssh_port: 22
 
 # Your project overrides this in group_vars:
 # inventories/projects/my-project/group_vars/all.yml
 common_ntp_servers:
-  - 10.0.1.5           # Your internal NTP
-  - 8.8.8.8
-common_ssh_port: 2222   # Your custom port
+ - 10.0.1.5 # Your internal NTP
+ - 8.8.8.8
+common_ssh_port: 2222 # Your custom port
 ```
 
 ### 2. Flexible Inventory Structure
 
 ```
 inventories/
-├── projects/                 # Multi-project support
-│   ├── _templates/          # Templates for new projects
-│   ├── project-alpha/       # Your first project
-│   ├── project-beta/        # Your second project
-│   └── project-gamma/       # And so on...
-├── shared/                  # Cross-project defaults
-└── legacy/                  # Old structures (for migration)
+├── projects/ # Multi-project support
+│ ├── _templates/ # Templates for new projects
+│ ├── project-alpha/ # Your first project
+│ ├── project-beta/ # Your second project
+│ └── project-gamma/ # And so on...
+├── shared/ # Cross-project defaults
+└── legacy/ # Old structures (for migration)
 ```
 
 **Benefit**: New projects follow a consistent pattern. Old inventories still work during migration.
@@ -96,13 +96,13 @@ inventories/
 ```
 Least Specific (Defaults)
 ↓
-1. roles/<role>/defaults/main.yml          [Framework defaults]
-2. inventories/shared/global_vars.yml      [Cross-project overrides]
-3. inventories/projects/<project>/group_vars/all.yml        [Project defaults]
-4. inventories/projects/<project>/group_vars/<group>.yml    [Group overrides]
-5. inventories/projects/<project>/host_vars/<host>.yml      [Host-specific]
-6. inventories/projects/<project>/group_vars/all_vault.yml  [Encrypted secrets]
-7. playbook -e "var=value"                 [Runtime overrides]
+1. roles/<role>/defaults/main.yml [Framework defaults]
+2. inventories/shared/global_vars.yml [Cross-project overrides]
+3. inventories/projects/<project>/group_vars/all.yml [Project defaults]
+4. inventories/projects/<project>/group_vars/<group>.yml [Group overrides]
+5. inventories/projects/<project>/host_vars/<host>.yml [Host-specific]
+6. inventories/projects/<project>/group_vars/all_vault.yml [Encrypted secrets]
+7. playbook -e "var=value" [Runtime overrides]
 ↑
 Most Specific (Highest Priority)
 ```
@@ -114,9 +114,9 @@ Most Specific (Highest Priority)
 Three core playbooks handle all scenarios:
 
 ```yaml
-# provision.yml    - Initial server setup
-# configure.yml    - Full configuration stack
-# maintenance.yml  - Updates, patches, cleanup
+# provision.yml - Initial server setup
+# configure.yml - Full configuration stack
+# maintenance.yml - Updates, patches, cleanup
 ```
 
 Each is **project-aware** and can target specific projects:
@@ -124,11 +124,11 @@ Each is **project-aware** and can target specific projects:
 ```bash
 # Deploy to specific project
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project
+ -i inventories/projects/my-project
 
 # Or all projects
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/
+ -i inventories/projects/
 ```
 
 ### 5. Secrets Management with Ansible Vault
@@ -139,9 +139,9 @@ inventories/projects/my-project/group_vars/all_vault.yml
 
 # Contains:
 vault_grafana_admin_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256;...
+ $ANSIBLE_VAULT;1.1;AES256;...
 vault_database_root_password: !vault |
-  $ANSIBLE_VAULT;1.1;AES256;...
+ $ANSIBLE_VAULT;1.1;AES256;...
 ```
 
 **Benefit**: Secrets encrypted at rest, never exposed in git or logs.
@@ -182,7 +182,7 @@ ansible all -i inventories/projects/my-project -m ping
 
 # Deploy!
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project
+ -i inventories/projects/my-project
 ```
 
 #### Option 2: Use as Remote Template
@@ -209,25 +209,25 @@ Once created, your project looks like:
 ```
 my-infrastructure/
 ├── inventories/
-│   └── projects/
-│       └── my-project/
-│           ├── inventory.yml              # Your servers
-│           ├── group_vars/
-│           │   ├── all.yml               # Project defaults
-│           │   ├── webservers.yml        # Web server config
-│           │   ├── databases.yml         # Database config
-│           │   └── all_vault.yml         # Encrypted secrets
-│           └── host_vars/
-│               ├── web01.yml
-│               ├── web02.yml
-│               └── db01.yml
+│ └── projects/
+│ └── my-project/
+│ ├── inventory.yml # Your servers
+│ ├── group_vars/
+│ │ ├── all.yml # Project defaults
+│ │ ├── webservers.yml # Web server config
+│ │ ├── databases.yml # Database config
+│ │ └── all_vault.yml # Encrypted secrets
+│ └── host_vars/
+│ ├── web01.yml
+│ ├── web02.yml
+│ └── db01.yml
 ├── playbooks/
-│   ├── provision.yml
-│   ├── configure.yml
-│   └── maintenance.yml
+│ ├── provision.yml
+│ ├── configure.yml
+│ └── maintenance.yml
 ├── roles/
-│   ├── common/
-│   └── system_hardening_macos/
+│ ├── common/
+│ └── system_hardening_macos/
 ├── ansible.cfg
 ├── requirements.yml
 └── Makefile
@@ -240,20 +240,20 @@ my-infrastructure/
 ```yaml
 # inventories/projects/my-project/inventory.yml
 all:
-  children:
-    webservers:
-      hosts:
-        web01:
-          ansible_host: 10.0.1.10
-        web02:
-          ansible_host: 10.0.1.11
-    databases:
-      hosts:
-        db01:
-          ansible_host: 10.0.2.10
-  vars:
-    ansible_user: ubuntu
-    ansible_port: 22
+ children:
+ webservers:
+ hosts:
+ web01:
+ ansible_host: 10.0.1.10
+ web02:
+ ansible_host: 10.0.1.11
+ databases:
+ hosts:
+ db01:
+ ansible_host: 10.0.2.10
+ vars:
+ ansible_user: ubuntu
+ ansible_port: 22
 ```
 
 #### Step 2: Set Project Defaults
@@ -268,8 +268,8 @@ project_owner: your-team
 
 # Common Configuration
 common_ntp_servers:
-  - 10.0.1.5
-  - 8.8.8.8
+ - 10.0.1.5
+ - 8.8.8.8
 common_ssh_port: 2222
 
 # Monitoring
@@ -300,13 +300,13 @@ vault_database_root_password: "your-db-password"
 ```bash
 # Provision servers
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 
 # Configure services
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 ```
 
 ---
@@ -357,8 +357,8 @@ ansible all -i inventories/projects/project-alpha -m ping
 
 # Run a playbook in check mode (no changes)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/project-alpha \
-  -C
+ -i inventories/projects/project-alpha \
+ -C
 
 # Look at facts for a specific host
 ansible web01 -i inventories/projects/project-alpha -m setup
@@ -425,8 +425,8 @@ mkdir -p roles/my-feature/{tasks,defaults,templates,vars}
 cat > roles/my-feature/tasks/main.yml << 'EOF'
 ---
 - name: Configure my feature
-  debug:
-    msg: "Configuring {{ my_feature_name }}"
+ debug:
+ msg: "Configuring {{ my_feature_name }}"
 EOF
 
 # Add defaults
@@ -438,8 +438,8 @@ EOF
 
 # Include in playbook
 # Add to playbooks/configure.yml:
-#   roles:
-#     - my-feature
+# roles:
+# - my-feature
 ```
 
 ### Pattern 2: Override Role Defaults Per Project
@@ -450,7 +450,7 @@ EOF
 # Override role defaults
 common_ssh_port: 2222
 common_ntp_servers:
-  - 10.0.1.5
+ - 10.0.1.5
 
 # Add new variables for custom roles
 my_feature_name: "custom-value"
@@ -484,7 +484,7 @@ max_connections: 1000
 # inventories/projects/my-project/host_vars/web01.yml
 ---
 # Only this host gets this setting
-enable_monitoring: false  # Special case
+enable_monitoring: false # Special case
 ```
 
 ---
@@ -513,14 +513,14 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/my-project -C
 
 # Option 2: Selective role application
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --tags "ntp,ssh" \
-  -C
+ -i inventories/projects/my-project \
+ --tags "ntp,ssh" \
+ -C
 
 # Option 3: Run in check mode first
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --check
+ -i inventories/projects/my-project \
+ --check
 ```
 
 ### Q: How do I handle secrets for different environments?
@@ -546,19 +546,19 @@ ansible-vault create inventories/projects/my-project-staging/group_vars/all_vaul
 ```bash
 # 1. Test in check mode
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/staging \
-  --check
+ -i inventories/projects/staging \
+ --check
 
 # 2. Test in staging environment
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/staging
+ -i inventories/projects/staging
 
 # 3. Verify results
 ansible all -i inventories/projects/staging -m ping
 
 # 4. Deploy to production
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/production
+ -i inventories/projects/production
 ```
 
 ### Q: How do I add hosts to an existing project?
@@ -568,15 +568,15 @@ ansible-playbook playbooks/configure.yml \
 ```yaml
 # inventories/projects/my-project/inventory.yml
 all:
-  children:
-    webservers:
-      hosts:
-        web01:
-          ansible_host: 10.0.1.10
-        web02:  # NEW
-          ansible_host: 10.0.1.11
-        web03:  # NEW
-          ansible_host: 10.0.1.12
+ children:
+ webservers:
+ hosts:
+ web01:
+ ansible_host: 10.0.1.10
+ web02: # NEW
+ ansible_host: 10.0.1.11
+ web03: # NEW
+ ansible_host: 10.0.1.12
 
 # inventories/projects/my-project/host_vars/web02.yml
 ---
@@ -626,13 +626,13 @@ mkdir -p roles/common-my-project
 
 ### For Your First Project
 
-1. ✅ Clone this repository
-2. ✅ Run `./scripts/scaffold-project.sh my-first-project`
-3. ✅ Edit `inventories/projects/my-first-project/inventory.yml`
-4. ✅ Edit `inventories/projects/my-first-project/group_vars/all.yml`
-5. ✅ Create Vault secrets: `ansible-vault create ...`
-6. ✅ Test: `ansible all -i inventories/projects/my-first-project -m ping`
-7. ✅ Deploy: `ansible-playbook playbooks/provision.yml -i inventories/projects/my-first-project`
+1. Clone this repository
+2. Run `./scripts/scaffold-project.sh my-first-project`
+3. Edit `inventories/projects/my-first-project/inventory.yml`
+4. Edit `inventories/projects/my-first-project/group_vars/all.yml`
+5. Create Vault secrets: `ansible-vault create ...`
+6. Test: `ansible all -i inventories/projects/my-first-project -m ping`
+7. Deploy: `ansible-playbook playbooks/provision.yml -i inventories/projects/my-first-project`
 
 ### For Future Teams
 

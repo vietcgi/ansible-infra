@@ -25,45 +25,45 @@ Comprehensive Docker-based testing was successfully executed across **10 out of 
 - **Status**: PASSED
 - **Image**: ubuntu:20.04
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APT/DPKG): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APT/DPKG): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Oldest supported Ubuntu LTS version - fully compatible
 
 #### ✓ Ubuntu 22.04 LTS
 - **Status**: PASSED
 - **Image**: ubuntu:22.04
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APT/DPKG): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APT/DPKG): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Previous LTS release - fully compatible
 
 #### ✓ Ubuntu 24.04 LTS
 - **Status**: PASSED
 - **Image**: ubuntu:24.04
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APT/DPKG): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APT/DPKG): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Latest LTS release - fully compatible
 
 #### ✓ Debian 11 (Bullseye)
 - **Status**: PASSED
 - **Image**: debian:11
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APT/DPKG): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APT/DPKG): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Current Debian stable - fully compatible
 
 #### ✓ Debian 12 (Bookworm)
 - **Status**: PASSED
 - **Image**: debian:12
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APT/DPKG): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APT/DPKG): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Latest Debian release - fully compatible
 
 ### Alpine Linux (2/2 PASSED)
@@ -72,18 +72,18 @@ Comprehensive Docker-based testing was successfully executed across **10 out of 
 - **Status**: PASSED
 - **Image**: alpine:3.16
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APK): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APK): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Container-optimized OS - fully compatible
 
 #### ✓ Alpine 3.20
 - **Status**: PASSED
 - **Image**: alpine:3.20
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (APK): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (APK): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: Latest Alpine LTS - fully compatible
 
 ### RedHat-Based Systems (3/4 PASSED)
@@ -92,9 +92,9 @@ Comprehensive Docker-based testing was successfully executed across **10 out of 
 - **Status**: PASSED
 - **Image**: centos:8
 - **Tests Passed**:
-  - OS Detection: ✓
-  - Package Manager (YUM): ✓ Functional
-  - Framework Accessibility: ✓ (12 task files)
+ - OS Detection: ✓
+ - Package Manager (YUM): ✓ Functional
+ - Framework Accessibility: ✓ (12 task files)
 - **Notes**: CentOS Stream (RHEL-based) - fully compatible
 
 #### ✗ CentOS Stream 9

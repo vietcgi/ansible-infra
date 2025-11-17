@@ -11,51 +11,51 @@
 Implements comprehensive macOS security hardening across multiple layers:
 
 ### 1. **Firewall Hardening**
-- ✅ Enable Application Firewall (ALF) with stealth mode
-- ✅ Configure Packet Filter (PF) with rate limiting and anti-bruteforce
-- ✅ Enable logging for both layers
+- Enable Application Firewall (ALF) with stealth mode
+- Configure Packet Filter (PF) with rate limiting and anti-bruteforce
+- Enable logging for both layers
 
 ### 2. **SSH Security**
-- ✅ Deploy hardened sshd_config with:
-  - Post-quantum key exchange (`sntrup761x25519-sha512@openssh.com`)
-  - Modern ciphers (ChaCha20-Poly1305, AES-GCM)
-  - Secure MACs (HMAC-SHA2 with encrypt-then-MAC)
-  - Rate limiting (5 connections per 30 seconds)
-  - Disable password authentication
-  - Disable root login
-  - Disable empty passwords
+- Deploy hardened sshd_config with:
+ - Post-quantum key exchange (`sntrup761x25519-sha512@openssh.com`)
+ - Modern ciphers (ChaCha20-Poly1305, AES-GCM)
+ - Secure MACs (HMAC-SHA2 with encrypt-then-MAC)
+ - Rate limiting (5 connections per 30 seconds)
+ - Disable password authentication
+ - Disable root login
+ - Disable empty passwords
 
 ### 3. **System Integrity**
-- ✅ Verify SIP is enabled (non-negotiable for production)
-- ✅ Verify Gatekeeper is enforcing code signing
-- ✅ Verify XProtect malware protection is active
+- Verify SIP is enabled (non-negotiable for production)
+- Verify Gatekeeper is enforcing code signing
+- Verify XProtect malware protection is active
 
 ### 4. **User Access Control**
-- ✅ Enforce strong sudo configuration
-  - Password required for all sudo commands
-  - Session timeout: 5 minutes
-  - Log all sudo commands
-  - Use `/etc/sudoers.d/` for granular permissions
-- ✅ Disable automatic login
-- ✅ Disable guest account (if applicable)
-- ✅ Hide user list on login window
+- Enforce strong sudo configuration
+ - Password required for all sudo commands
+ - Session timeout: 5 minutes
+ - Log all sudo commands
+ - Use `/etc/sudoers.d/` for granular permissions
+- Disable automatic login
+- Disable guest account (if applicable)
+- Hide user list on login window
 
 ### 5. **System Monitoring & Logging**
-- ✅ Enable OpenBSM audit logging
-- ✅ Configure unified logging
-- ✅ Set appropriate log retention policies
+- Enable OpenBSM audit logging
+- Configure unified logging
+- Set appropriate log retention policies
 
 ### 6. **Network Security**
-- ✅ Configure DNS security (DoH/DoT)
-- ✅ Disable unnecessary services:
-  - AirDrop (unless needed)
-  - Bluetooth (unless needed)
-  - Remote Desktop (unless needed)
-  - Printer sharing (unless needed)
+- Configure DNS security (DoH/DoT)
+- Disable unnecessary services:
+ - AirDrop (unless needed)
+ - Bluetooth (unless needed)
+ - Remote Desktop (unless needed)
+ - Printer sharing (unless needed)
 
 ### 7. **System Updates**
-- ✅ Enable automatic security updates
-- ✅ Enable automatic malware definition updates
+- Enable automatic security updates
+- Enable automatic malware definition updates
 
 ---
 
@@ -67,11 +67,11 @@ Implements comprehensive macOS security hardening across multiple layers:
 macos_firewall_enabled: true
 macos_firewall_stealth_mode: true
 macos_firewall_logging_enabled: true
-macos_firewall_block_all_incoming: false  # May break local services
+macos_firewall_block_all_incoming: false # May break local services
 
 # Enable Packet Filter
 macos_pf_enabled: true
-macos_pf_rate_limit_ssh: true             # 5 conn / 30 seconds
+macos_pf_rate_limit_ssh: true # 5 conn / 30 seconds
 ```
 
 ### **SSH Security**
@@ -79,16 +79,16 @@ macos_pf_rate_limit_ssh: true             # 5 conn / 30 seconds
 # SSH hardening
 macos_ssh_hardening_enabled: true
 macos_ssh_key_exchange:
-  - sntrup761x25519-sha512@openssh.com
-  - curve25519-sha256
-  - curve25519-sha256@libssh.org
+ - sntrup761x25519-sha512@openssh.com
+ - curve25519-sha256
+ - curve25519-sha256@libssh.org
 macos_ssh_ciphers:
-  - chacha20-poly1305@openssh.com
-  - aes256-gcm@openssh.com
-  - aes128-gcm@openssh.com
+ - chacha20-poly1305@openssh.com
+ - aes256-gcm@openssh.com
+ - aes128-gcm@openssh.com
 macos_ssh_macs:
-  - hmac-sha2-512-etm@openssh.com
-  - hmac-sha2-256-etm@openssh.com
+ - hmac-sha2-512-etm@openssh.com
+ - hmac-sha2-256-etm@openssh.com
 
 # SSH daemon settings
 macos_sshd_permit_root_login: "no"
@@ -103,7 +103,7 @@ macos_sshd_max_sessions: 5
 ```yaml
 # SIP verification (should always be true)
 macos_sip_check_enabled: true
-macos_sip_required: true  # MUST be true for production
+macos_sip_required: true # MUST be true for production
 
 # Gatekeeper enforcement
 macos_gatekeeper_enabled: true
@@ -124,16 +124,16 @@ macos_hide_user_list_login: true
 ### **Network & Services**
 ```yaml
 # Service disabling
-macos_disable_airdrop: true              # Set to false if needed
-macos_disable_bluetooth: true            # Set to false if needed
+macos_disable_airdrop: true # Set to false if needed
+macos_disable_bluetooth: true # Set to false if needed
 macos_disable_remote_desktop: true
 macos_disable_printer_sharing: true
 
 # DNS security
-macos_dns_security_enabled: true         # DoH/DoT
-macos_dns_servers:                       # Quad9 example
-  - 9.9.9.9
-  - 149.112.112.112
+macos_dns_security_enabled: true # DoH/DoT
+macos_dns_servers: # Quad9 example
+ - 9.9.9.9
+ - 149.112.112.112
 ```
 
 ### **System Updates**
@@ -148,10 +148,10 @@ macos_auto_check_enabled: true
 
 ## Prerequisites
 
-- ✅ Common role applied first
-- ✅ Admin privileges required
-- ✅ macOS 14+ (Sonoma or later)
-- ✅ System Integrity Protection enabled (non-negotiable)
+- Common role applied first
+- Admin privileges required
+- macOS 14+ (Sonoma or later)
+- System Integrity Protection enabled (non-negotiable)
 
 ---
 
@@ -224,16 +224,16 @@ This role implements recommendations from:
 ```yaml
 ---
 - name: Harden macOS systems
-  hosts: macos_servers
-  become: yes
-  roles:
-    - role: common                      # Apply foundation first
-    - role: system_hardening_macos      # Apply hardening
-      vars:
-        macos_firewall_enabled: true
-        macos_sshd_password_authentication: "no"
-        macos_disable_airdrop: true
-        macos_sudo_timeout_minutes: 5
+ hosts: macos_servers
+ become: yes
+ roles:
+ - role: common # Apply foundation first
+ - role: system_hardening_macos # Apply hardening
+ vars:
+ macos_firewall_enabled: true
+ macos_sshd_password_authentication: "no"
+ macos_disable_airdrop: true
+ macos_sudo_timeout_minutes: 5
 ```
 
 ---

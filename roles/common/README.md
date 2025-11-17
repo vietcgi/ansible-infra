@@ -79,11 +79,11 @@ None. The `common` role has **zero role dependencies**—it operates independent
 ```
 ✓ OS family supported: Debian
 System Information:
-  Distribution: Ubuntu 22.04 LTS
-  OS Family: Debian
-  Kernel: 5.15.0-xx-generic
-  Architecture: x86_64
-  Python: 3.10.12
+ Distribution: Ubuntu 22.04 LTS
+ OS Family: Debian
+ Kernel: 5.15.0-xx-generic
+ Architecture: x86_64
+ Python: 3.10.12
 ```
 
 ### Task 2: System Update (system_update.yml)
@@ -98,8 +98,8 @@ System Information:
 
 **Variables**:
 ```yaml
-common_update_packages: true      # Update package list
-common_upgrade_packages: true     # Upgrade all packages
+common_update_packages: true # Update package list
+common_upgrade_packages: true # Upgrade all packages
 ```
 
 ### Task 3: Install Core Packages (core_packages.yml)
@@ -120,11 +120,11 @@ common_upgrade_packages: true     # Upgrade all packages
 **Customization**:
 ```yaml
 common_core_packages:
-  - curl
-  - wget
-  - git
-  # Add custom packages here
-  - your-package-name
+ - curl
+ - wget
+ - git
+ # Add custom packages here
+ - your-package-name
 ```
 
 ### Task 4: Configure Python (python.yml)
@@ -140,9 +140,9 @@ common_core_packages:
 **Installed Packages**:
 ```yaml
 common_python_packages:
-  - python3-pip        # Package manager
-  - python3-dev        # Compile extensions
-  - python3-venv       # Virtual environment support
+ - python3-pip # Package manager
+ - python3-dev # Compile extensions
+ - python3-venv # Virtual environment support
 ```
 
 ### Task 5: Configure NTP (ntp.yml)
@@ -160,10 +160,10 @@ common_python_packages:
 common_timezone: "UTC"
 common_ntp_enabled: true
 common_ntp_servers:
-  - 0.pool.ntp.org
-  - 1.pool.ntp.org
-  - 2.pool.ntp.org
-  - 3.pool.ntp.org
+ - 0.pool.ntp.org
+ - 1.pool.ntp.org
+ - 2.pool.ntp.org
+ - 3.pool.ntp.org
 common_ntp_synchronize_on_boot: true
 ```
 
@@ -185,10 +185,10 @@ common_ntp_synchronize_on_boot: true
 
 **Key Configuration Options** (via template):
 ```yaml
-common_ssh_port: 22                           # SSH listen port
-common_ssh_permit_root_login: "no"           # Disable root SSH
-common_ssh_password_authentication: "no"     # Key-based only
-common_ssh_key_bits: 4096                    # SSH key strength
+common_ssh_port: 22 # SSH listen port
+common_ssh_permit_root_login: "no" # Disable root SSH
+common_ssh_password_authentication: "no" # Key-based only
+common_ssh_key_bits: 4096 # SSH key strength
 ```
 
 **Security Controls Applied** (template-based):
@@ -210,19 +210,19 @@ common_ssh_key_bits: 4096                    # SSH key strength
 
 **Network Performance Tuning**:
 ```yaml
-net.core.somaxconn: 1024                    # TCP accept queue size
-net.ipv4.tcp_max_syn_backlog: 2048          # SYN cookie threshold
-net.ipv4.tcp_tw_reuse: 1                    # Reuse TIME_WAIT sockets
-net.ipv4.tcp_fin_timeout: 30                # FIN_WAIT timeout (seconds)
+net.core.somaxconn: 1024 # TCP accept queue size
+net.ipv4.tcp_max_syn_backlog: 2048 # SYN cookie threshold
+net.ipv4.tcp_tw_reuse: 1 # Reuse TIME_WAIT sockets
+net.ipv4.tcp_fin_timeout: 30 # FIN_WAIT timeout (seconds)
 ```
 
 **Security Hardening**:
 ```yaml
-net.ipv4.conf.all.send_redirects: 0         # Disable ICMP redirects
+net.ipv4.conf.all.send_redirects: 0 # Disable ICMP redirects
 net.ipv4.conf.default.send_redirects: 0
-net.ipv4.conf.all.accept_source_route: 0    # Reject source routing
+net.ipv4.conf.all.accept_source_route: 0 # Reject source routing
 net.ipv4.conf.default.accept_source_route: 0
-net.ipv4.icmp_echo_ignore_broadcasts: 1     # Ignore broadcast pings
+net.ipv4.icmp_echo_ignore_broadcasts: 1 # Ignore broadcast pings
 net.ipv4.icmp_ignore_bogus_error_responses: 1
 ```
 
@@ -261,8 +261,8 @@ common_log_retention_days: 30
 **Variables**:
 ```yaml
 common_file_limits:
-  soft: 65536    # Per-process open files (soft limit)
-  hard: 65536    # Per-process open files (hard limit)
+ soft: 65536 # Per-process open files (soft limit)
+ hard: 65536 # Per-process open files (hard limit)
 ```
 
 **Why**: Default limits (1024) insufficient for:
@@ -283,9 +283,9 @@ common_file_limits:
 **Variables**:
 ```yaml
 common_dns_servers:
-  - 8.8.8.8      # Google DNS primary
-  - 8.8.4.4      # Google DNS secondary
-  - 1.1.1.1      # Cloudflare DNS
+ - 8.8.8.8 # Google DNS primary
+ - 8.8.4.4 # Google DNS secondary
+ - 1.1.1.1 # Cloudflare DNS
 ```
 
 **Why Multiple Servers**: Fault tolerance—if primary is unavailable, system falls back to secondary resolvers.
@@ -315,104 +315,104 @@ All variables include sensible production defaults and can be customized via gro
 
 #### System Updates
 ```yaml
-common_update_packages: true          # Run apt/yum update
-common_upgrade_packages: true         # Upgrade all packages
+common_update_packages: true # Run apt/yum update
+common_upgrade_packages: true # Upgrade all packages
 ```
 
 #### Packages
 ```yaml
-common_core_packages:                 # Customize core utilities
-  - curl
-  - wget
-  - git
-  - vim
-  - htop
-  - tree
-  - jq
-  - tmux
-  - unzip
-  - net-tools
+common_core_packages: # Customize core utilities
+ - curl
+ - wget
+ - git
+ - vim
+ - htop
+ - tree
+ - jq
+ - tmux
+ - unzip
+ - net-tools
 
-common_python_packages:               # Customize Python stack
-  - python3-pip
-  - python3-dev
-  - python3-venv
+common_python_packages: # Customize Python stack
+ - python3-pip
+ - python3-dev
+ - python3-venv
 ```
 
 #### Time Management
 ```yaml
-common_timezone: "UTC"                # System timezone
-common_ntp_enabled: true              # Enable NTP service
-common_ntp_servers:                   # NTP servers to sync against
-  - 0.pool.ntp.org
-  - 1.pool.ntp.org
-  - 2.pool.ntp.org
-  - 3.pool.ntp.org
-common_ntp_synchronize_on_boot: true  # Sync time at startup
+common_timezone: "UTC" # System timezone
+common_ntp_enabled: true # Enable NTP service
+common_ntp_servers: # NTP servers to sync against
+ - 0.pool.ntp.org
+ - 1.pool.ntp.org
+ - 2.pool.ntp.org
+ - 3.pool.ntp.org
+common_ntp_synchronize_on_boot: true # Sync time at startup
 ```
 
 #### SSH Hardening
 ```yaml
-common_ssh_port: 22                           # SSH listen port
-common_ssh_permit_root_login: "no"           # Disable root login
-common_ssh_password_authentication: "no"     # Require keys
-common_ssh_key_bits: 4096                    # Key strength
+common_ssh_port: 22 # SSH listen port
+common_ssh_permit_root_login: "no" # Disable root login
+common_ssh_password_authentication: "no" # Require keys
+common_ssh_key_bits: 4096 # Key strength
 ```
 
 **Security Features Enabled:**
-- ✅ Post-quantum key exchange: `sntrup761x25519-sha512@openssh.com`
-- ✅ Modern elliptic curves: `curve25519-sha256`
-- ✅ Strong ciphers: `chacha20-poly1305@openssh.com`, `aes256-gcm@openssh.com`
-- ✅ Encrypted MACs: `hmac-sha2-512-etm@openssh.com`
-- ✅ Key-based authentication only
-- ✅ Root login disabled
-- ✅ Proper configuration validation before apply
+- Post-quantum key exchange: `sntrup761x25519-sha512@openssh.com`
+- Modern elliptic curves: `curve25519-sha256`
+- Strong ciphers: `chacha20-poly1305@openssh.com`, `aes256-gcm@openssh.com`
+- Encrypted MACs: `hmac-sha2-512-etm@openssh.com`
+- Key-based authentication only
+- Root login disabled
+- Proper configuration validation before apply
 
 #### Kernel Tuning
 ```yaml
-common_sysctl_config:                 # Network & security parameters
-  # Network performance
-  net.core.somaxconn: 1024
-  net.ipv4.tcp_max_syn_backlog: 2048
-  net.ipv4.tcp_tw_reuse: 1
-  net.ipv4.tcp_fin_timeout: 30
+common_sysctl_config: # Network & security parameters
+ # Network performance
+ net.core.somaxconn: 1024
+ net.ipv4.tcp_max_syn_backlog: 2048
+ net.ipv4.tcp_tw_reuse: 1
+ net.ipv4.tcp_fin_timeout: 30
 
-  # Security
-  net.ipv4.conf.all.send_redirects: 0
-  net.ipv4.conf.default.send_redirects: 0
-  net.ipv4.conf.all.accept_source_route: 0
-  net.ipv4.conf.default.accept_source_route: 0
+ # Security
+ net.ipv4.conf.all.send_redirects: 0
+ net.ipv4.conf.default.send_redirects: 0
+ net.ipv4.conf.all.accept_source_route: 0
+ net.ipv4.conf.default.accept_source_route: 0
 
-  # ICMP
-  net.ipv4.icmp_echo_ignore_broadcasts: 1
-  net.ipv4.icmp_ignore_bogus_error_responses: 1
+ # ICMP
+ net.ipv4.icmp_echo_ignore_broadcasts: 1
+ net.ipv4.icmp_ignore_bogus_error_responses: 1
 ```
 
 #### File Limits
 ```yaml
 common_file_limits:
-  soft: 65536                         # Soft limit per process
-  hard: 65536                         # Hard limit per process
+ soft: 65536 # Soft limit per process
+ hard: 65536 # Hard limit per process
 ```
 
 #### Logging
 ```yaml
-common_enable_audit: true             # Enable auditd
-common_log_retention_days: 30         # Delete logs after N days
+common_enable_audit: true # Enable auditd
+common_log_retention_days: 30 # Delete logs after N days
 ```
 
 #### DNS
 ```yaml
 common_dns_servers:
-  - 8.8.8.8                           # Google Primary
-  - 8.8.4.4                           # Google Secondary
-  - 1.1.1.1                           # Cloudflare
+ - 8.8.8.8 # Google Primary
+ - 8.8.4.4 # Google Secondary
+ - 1.1.1.1 # Cloudflare
 ```
 
 #### Environment
 ```yaml
-common_hostname_environment: production  # Environment tag
-common_disable_swap: false               # Keep swap enabled by default
+common_hostname_environment: production # Environment tag
+common_disable_swap: false # Keep swap enabled by default
 ```
 
 ### Internal Variables (Do NOT Override)
@@ -422,44 +422,44 @@ These variables are auto-detected and should never be manually set:
 ```yaml
 # Package manager auto-detection
 common_package_manager_map:
-  Debian: { manager: apt, update_cache: true, update_cmd: "apt-get update" }
-  RedHat: { manager: yum, update_cache: false, update_cmd: "yum check-update" }
-  Darwin: { manager: brew, update_cache: false, update_cmd: "brew update" }
+ Debian: { manager: apt, update_cache: true, update_cmd: "apt-get update" }
+ RedHat: { manager: yum, update_cache: false, update_cmd: "yum check-update" }
+ Darwin: { manager: brew, update_cache: false, update_cmd: "brew update" }
 
 # Service name mapping by OS family
 common_services_map:
-  ntp:
-    Debian: ntp
-    RedHat: ntpd
-    Darwin: null        # macOS uses timed
-  ssh:
-    Debian: ssh
-    RedHat: sshd
-    Darwin: com.openssh.sshd
+ ntp:
+ Debian: ntp
+ RedHat: ntpd
+ Darwin: null # macOS uses timed
+ ssh:
+ Debian: ssh
+ RedHat: sshd
+ Darwin: com.openssh.sshd
 
 # Path mapping
 common_paths:
-  ssh_config: /etc/ssh/sshd_config
-  sysctl_config: /etc/sysctl.d/99-sentinel.conf
-  audit_config: /etc/audit/rules.d/sentinel.rules
+ ssh_config: /etc/ssh/sshd_config
+ sysctl_config: /etc/sysctl.d/99-sentinel.conf
+ audit_config: /etc/audit/rules.d/sentinel.rules
 
 # Supported distributions (validation only)
 common_supported_distributions:
-  - ubuntu
-  - debian
-  - centos
-  - rhel
-  - rocky
-  - almalinux
-  - macos
+ - ubuntu
+ - debian
+ - centos
+ - rhel
+ - rocky
+ - almalinux
+ - macos
 
 # Minimum version constraints
 common_min_versions:
-  ubuntu: "20.04"
-  debian: "11"
-  centos: "8"
-  rhel: "8"
-  macos: "12"
+ ubuntu: "20.04"
+ debian: "11"
+ centos: "8"
+ rhel: "8"
+ macos: "12"
 ```
 
 ---
@@ -471,9 +471,9 @@ common_min_versions:
 ```yaml
 ---
 - name: Deploy common foundation role
-  hosts: all
-  roles:
-    - common
+ hosts: all
+ roles:
+ - common
 ```
 
 **Result**: Every server gets standard foundation with production defaults.
@@ -483,14 +483,14 @@ common_min_versions:
 ```yaml
 ---
 - name: Linux infrastructure foundation
-  hosts: linux_servers
-  vars:
-    common_timezone: "America/New_York"
-    common_ntp_servers:
-      - time.nist.gov
-      - time-a.nist.gov
-  roles:
-    - common
+ hosts: linux_servers
+ vars:
+ common_timezone: "America/New_York"
+ common_ntp_servers:
+ - time.nist.gov
+ - time-a.nist.gov
+ roles:
+ - common
 ```
 
 ### Hybrid Deployment (Linux + macOS)
@@ -498,19 +498,19 @@ common_min_versions:
 ```yaml
 ---
 - name: Foundation on all platforms
-  hosts: all
-  vars:
-    common_timezone: "UTC"
-    common_ssh_port: 2222            # Non-standard port for security
-    common_ssh_password_authentication: "no"
-  roles:
-    - common
+ hosts: all
+ vars:
+ common_timezone: "UTC"
+ common_ssh_port: 2222 # Non-standard port for security
+ common_ssh_password_authentication: "no"
+ roles:
+ - common
 
 # Then apply platform-specific hardening
 - name: macOS security hardening
-  hosts: macos_servers
-  roles:
-    - system_hardening_macos
+ hosts: macos_servers
+ roles:
+ - system_hardening_macos
 ```
 
 ### Group Variables Configuration
@@ -531,8 +531,8 @@ common_ntp_enabled: true
 # Linux-specific customization
 common_ssh_port: 2222
 common_file_limits:
-  soft: 131072          # Higher for database servers
-  hard: 131072
+ soft: 131072 # Higher for database servers
+ hard: 131072
 ```
 
 **inventories/production/group_vars/macos_servers.yml**:
@@ -556,7 +556,7 @@ ansible-playbook playbooks/provision.yml -i inventories/production/hosts.yml
 # Second run - no changes needed (idempotent)
 ansible-playbook playbooks/provision.yml -i inventories/production/hosts.yml
 
-# Output: changed=0, unchanged=12  ← All tasks already at desired state
+# Output: changed=0, unchanged=12 ← All tasks already at desired state
 ```
 
 ---
@@ -567,20 +567,20 @@ ansible-playbook playbooks/provision.yml -i inventories/production/hosts.yml
 
 **provision.yml** - Initial server setup:
 ```yaml
-- common            # Foundation (this role)
+- common # Foundation (this role)
 - (optional additional roles)
 ```
 
 **configure.yml** - Full configuration:
 ```yaml
-- common            # Foundation first
-- system_hardening_macos  # Then platform-specific (macOS only)
-- monitoring_roles  # Then monitoring setup
+- common # Foundation first
+- system_hardening_macos # Then platform-specific (macOS only)
+- monitoring_roles # Then monitoring setup
 ```
 
 **maintenance.yml** - Ongoing updates:
 ```yaml
-- common            # Keep foundation updated
+- common # Keep foundation updated
 ```
 
 ### Dependency Chain
@@ -588,18 +588,18 @@ ansible-playbook playbooks/provision.yml -i inventories/production/hosts.yml
 ```
 provision.yml
 └── common (foundation)
-    ├── OS validation
-    ├── System updates (security patches)
-    ├── Core packages
-    ├── Python runtime
-    ├── SSH hardening
-    ├── Kernel tuning
-    ├── Audit logging
-    └── [Ready for platform-specific roles]
+ ├── OS validation
+ ├── System updates (security patches)
+ ├── Core packages
+ ├── Python runtime
+ ├── SSH hardening
+ ├── Kernel tuning
+ ├── Audit logging
+ └── [Ready for platform-specific roles]
 
 configure.yml
 └── common (maintenance)
-    └── system_hardening_macos (conditional - macOS only)
+ └── system_hardening_macos (conditional - macOS only)
 ```
 
 ---
@@ -608,13 +608,13 @@ configure.yml
 
 | OS | Minimum Version | Package Manager | Status | Notes |
 |----|-----------------|-----------------|--------|-------|
-| **Ubuntu** | 20.04 LTS | apt | ✅ Tested | Primary platform |
-| **Debian** | 11 | apt | ✅ Tested | Stable releases only |
-| **Rocky** | 8 | yum | ✅ Tested | CentOS alternative |
-| **AlmaLinux** | 8 | yum | ✅ Tested | CentOS alternative |
-| **CentOS** | 8 | yum | ✅ Tested | End-of-life soon |
-| **RHEL** | 8 | yum | ✅ Tested | Enterprise Linux |
-| **macOS** | 12 | brew | ✅ Tested | Monterey+ |
+| **Ubuntu** | 20.04 LTS | apt | Tested | Primary platform |
+| **Debian** | 11 | apt | Tested | Stable releases only |
+| **Rocky** | 8 | yum | Tested | CentOS alternative |
+| **AlmaLinux** | 8 | yum | Tested | CentOS alternative |
+| **CentOS** | 8 | yum | Tested | End-of-life soon |
+| **RHEL** | 8 | yum | Tested | Enterprise Linux |
+| **macOS** | 12 | brew | Tested | Monterey+ |
 
 ---
 
@@ -728,7 +728,7 @@ ansible all -m shell -a "du -sh /var/log/audit/"
 
 **Fix**: Reduce audit rules scope or increase `common_log_retention_days`:
 ```yaml
-common_log_retention_days: 14   # Reduce retention
+common_log_retention_days: 14 # Reduce retention
 ```
 
 ---

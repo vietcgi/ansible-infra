@@ -27,15 +27,15 @@ Your two roles (`common` and `system_hardening_macos`) demonstrate:
 ```
 roles/
 ├── common/
-│   ├── defaults/main.yml      [CHECK] Sensible defaults
-│   ├── tasks/
-│   │   ├── main.yml           [CHECK] Clear orchestration
-│   │   ├── ssh_hardening.yml  [CHECK] Modular subtasks
-│   │   └── (other tasks)
-│   ├── handlers/main.yml       [CHECK] Service restarts
-│   ├── templates/             [CHECK] Config file templates
-│   ├── meta/main.yml          [CHECK] Metadata & documentation
-│   └── README.md
+│ ├── defaults/main.yml [CHECK] Sensible defaults
+│ ├── tasks/
+│ │ ├── main.yml [CHECK] Clear orchestration
+│ │ ├── ssh_hardening.yml [CHECK] Modular subtasks
+│ │ └── (other tasks)
+│ ├── handlers/main.yml [CHECK] Service restarts
+│ ├── templates/ [CHECK] Config file templates
+│ ├── meta/main.yml [CHECK] Metadata & documentation
+│ └── README.md
 ```
 
 [CHECK] **Clear task organization**
@@ -81,13 +81,13 @@ common_enable_audit: true
 [CHECK] **Advanced defaults in macos role**
 ```yaml
 macos_ssh_key_exchange:
-  - sntrup761x25519-sha512@openssh.com  # Post-quantum
-  - curve25519-sha256
-  - curve25519-sha256@libssh.org
+ - sntrup761x25519-sha512@openssh.com # Post-quantum
+ - curve25519-sha256
+ - curve25519-sha256@libssh.org
 
 macos_ssh_ciphers:
-  - chacha20-poly1305@openssh.com
-  - aes256-gcm@openssh.com
+ - chacha20-poly1305@openssh.com
+ - aes256-gcm@openssh.com
 ```
 - Security best practices built-in
 - Post-quantum safe defaults
@@ -102,20 +102,20 @@ macos_ssh_ciphers:
 [CHECK] **Proper use of `changed_when`**
 ```yaml
 - name: Check if System Integrity Protection is enabled
-  shell: csrutil status
-  register: sip_status
-  changed_when: false    # [CHECK] Correct - read-only operation
-  check_mode: false
+ shell: csrutil status
+ register: sip_status
+ changed_when: false # [CHECK] Correct - read-only operation
+ check_mode: false
 ```
 
 [CHECK] **Validation and assertions**
 ```yaml
 - name: "Verify platform is macOS"
-  assert:
-    that:
-      - ansible_os_family == "Darwin"
-    fail_msg: "This role only supports macOS (Darwin)"
-    quiet: true
+ assert:
+ that:
+ - ansible_os_family == "Darwin"
+ fail_msg: "This role only supports macOS (Darwin)"
+ quiet: true
 ```
 - Guards prevent running role on wrong OS
 - Clear error messages
@@ -124,9 +124,9 @@ macos_ssh_ciphers:
 [CHECK] **Template validation**
 ```yaml
 template:
-  src: sshd_config.j2
-  dest: /etc/ssh/sshd_config
-  validate: '/usr/sbin/sshd -t -f %s'  # [CHECK] Validates before applying
+ src: sshd_config.j2
+ dest: /etc/ssh/sshd_config
+ validate: '/usr/sbin/sshd -t -f %s' # [CHECK] Validates before applying
 ```
 - SSH config validated before applying
 - Prevents broken configurations
@@ -183,13 +183,13 @@ template:
 [CHECK] **Block/rescue patterns for critical operations**
 ```yaml
 - name: "Block: Firewall Hardening"
-  block:
-    - name: "Include Application Firewall (ALF) hardening"
-      include_tasks: firewall_alf.yml
-  rescue:
-    - name: "Display firewall error (non-critical)"
-      debug:
-        msg: "Firewall configuration encountered an issue"
+ block:
+ - name: "Include Application Firewall (ALF) hardening"
+ include_tasks: firewall_alf.yml
+ rescue:
+ - name: "Display firewall error (non-critical)"
+ debug:
+ msg: "Firewall configuration encountered an issue"
 ```
 - Graceful error handling
 - Non-critical failures don't stop playbook
@@ -205,9 +205,9 @@ when: macos_firewall_enabled and not macos_skip_firewall_config
 [CHECK] **Clear failure messages**
 ```yaml
 fail_msg: |
-  CRITICAL: System Integrity Protection (SIP) is disabled!
-  SIP is non-negotiable for production macOS systems.
-  Reference: https://support.apple.com/en-us/102149
+ CRITICAL: System Integrity Protection (SIP) is disabled!
+ SIP is non-negotiable for production macOS systems.
+ Reference: https://support.apple.com/en-us/102149
 ```
 - Informative error messages
 - References for documentation
@@ -225,7 +225,7 @@ macos_firewall_enabled: true
 
 # SSH Key Exchange (post-quantum safe options first)
 macos_ssh_key_exchange:
-  - sntrup761x25519-sha512@openssh.com    # Post-quantum (OpenSSH 8.10+)
+ - sntrup761x25519-sha512@openssh.com # Post-quantum (OpenSSH 8.10+)
 ```
 
 [CHECK] **Section headers for organization**
@@ -240,21 +240,21 @@ macos_ssh_key_exchange:
 [CHECK] **Debug messages provide visibility**
 ```yaml
 - name: "Debug: Starting macOS system hardening"
-  debug:
-    msg: |
-      Starting macOS system hardening on {{ inventory_hostname }}
-      macOS Version: {{ ansible_distribution_version }}
+ debug:
+ msg: |
+ Starting macOS system hardening on {{ inventory_hostname }}
+ macOS Version: {{ ansible_distribution_version }}
 ```
 
 [CHECK] **Completion summaries with next steps**
 ```yaml
 - name: "Display hardening completion summary"
-  debug:
-    msg: |
-      [CHECK] macOS system hardening completed
-      Next steps:
-      1. Test SSH connectivity: ssh -v user@{{ inventory_hostname }}
-      2. Verify firewall: sudo pfctl -s info
+ debug:
+ msg: |
+ [CHECK] macOS system hardening completed
+ Next steps:
+ 1. Test SSH connectivity: ssh -v user@{{ inventory_hostname }}
+ 2. Verify firewall: sudo pfctl -s info
 ```
 
 ---
@@ -266,29 +266,29 @@ macos_ssh_key_exchange:
 [CHECK] **Multi-platform common role**
 ```yaml
 platforms:
-  - name: Ubuntu
-    versions: ["20.04", "22.04", "24.04"]
-  - name: Debian
-    versions: ["11", "12"]
-  - name: CentOS/RedHat
-    versions: ["8", "9"]
-  - name: macOS
-    versions: ["12", "13", "14", "15"]
+ - name: Ubuntu
+ versions: ["20.04", "22.04", "24.04"]
+ - name: Debian
+ versions: ["11", "12"]
+ - name: CentOS/RedHat
+ versions: ["8", "9"]
+ - name: macOS
+ versions: ["12", "13", "14", "15"]
 ```
 
 [CHECK] **Conditional tasks for different OS families**
 ```yaml
 - name: Configure SSH daemon (Linux)
-  template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
-  when: ansible_os_family != "Darwin"
+ template:
+ src: sshd_config.j2
+ dest: /etc/ssh/sshd_config
+ when: ansible_os_family != "Darwin"
 
 - name: Configure SSH daemon (macOS)
-  template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
-  when: ansible_os_family == "Darwin"
+ template:
+ src: sshd_config.j2
+ dest: /etc/ssh/sshd_config
+ when: ansible_os_family == "Darwin"
 ```
 
 [CHECK] **OS-specific handlers**
@@ -306,9 +306,9 @@ platforms:
 [CHECK] **Tags on important tasks**
 ```yaml
 tags:
-  - ssh
-  - hardening
-  - security
+ - ssh
+ - hardening
+ - security
 ```
 
 [CHECK] **Skip flags for flexibility**
@@ -319,8 +319,8 @@ macos_skip_ssh_hardening: false
 
 **Minor Suggestion:**
 - Consider adding more granular tags:
-  - `tag: critical` for must-run tasks
-  - `tag: firewall`, `tag: ssh`, `tag: audit`, etc. for selective execution
+ - `tag: critical` for must-run tasks
+ - `tag: firewall`, `tag: ssh`, `tag: audit`, etc. for selective execution
 
 ---
 
@@ -335,8 +335,8 @@ macos_skip_ssh_hardening: false
 [CHECK] **Macos role depends on common (when needed)**
 ```yaml
 dependencies:
-  - role: common
-    when: ansible_os_family != 'Darwin' or macos_apply_common_first | default(false)
+ - role: common
+ when: ansible_os_family != 'Darwin' or macos_apply_common_first | default(false)
 ```
 - Conditional dependency
 - Respects platform differences
@@ -383,10 +383,10 @@ dependencies:
 **Implemented:**
 ```yaml
 tags:
-  - ssh
-  - hardening
-  - security
-  - critical  # Now: ansible-playbook ... --tags critical
+ - ssh
+ - hardening
+ - security
+ - critical # Now: ansible-playbook ... --tags critical
 ```
 
 **Impact:** Critical security tasks can now be selectively executed with granular control.
@@ -402,7 +402,7 @@ tags:
 **Implemented:**
 ```yaml
 min_ansible_version: "2.15"
-max_ansible_version: "2.19"  # Prevents use with untested versions
+max_ansible_version: "2.19" # Prevents use with untested versions
 ```
 
 **Impact:** Prevents accidental use with Ansible versions beyond tested range.
@@ -439,9 +439,9 @@ max_ansible_version: "2.19"  # Prevents use with untested versions
 # To run in dry-run mode (no changes made):
 # ansible-playbook playbooks/provision.yml -i inventories/projects/my-project --check
 # This will:
-#   1. Report all changes that WOULD be made
-#   2. NOT make any actual changes
-#   3. Still validate configurations (e.g., sshd -t for SSH config)
+# 1. Report all changes that WOULD be made
+# 2. NOT make any actual changes
+# 3. Still validate configurations (e.g., sshd -t for SSH config)
 ```
 
 **Impact:** Clear instructions for safe testing without making changes.
@@ -455,14 +455,14 @@ max_ansible_version: "2.19"  # Prevents use with untested versions
 
 [CHECK] **Fully qualified module names**
 ```yaml
-ansible.builtin.template:    # Not just 'template'
-ansible.builtin.assert:      # Not just 'assert'
-ansible.builtin.shell:       # Not just 'shell'
+ansible.builtin.template: # Not just 'template'
+ansible.builtin.assert: # Not just 'assert'
+ansible.builtin.shell: # Not just 'shell'
 ```
 
 [CHECK] **Proper handler patterns**
 ```yaml
-notify: restart sshd          # Handlers only run once per play
+notify: restart sshd # Handlers only run once per play
 ```
 
 [CHECK] **Sensible defaults pattern**
@@ -474,8 +474,8 @@ notify: restart sshd          # Handlers only run once per play
 
 [CHECK] **Check mode safe operations**
 ```yaml
-changed_when: false           # Checks don't report changes
-check_mode: false             # Some tasks must run in check mode
+changed_when: false # Checks don't report changes
+check_mode: false # Some tasks must run in check mode
 ```
 
 [CHECK] **OS-agnostic where possible**

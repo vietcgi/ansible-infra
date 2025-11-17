@@ -6,12 +6,12 @@
 
 ## What You Have
 
-✅ A complete Ansible framework for deploying infrastructure projects
-✅ Speed: Deploy any server in 15 minutes (vs 2-3 hours manually)
-✅ Consistency: Every server identical baseline (100% guaranteed)
-✅ Scalability: Works for 1 project or 100+ projects the same way
-✅ Documentation: Complete guides for every situation
-✅ Tools: Scripts to automate project creation
+ A complete Ansible framework for deploying infrastructure projects
+ Speed: Deploy any server in 15 minutes (vs 2-3 hours manually)
+ Consistency: Every server identical baseline (100% guaranteed)
+ Scalability: Works for 1 project or 100+ projects the same way
+ Documentation: Complete guides for every situation
+ Tools: Scripts to automate project creation
 
 ---
 
@@ -56,13 +56,13 @@ ansible-vault create inventories/projects/my-first-project/group_vars/all_vault.
 ```bash
 # Test first (no changes)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-first-project \
-  --check
+ -i inventories/projects/my-first-project \
+ --check
 
 # Deploy
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-first-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-first-project \
+ --vault-password-file ~/.vault_password
 ```
 
 **Total: 15 minutes from zero to deployed**
@@ -73,15 +73,15 @@ ansible-playbook playbooks/provision.yml \
 
 Every server automatically gets:
 
-- ✅ Latest security patches
-- ✅ SSH hardened (key-based only, port 2222)
-- ✅ Firewall configured
-- ✅ NTP time synchronization
-- ✅ System hardening (sysctl, limits)
-- ✅ Audit logging
-- ✅ Monitoring agents
-- ✅ Core packages
-- ✅ Standard users/permissions
+- Latest security patches
+- SSH hardened (key-based only, port 2222)
+- Firewall configured
+- NTP time synchronization
+- System hardening (sysctl, limits)
+- Audit logging
+- Monitoring agents
+- Core packages
+- Standard users/permissions
 
 **You only customize what's different for your project.**
 
@@ -121,9 +121,9 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/everquest-serve
 ### Example 3: Five Staging Servers
 ```bash
 for i in {1..5}; do
-  ./scripts/scaffold-project.sh staging-$i
-  # Quick edit for each (different IP, that's it)
-  ansible-playbook playbooks/provision.yml -i inventories/projects/staging-$i
+ ./scripts/scaffold-project.sh staging-$i
+ # Quick edit for each (different IP, that's it)
+ ansible-playbook playbooks/provision.yml -i inventories/projects/staging-$i
 done
 ```
 
@@ -195,13 +195,13 @@ If you change something globally (e.g., SSH port), it applies to all projects at
 
 ## Next: Pick Your Path
 
-### 🚀 I Want Results Now
+### I Want Results Now
 → Go to: **Hands-On Quick Start** below
 
-### 📚 I Want to Understand It
+### I Want to Understand It
 → Read: **GETTING_STARTED.md**
 
-### 🎓 I Want Deep Knowledge
+### I Want Deep Knowledge
 → Read: **docs/NEW_PROJECT_QUICKSTART.md** (15 min)
 → Then: **docs/ARCHITECTURE.md** (30 min)
 
@@ -221,15 +221,15 @@ edit inventories/projects/my-test/inventory.yml
 
 # 3. Check what would happen (no changes)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-test \
-  --check
+ -i inventories/projects/my-test \
+ --check
 
 # 4. You'll see what WOULD be installed/configured
-#    (NTP, SSH hardening, monitoring, firewall, etc)
+# (NTP, SSH hardening, monitoring, firewall, etc)
 
 # 5. Ready to deploy? Just remove --check
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-test
+ -i inventories/projects/my-test
 ```
 
 **That's it. That's how you deploy.**
@@ -281,30 +281,30 @@ A: No. You can fork, modify, extend. It's your starting point.
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Your Deployment Problem                    │
-│  - Need speed (deploy in minutes, not      │
-│    hours)                                   │
-│  - Need consistency (every server          │
-│    identical)                               │
-│  - Need to scale (manage many projects     │
-│    easily)                                  │
+│ Your Deployment Problem │
+│ - Need speed (deploy in minutes, not │
+│ hours) │
+│ - Need consistency (every server │
+│ identical) │
+│ - Need to scale (manage many projects │
+│ easily) │
 └─────────────────────────────────────────────┘
-                    ↓
-         ┌──────────────────┐
-         │  THIS FRAMEWORK  │
-         │                  │
-         │ • Proven roles   │
-         │ • Templates      │
-         │ • Automation     │
-         │ • Documentation  │
-         └──────────────────┘
-                    ↓
+ ↓
+ ┌──────────────────┐
+ │ THIS FRAMEWORK │
+ │ │
+ │ • Proven roles │
+ │ • Templates │
+ │ • Automation │
+ │ • Documentation │
+ └──────────────────┘
+ ↓
 ┌─────────────────────────────────────────────┐
-│  Your Solution                              │
-│  ✅ Deploy in 15 minutes (vs 2-3 hours)    │
-│  ✅ 100% consistent (no variation)         │
-│  ✅ Scale to 100+ servers effortlessly     │
-│  ✅ Fully documented and reproducible      │
+│ Your Solution │
+│ Deploy in 15 minutes (vs 2-3 hours) │
+│ 100% consistent (no variation) │
+│ Scale to 100+ servers effortlessly │
+│ Fully documented and reproducible │
 └─────────────────────────────────────────────┘
 ```
 
@@ -372,12 +372,12 @@ That's it. That's how you get 10x faster deployments with 100% consistency.
 
 ---
 
-**Framework Status**: Production Ready ✅
+**Framework Status**: Production Ready 
 **Time to Deploy**: 15 minutes per project
 **Consistency**: 100% guaranteed
 **Speed Gain**: 10x faster than manual
 
-**Let's go.** 🚀
+**Let's go.** 
 
 ---
 

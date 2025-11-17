@@ -36,19 +36,19 @@ make install-dev
 molecule test
 
 # Specific test phases:
-molecule dependency  # Install role dependencies
-molecule lint        # Run ansible-lint
-molecule create      # Create test instances
-molecule prepare     # Prepare instances
-molecule converge    # Apply role to instances
+molecule dependency # Install role dependencies
+molecule lint # Run ansible-lint
+molecule create # Create test instances
+molecule prepare # Prepare instances
+molecule converge # Apply role to instances
 molecule idempotence # Verify idempotence
-molecule verify      # Run verification tests
-molecule destroy     # Clean up instances
+molecule verify # Run verification tests
+molecule destroy # Clean up instances
 
 # Debug running instance
 molecule create
 molecule converge
-molecule login ubuntu-24  # SSH into instance
+molecule login ubuntu-24 # SSH into instance
 # ... test manually ...
 molecule destroy
 ```
@@ -225,7 +225,7 @@ docker system prune -a
 ```bash
 # Make sure SSH is properly configured
 molecule converge
-ssh -vvv instance_name  # Debug SSH
+ssh -vvv instance_name # Debug SSH
 
 # Check sshd config
 molecule login ubuntu-24
@@ -278,9 +278,9 @@ molecule test -- --limit ubuntu-24
 ### Tests Hang
 ```bash
 # Kill process and clean up
-^C  # Press Ctrl+C
+^C # Press Ctrl+C
 molecule destroy
-docker ps --all  # Check for leftover containers
+docker ps --all # Check for leftover containers
 ```
 
 ### SSH Issues
@@ -298,8 +298,8 @@ sudo sshd -T
 ```bash
 # Check package manager availability
 molecule login ubuntu-24
-apt update  # Debian
-yum update  # RedHat
+apt update # Debian
+yum update # RedHat
 
 # Try individual package
 apt install -y curl
@@ -321,28 +321,28 @@ Typical test times (on modern hardware):
 ## Best Practices
 
 1. **Always run tests before PR**
-   ```bash
-   molecule test
-   ```
+ ```bash
+ molecule test
+ ```
 
 2. **Test idempotence**
-   ```bash
-   molecule idempotence
-   ```
+ ```bash
+ molecule idempotence
+ ```
 
 3. **Verify on all platforms**
-   - Tests run on 4 distributions
-   - Ensures cross-platform compatibility
+ - Tests run on 4 distributions
+ - Ensures cross-platform compatibility
 
 4. **Check logs on failure**
-   ```bash
-   molecule converge -vv  # Verbose output
-   ```
+ ```bash
+ molecule converge -vv # Verbose output
+ ```
 
 5. **Clean up after testing**
-   ```bash
-   molecule destroy
-   ```
+ ```bash
+ molecule destroy
+ ```
 
 ## References
 

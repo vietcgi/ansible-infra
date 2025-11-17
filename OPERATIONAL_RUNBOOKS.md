@@ -56,7 +56,7 @@ ansible all -i inventory -m command -a "ping -c 1 <controller_ip>"
 
 # 6. Create backup of existing infrastructure
 ansible all -i inventory -m command -a "tar -czf /tmp/system_backup.tar.gz /etc" \
-  --check --diff
+ --check --diff
 ```
 
 ### Inventory Configuration
@@ -66,30 +66,30 @@ Create `inventory.yml`:
 ```yaml
 ---
 all:
-  vars:
-    ansible_user: ubuntu
-    ansible_password: "{{ vault_password }}"
-    ansible_become: yes
-    ansible_become_method: sudo
-  children:
-    control_plane:
-      hosts:
-        controller-1:
-          ansible_host: 10.0.0.10
-        controller-2:
-          ansible_host: 10.0.0.11
-    workers:
-      hosts:
-        worker-1:
-          ansible_host: 10.0.0.20
-        worker-2:
-          ansible_host: 10.0.0.21
-        worker-3:
-          ansible_host: 10.0.0.22
-    kubernetes:
-      children:
-        control_plane:
-        workers:
+ vars:
+ ansible_user: ubuntu
+ ansible_password: "{{ vault_password }}"
+ ansible_become: yes
+ ansible_become_method: sudo
+ children:
+ control_plane:
+ hosts:
+ controller-1:
+ ansible_host: 10.0.0.10
+ controller-2:
+ ansible_host: 10.0.0.11
+ workers:
+ hosts:
+ worker-1:
+ ansible_host: 10.0.0.20
+ worker-2:
+ ansible_host: 10.0.0.21
+ worker-3:
+ ansible_host: 10.0.0.22
+ kubernetes:
+ children:
+ control_plane:
+ workers:
 ```
 
 ---
@@ -101,8 +101,8 @@ all:
 ```bash
 # Run initial system preparation
 ansible-playbook -i inventory.yml playbooks/init.yml \
-  -e "configure_firewall=true" \
-  -e "enable_ipv6=false"
+ -e "configure_firewall=true" \
+ -e "enable_ipv6=false"
 
 # Expected tasks:
 # - Update package manager
@@ -141,7 +141,7 @@ storage_path: "/var/lib/kubernetes/volumes"
 
 # Service Mesh
 service_mesh_enabled: true
-service_mesh_type: "istio"  # or "linkerd"
+service_mesh_type: "istio" # or "linkerd"
 service_mesh_istio_version: "1.18.0"
 service_mesh_mtls_mode: "STRICT"
 
@@ -170,8 +170,8 @@ grafana_admin_password: "{{ vault_grafana_password }}"
 ```bash
 # Run Kubernetes orchestration wrapper
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t kubernetes_orchestration \
-  --extra-vars "@group_vars/all.yml"
+ -t kubernetes_orchestration \
+ --extra-vars "@group_vars/all.yml"
 
 # Expected duration: 10-15 minutes
 # Expected output:
@@ -235,7 +235,7 @@ kubectl create namespace production
 
 # Label namespace for monitoring
 kubectl label namespace production monitoring=enabled
-kubectl label namespace production istio-injection=enabled  # For service mesh
+kubectl label namespace production istio-injection=enabled # For service mesh
 ```
 
 ### Step 2: Deploy Application
@@ -243,17 +243,17 @@ kubectl label namespace production istio-injection=enabled  # For service mesh
 ```bash
 # Using the application deployment wrapper
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t application_deployment \
-  -e "app_name=myapp" \
-  -e "app_image=docker.io/myorg/myapp:1.0.0" \
-  -e "deployment_namespace=production" \
-  -e "app_replicas=3" \
-  -e "app_container_port=8080" \
-  -e "app_cpu_request=100m" \
-  -e "app_cpu_limit=500m" \
-  -e "app_memory_request=128Mi" \
-  -e "app_memory_limit=512Mi" \
-  --extra-vars "@group_vars/all.yml"
+ -t application_deployment \
+ -e "app_name=myapp" \
+ -e "app_image=docker.io/myorg/myapp:1.0.0" \
+ -e "deployment_namespace=production" \
+ -e "app_replicas=3" \
+ -e "app_container_port=8080" \
+ -e "app_cpu_request=100m" \
+ -e "app_cpu_limit=500m" \
+ -e "app_memory_request=128Mi" \
+ -e "app_memory_limit=512Mi" \
+ --extra-vars "@group_vars/all.yml"
 
 # Expected duration: 2-3 minutes
 ```
@@ -302,10 +302,10 @@ kubectl get hpa -n production
 ```bash
 # Deploy Istio (or Linkerd)
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t service_mesh_integration \
-  -e "service_mesh_enabled=true" \
-  -e "service_mesh_type=istio" \
-  --extra-vars "@group_vars/all.yml"
+ -t service_mesh_integration \
+ -e "service_mesh_enabled=true" \
+ -e "service_mesh_type=istio" \
+ --extra-vars "@group_vars/all.yml"
 
 # Expected duration: 5-10 minutes
 # Expected output:
@@ -337,29 +337,29 @@ kubectl get virtualservices -n production
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: myapp-vs
-  namespace: production
+ name: myapp-vs
+ namespace: production
 spec:
-  hosts:
-  - myapp
-  http:
-  - match:
-    - headers:
-        user-agent:
-          regex: ".*Chrome.*"
-    route:
-    - destination:
-        host: myapp-service
-        subset: v2
-      weight: 20
-    - destination:
-        host: myapp-service
-        subset: v1
-      weight: 80
-    timeout: 30s
-    retries:
-      attempts: 3
-      perTryTimeout: 10s
+ hosts:
+ - myapp
+ http:
+ - match:
+ - headers:
+ user-agent:
+ regex: ".*Chrome.*"
+ route:
+ - destination:
+ host: myapp-service
+ subset: v2
+ weight: 20
+ - destination:
+ host: myapp-service
+ subset: v1
+ weight: 80
+ timeout: 30s
+ retries:
+ attempts: 3
+ perTryTimeout: 10s
 ```
 
 ### Step 4: Monitor Service Mesh
@@ -383,8 +383,8 @@ kubectl port-forward -n istio-system svc/jaeger-collector 16686:16686
 ```bash
 # Deploy observability components
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t advanced_monitoring \
-  --extra-vars "@group_vars/all.yml"
+ -t advanced_monitoring \
+ --extra-vars "@group_vars/all.yml"
 
 # Expected duration: 5-8 minutes
 # Expected output:
@@ -441,30 +441,30 @@ kubectl logs -n production deployment/myapp | grep "trace"
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: myapp-alerts
-  namespace: production
+ name: myapp-alerts
+ namespace: production
 spec:
-  groups:
-  - name: myapp
-    interval: 30s
-    rules:
-    - alert: HighErrorRate
-      expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
-      for: 5m
-      annotations:
-        summary: "High error rate detected"
+ groups:
+ - name: myapp
+ interval: 30s
+ rules:
+ - alert: HighErrorRate
+ expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+ for: 5m
+ annotations:
+ summary: "High error rate detected"
 
-    - alert: HighLatency
-      expr: histogram_quantile(0.95, http_request_duration_seconds) > 1
-      for: 5m
-      annotations:
-        summary: "High latency detected"
+ - alert: HighLatency
+ expr: histogram_quantile(0.95, http_request_duration_seconds) > 1
+ for: 5m
+ annotations:
+ summary: "High latency detected"
 
-    - alert: HighMemoryUsage
-      expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
-      for: 5m
-      annotations:
-        summary: "High memory usage"
+ - alert: HighMemoryUsage
+ expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+ for: 5m
+ annotations:
+ summary: "High memory usage"
 ```
 
 ---
@@ -476,10 +476,10 @@ spec:
 ```bash
 # Deploy disaster recovery automation
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t disaster_recovery \
-  -e "backup_storage_path=/var/backups/kubernetes" \
-  -e "disaster_recovery_encryption_enabled=true" \
-  --extra-vars "@group_vars/all.yml"
+ -t disaster_recovery \
+ -e "backup_storage_path=/var/backups/kubernetes" \
+ -e "disaster_recovery_encryption_enabled=true" \
+ --extra-vars "@group_vars/all.yml"
 
 # Expected: Backup scripts installed at /var/backups/kubernetes/
 ```
@@ -529,7 +529,7 @@ kubectl create namespace test-recovery
 
 # 2. Restore application from backup
 kubectl apply -f /var/backups/kubernetes/applications/production-backup.yaml \
-  --namespace=test-recovery
+ --namespace=test-recovery
 
 # 3. Verify restoration
 kubectl get deployments -n test-recovery
@@ -735,8 +735,8 @@ kubectl get nodes
 kubectl get cs
 
 # 3. If single control plane:
-#    - Bring failed node back online
-#    - Or promote a worker to control plane
+# - Bring failed node back online
+# - Or promote a worker to control plane
 
 # 4. Verify cluster recovery
 kubectl get nodes

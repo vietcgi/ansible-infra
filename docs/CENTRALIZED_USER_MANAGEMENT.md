@@ -6,29 +6,29 @@ This infrastructure implements a **single source of truth** for user access cont
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│         inventories/*/group_vars/users.yml              │
-│              (SINGLE SOURCE OF TRUTH)                   │
-│                                                         │
-│   managed_users:                                        │
-│     admin:                                              │
-│       system:  {shell, groups, home}                   │
-│       auth0:   {email, name, password}                 │
-│       rbac:    {roles, permissions, policies}          │
-│                                                         │
-│     support:                                            │
-│       system:  {shell, groups, home}                   │
-│       auth0:   {email, name, password}                 │
-│       rbac:    {roles, permissions, policies}          │
-│                                                         │
+│ inventories/*/group_vars/users.yml │
+│ (SINGLE SOURCE OF TRUTH) │
+│ │
+│ managed_users: │
+│ admin: │
+│ system: {shell, groups, home} │
+│ auth0: {email, name, password} │
+│ rbac: {roles, permissions, policies} │
+│ │
+│ support: │
+│ system: {shell, groups, home} │
+│ auth0: {email, name, password} │
+│ rbac: {roles, permissions, policies} │
+│ │
 └──────────────────┬──────────────────────────────────────┘
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-        ▼          ▼          ▼
-   ┌─────────┐ ┌──────────┐ ┌──────────────┐
-   │  LINUX  │ │  Auth0   │ │ Application  │
-   │  (SSH)  │ │          │ │   (RBAC)     │
-   └─────────┘ └──────────┘ └──────────────┘
+ │
+ ┌──────────┼──────────┐
+ │ │ │
+ ▼ ▼ ▼
+ ┌─────────┐ ┌──────────┐ ┌──────────────┐
+ │ LINUX │ │ Auth0 │ │ Application │
+ │ (SSH) │ │ │ │ (RBAC) │
+ └─────────┘ └──────────┘ └──────────────┘
 ```
 
 ## How It Works
@@ -37,28 +37,28 @@ This infrastructure implements a **single source of truth** for user access cont
 
 ```yaml
 managed_users:
-  admin:
-    # Linux/SSH Configuration
-    system:
-      shell: "/bin/bash"
-      groups: ["sudo"]
-      home: "/home/admin"
-      manage_ssh_key: true
+ admin:
+ # Linux/SSH Configuration
+ system:
+ shell: "/bin/bash"
+ groups: ["sudo"]
+ home: "/home/admin"
+ manage_ssh_key: true
 
-    # Auth0 Cloud Configuration
-    auth0:
-      email: "admin@vietcgi.us"
-      given_name: "Admin"
-      family_name: "User"
-      password: "{{ vault_initial_admin_password }}"
-      email_verified: true
+ # Auth0 Cloud Configuration
+ auth0:
+ email: "admin@vietcgi.us"
+ given_name: "Admin"
+ family_name: "User"
+ password: "{{ vault_initial_admin_password }}"
+ email_verified: true
 
-    # Role-Based Access Control
-    rbac:
-      auth0_roles: ["admin"]
-      sudo_access: true
-      can_deploy: true
-      can_manage_users: true
+ # Role-Based Access Control
+ rbac:
+ auth0_roles: ["admin"]
+ sudo_access: true
+ can_deploy: true
+ can_manage_users: true
 ```
 
 ### 2. Reference in All Systems (all.yml)
@@ -66,19 +66,19 @@ managed_users:
 **SSH Users** - from common role:
 ```yaml
 common_users:
-  - name: "admin"
-    shell: "{{ managed_users.admin.system.shell }}"
-    groups: "{{ managed_users.admin.system.groups }}"
+ - name: "admin"
+ shell: "{{ managed_users.admin.system.shell }}"
+ groups: "{{ managed_users.admin.system.groups }}"
 ```
 
 **Auth0 Users** - from auth0 role:
 ```yaml
 auth0_users:
-  - email: "{{ managed_users.admin.auth0.email }}"
-    username: "admin"
-    given_name: "{{ managed_users.admin.auth0.given_name }}"
-    family_name: "{{ managed_users.admin.auth0.family_name }}"
-    password: "{{ managed_users.admin.auth0.password }}"
+ - email: "{{ managed_users.admin.auth0.email }}"
+ username: "admin"
+ given_name: "{{ managed_users.admin.auth0.given_name }}"
+ family_name: "{{ managed_users.admin.auth0.family_name }}"
+ password: "{{ managed_users.admin.auth0.password }}"
 ```
 
 ### 3. Single Identity Across Systems
@@ -86,24 +86,24 @@ auth0_users:
 Same user everywhere:
 ```
 ┌─────────────────────────────────────────────────────┐
-│ admin (username: admin)                             │
-│                                                     │
-│ ✓ SSH Login                                         │
-│   ssh admin@server.example.com                      │
-│   (uses SSH key from managed_users.admin.ssh_keys)  │
-│                                                     │
-│ ✓ Application Login                                 │
-│   Email: admin@vietcgi.us                          │
-│   Username: admin                                   │
-│   Password: {{ vault_initial_admin_password }}      │
-│                                                     │
-│ ✓ Roles & Permissions                              │
-│   Auth0 roles: ["admin"]                           │
-│   RBAC access: Full system access                  │
-│   Sudo: Yes                                         │
-│   Deployments: Yes                                  │
-│   User management: Yes                              │
-│                                                     │
+│ admin (username: admin) │
+│ │
+│ ✓ SSH Login │
+│ ssh admin@server.example.com │
+│ (uses SSH key from managed_users.admin.ssh_keys) │
+│ │
+│ ✓ Application Login │
+│ Email: admin@vietcgi.us │
+│ Username: admin │
+│ Password: {{ vault_initial_admin_password }} │
+│ │
+│ ✓ Roles & Permissions │
+│ Auth0 roles: ["admin"] │
+│ RBAC access: Full system access │
+│ Sudo: Yes │
+│ Deployments: Yes │
+│ User management: Yes │
+│ │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -141,25 +141,25 @@ Same user everywhere:
 
 ```yaml
 managed_users:
-  developer:
-    system:
-      shell: "/bin/bash"
-      groups: ["developers"]
-      home: "/home/developer"
-      manage_ssh_key: true
+ developer:
+ system:
+ shell: "/bin/bash"
+ groups: ["developers"]
+ home: "/home/developer"
+ manage_ssh_key: true
 
-    auth0:
-      email: "developer@vietcgi.us"
-      given_name: "Dev"
-      family_name: "Loper"
-      password: "{{ vault_developer_password }}"
-      email_verified: true
+ auth0:
+ email: "developer@vietcgi.us"
+ given_name: "Dev"
+ family_name: "Loper"
+ password: "{{ vault_developer_password }}"
+ email_verified: true
 
-    rbac:
-      auth0_roles: ["user"]
-      sudo_access: false
-      can_deploy: true
-      can_manage_users: false
+ rbac:
+ auth0_roles: ["user"]
+ sudo_access: false
+ can_deploy: true
+ can_manage_users: false
 ```
 
 ### Step 2: Update all.yml references
@@ -167,20 +167,20 @@ managed_users:
 Add to common_users:
 ```yaml
 common_users:
-  - name: "developer"
-    shell: "{{ managed_users.developer.system.shell }}"
-    groups: "{{ managed_users.developer.system.groups }}"
+ - name: "developer"
+ shell: "{{ managed_users.developer.system.shell }}"
+ groups: "{{ managed_users.developer.system.groups }}"
 ```
 
 Add to auth0_users:
 ```yaml
 auth0_users:
-  - email: "{{ managed_users.developer.auth0.email }}"
-    username: "developer"
-    given_name: "{{ managed_users.developer.auth0.given_name }}"
-    family_name: "{{ managed_users.developer.auth0.family_name }}"
-    password: "{{ managed_users.developer.auth0.password }}"
-    email_verified: "{{ managed_users.developer.auth0.email_verified }}"
+ - email: "{{ managed_users.developer.auth0.email }}"
+ username: "developer"
+ given_name: "{{ managed_users.developer.auth0.given_name }}"
+ family_name: "{{ managed_users.developer.auth0.family_name }}"
+ password: "{{ managed_users.developer.auth0.password }}"
+ email_verified: "{{ managed_users.developer.auth0.email_verified }}"
 ```
 
 ### Step 3: Run Playbook
@@ -216,35 +216,35 @@ The user will be:
 ### SSH Access Policy
 ```yaml
 access_policies:
-  ssh:
-    enabled: true
-    key_based_only: true          # No password auth
-    port: 22
-    max_retries: 3
-    timeout_minutes: 30
-    require_mfa: false            # Future enhancement
+ ssh:
+ enabled: true
+ key_based_only: true # No password auth
+ port: 22
+ max_retries: 3
+ timeout_minutes: 30
+ require_mfa: false # Future enhancement
 ```
 
 ### Auth0 Access Policy
 ```yaml
 access_policies:
-  auth0:
-    enabled: true
-    mfa_required: true
-    password_min_length: 12
-    password_policy: "good"
-    session_timeout_hours: 8
-    require_email_verification: true
+ auth0:
+ enabled: true
+ mfa_required: true
+ password_min_length: 12
+ password_policy: "good"
+ session_timeout_hours: 8
+ require_email_verification: true
 ```
 
 ### Application Access Policy
 ```yaml
 access_policies:
-  application:
-    api_rate_limit: 1000          # Requests per hour
-    session_timeout_minutes: 60
-    require_https: true
-    require_secure_cookies: true
+ application:
+ api_rate_limit: 1000 # Requests per hour
+ session_timeout_minutes: 60
+ require_https: true
+ require_secure_cookies: true
 ```
 
 ## Role-Based Access Control (RBAC)
@@ -253,26 +253,26 @@ access_policies:
 
 ```
 Admin
-  ├─ Full system access
-  ├─ User management
-  ├─ Application deployment
-  └─ Audit logs access
+ ├─ Full system access
+ ├─ User management
+ ├─ Application deployment
+ └─ Audit logs access
 
 Manager
-  ├─ Team management
-  ├─ Read-only system access
-  ├─ Limited deployments
-  └─ Report generation
+ ├─ Team management
+ ├─ Read-only system access
+ ├─ Limited deployments
+ └─ Report generation
 
 User
-  ├─ Basic features
-  ├─ Personal data access
-  └─ Standard permissions
+ ├─ Basic features
+ ├─ Personal data access
+ └─ Standard permissions
 
 Viewer
-  ├─ Read-only access
-  ├─ Report access
-  └─ No modifications allowed
+ ├─ Read-only access
+ ├─ Report access
+ └─ No modifications allowed
 ```
 
 ### Permission Mapping
@@ -281,26 +281,26 @@ Each role gets permissions in three areas:
 
 **SSH Permissions**
 ```
-admin:    ALL
-manager:  LIMITED
-user:     NONE
-viewer:   NONE
+admin: ALL
+manager: LIMITED
+user: NONE
+viewer: NONE
 ```
 
 **Auth0 Permissions**
 ```
-admin:    read:users, create:users, update:users, delete:users, manage:roles
-manager:  read:users, update:users
-user:     read:profile
-viewer:   read:profile
+admin: read:users, create:users, update:users, delete:users, manage:roles
+manager: read:users, update:users
+user: read:profile
+viewer: read:profile
 ```
 
 **Application Permissions**
 ```
-admin:    admin_panel, user_management, system_settings, audit_logs
-manager:  team_management, reports, resource_allocation
-user:     basic_features, personal_data
-viewer:   read_only, reports
+admin: admin_panel, user_management, system_settings, audit_logs
+manager: team_management, reports, resource_allocation
+user: basic_features, personal_data
+viewer: read_only, reports
 ```
 
 ## Audit & Monitoring
@@ -309,12 +309,12 @@ viewer:   read_only, reports
 
 ```yaml
 audit_config:
-  enabled: true
-  log_all_logins: true          # Every login recorded
-  log_all_changes: true         # Every permission change
-  log_retention_days: 90        # 3 months retention
-  alert_on_failed_attempts: true
-  failed_attempts_threshold: 5  # Alert after 5 failures
+ enabled: true
+ log_all_logins: true # Every login recorded
+ log_all_changes: true # Every permission change
+ log_retention_days: 90 # 3 months retention
+ alert_on_failed_attempts: true
+ failed_attempts_threshold: 5 # Alert after 5 failures
 ```
 
 ### Viewing Audit Logs

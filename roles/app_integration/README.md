@@ -16,9 +16,9 @@ This role integrates Auth0 identity credentials into applications by:
 
 ### Variables from Auth0 Role
 ```yaml
-auth0_domain: "acme-corp.auth0.com"              # Auth0 tenant domain
-auth0_client_id: "{{ created_app.client_id }}"   # Application client ID
-auth0_client_secret: "{{ created_app.client_secret }}"  # Application client secret
+auth0_domain: "acme-corp.auth0.com" # Auth0 tenant domain
+auth0_client_id: "{{ created_app.client_id }}" # Application client ID
+auth0_client_secret: "{{ created_app.client_secret }}" # Application client secret
 ```
 
 ### Framework Support
@@ -32,24 +32,24 @@ auth0_client_secret: "{{ created_app.client_secret }}"  # Application client sec
 
 ### Required
 ```yaml
-app_framework: "nodejs"         # Framework type: nodejs, python, django, go, java
-app_name: "my-app"             # Application name (used in configs)
-auth0_domain: ""               # Auth0 tenant domain
-auth0_client_id: ""            # Application client ID
+app_framework: "nodejs" # Framework type: nodejs, python, django, go, java
+app_name: "my-app" # Application name (used in configs)
+auth0_domain: "" # Auth0 tenant domain
+auth0_client_id: "" # Application client ID
 ```
 
 ### Optional
 ```yaml
-app_env: "development"         # Environment: development, staging, production
-app_root_path: "/opt/app"      # Path to application root
-app_config_path: "{{ app_root_path }}/config"    # Config directory
-app_env_path: "{{ app_root_path }}/.env"         # .env file location
-app_config_user: "app"         # File owner
-app_config_group: "app"        # File group
-app_config_mode: "0640"        # File permissions
-auth0_client_secret: ""        # Application client secret
-auth0_audience: ""             # API audience URI
-app_env_vars: {}               # Additional environment variables
+app_env: "development" # Environment: development, staging, production
+app_root_path: "/opt/app" # Path to application root
+app_config_path: "{{ app_root_path }}/config" # Config directory
+app_env_path: "{{ app_root_path }}/.env" # .env file location
+app_config_user: "app" # File owner
+app_config_group: "app" # File group
+app_config_mode: "0640" # File permissions
+auth0_client_secret: "" # Application client secret
+auth0_audience: "" # API audience URI
+app_env_vars: {} # Additional environment variables
 ```
 
 ## Tasks
@@ -96,71 +96,71 @@ app_env_vars: {}               # Additional environment variables
 ```yaml
 ---
 - name: Configure Node.js app with Auth0
-  hosts: app_servers
-  roles:
-    - common  # Apply baseline OS config first
-    - app_integration
-  vars:
-    app_framework: "nodejs"
-    app_name: "api-gateway"
-    app_root_path: "/opt/api-gateway"
-    auth0_domain: "acme-corp.auth0.com"
-    auth0_client_id: "{{ vault_app_client_id }}"
-    auth0_client_secret: "{{ vault_app_client_secret }}"
+ hosts: app_servers
+ roles:
+ - common # Apply baseline OS config first
+ - app_integration
+ vars:
+ app_framework: "nodejs"
+ app_name: "api-gateway"
+ app_root_path: "/opt/api-gateway"
+ auth0_domain: "acme-corp.auth0.com"
+ auth0_client_id: "{{ vault_app_client_id }}"
+ auth0_client_secret: "{{ vault_app_client_secret }}"
 ```
 
 ### Python/Django Application
 ```yaml
 ---
 - name: Configure Django app with Auth0
-  hosts: app_servers
-  roles:
-    - common
-    - app_integration
-  vars:
-    app_framework: "django"
-    app_name: "web-portal"
-    app_root_path: "/opt/web-portal"
-    app_env: "production"
-    auth0_domain: "acme-corp.auth0.com"
-    auth0_client_id: "{{ vault_app_client_id }}"
-    auth0_client_secret: "{{ vault_app_client_secret }}"
-    app_env_vars:
-      DATABASE_URL: "postgresql://user:pass@db.example.com/web_portal"
-      REDIS_URL: "redis://cache.example.com:6379"
+ hosts: app_servers
+ roles:
+ - common
+ - app_integration
+ vars:
+ app_framework: "django"
+ app_name: "web-portal"
+ app_root_path: "/opt/web-portal"
+ app_env: "production"
+ auth0_domain: "acme-corp.auth0.com"
+ auth0_client_id: "{{ vault_app_client_id }}"
+ auth0_client_secret: "{{ vault_app_client_secret }}"
+ app_env_vars:
+ DATABASE_URL: "postgresql://user:pass@db.example.com/web_portal"
+ REDIS_URL: "redis://cache.example.com:6379"
 ```
 
 ### Go Application
 ```yaml
 ---
 - name: Configure Go app with Auth0
-  hosts: api_servers
-  roles:
-    - common
-    - app_integration
-  vars:
-    app_framework: "go"
-    app_name: "rest-api"
-    app_root_path: "/opt/rest-api"
-    auth0_domain: "{{ auth0_domain }}"
-    auth0_client_id: "{{ vault_rest_api_client_id }}"
+ hosts: api_servers
+ roles:
+ - common
+ - app_integration
+ vars:
+ app_framework: "go"
+ app_name: "rest-api"
+ app_root_path: "/opt/rest-api"
+ auth0_domain: "{{ auth0_domain }}"
+ auth0_client_id: "{{ vault_rest_api_client_id }}"
 ```
 
 ### Java/Spring Boot Application
 ```yaml
 ---
 - name: Configure Spring Boot app with Auth0
-  hosts: java_servers
-  roles:
-    - common
-    - app_integration
-  vars:
-    app_framework: "java"
-    app_name: "corporate-app"
-    app_root_path: "/opt/corporate-app"
-    auth0_domain: "acme-corp.auth0.com"
-    auth0_client_id: "{{ vault_spring_client_id }}"
-    auth0_client_secret: "{{ vault_spring_secret }}"
+ hosts: java_servers
+ roles:
+ - common
+ - app_integration
+ vars:
+ app_framework: "java"
+ app_name: "corporate-app"
+ app_root_path: "/opt/corporate-app"
+ auth0_domain: "acme-corp.auth0.com"
+ auth0_client_id: "{{ vault_spring_client_id }}"
+ auth0_client_secret: "{{ vault_spring_secret }}"
 ```
 
 ### Running Specific Framework Configuration
@@ -197,92 +197,92 @@ ansible-playbook playbook.yml --skip-tags validation
 ### Node.js
 
 1. Install dependencies:
-   ```bash
-   npm install auth0 dotenv
-   ```
+ ```bash
+ npm install auth0 dotenv
+ ```
 
 2. Load configuration:
-   ```javascript
-   require('dotenv').config();
-   const Auth0Config = require('./auth0.config');
-   ```
+ ```javascript
+ require('dotenv').config();
+ const Auth0Config = require('./auth0.config');
+ ```
 
 3. Use in middleware:
-   ```javascript
-   const { ManagementClient } = require('auth0');
-   const mgmt = new ManagementClient({
-     domain: process.env.AUTH0_DOMAIN,
-     clientId: process.env.AUTH0_CLIENT_ID,
-     clientSecret: process.env.AUTH0_CLIENT_SECRET
-   });
-   ```
+ ```javascript
+ const { ManagementClient } = require('auth0');
+ const mgmt = new ManagementClient({
+ domain: process.env.AUTH0_DOMAIN,
+ clientId: process.env.AUTH0_CLIENT_ID,
+ clientSecret: process.env.AUTH0_CLIENT_SECRET
+ });
+ ```
 
 ### Python/Django
 
 1. Install dependencies:
-   ```bash
-   pip install auth0-python python-dotenv django-social-auth
-   ```
+ ```bash
+ pip install auth0-python python-dotenv django-social-auth
+ ```
 
 2. Update Django settings:
-   ```python
-   from auth0_config import Auth0Config
+ ```python
+ from auth0_config import Auth0Config
 
-   AUTH0_DOMAIN = Auth0Config.DOMAIN
-   AUTH0_CLIENT_ID = Auth0Config.CLIENT_ID
-   ```
+ AUTH0_DOMAIN = Auth0Config.DOMAIN
+ AUTH0_CLIENT_ID = Auth0Config.CLIENT_ID
+ ```
 
 3. Add OIDC backend:
-   ```python
-   AUTHENTICATION_BACKENDS = [
-       'social_core.backends.open_id_connect.OpenIdConnectAuth',
-   ]
-   ```
+ ```python
+ AUTHENTICATION_BACKENDS = [
+ 'social_core.backends.open_id_connect.OpenIdConnectAuth',
+ ]
+ ```
 
 ### Go
 
 1. Get dependencies:
-   ```bash
-   go get github.com/joho/godotenv
-   go get golang.org/x/oauth2
-   ```
+ ```bash
+ go get github.com/joho/godotenv
+ go get golang.org/x/oauth2
+ ```
 
 2. Load configuration:
-   ```go
-   cfg := config.LoadAuth0Config()
-   provider := auth.NewAuth0Provider(cfg)
-   ```
+ ```go
+ cfg := config.LoadAuth0Config()
+ provider := auth.NewAuth0Provider(cfg)
+ ```
 
 3. Implement login:
-   ```go
-   loginURL := provider.GetLoginURL(state)
-   // Redirect user to loginURL
-   ```
+ ```go
+ loginURL := provider.GetLoginURL(state)
+ // Redirect user to loginURL
+ ```
 
 ### Java/Spring Boot
 
 1. Add Maven dependencies from `POM_AUTH0_SNIPPET.xml`
 
 2. Update `application.properties`:
-   ```properties
-   spring.security.oauth2.client.registration.auth0.client-id=YOUR_CLIENT_ID
-   spring.security.oauth2.client.provider.auth0.issuer-uri=https://YOUR_DOMAIN/
-   ```
+ ```properties
+ spring.security.oauth2.client.registration.auth0.client-id=YOUR_CLIENT_ID
+ spring.security.oauth2.client.provider.auth0.issuer-uri=https://YOUR_DOMAIN/
+ ```
 
 3. Create security configuration:
-   ```java
-   @Configuration
-   public class SecurityConfiguration {
-       @Bean
-       public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-           http.oauth2Login()
-               .and()
-               .authorizeRequests()
-               .anyRequest().authenticated();
-           return http.build();
-       }
-   }
-   ```
+ ```java
+ @Configuration
+ public class SecurityConfiguration {
+ @Bean
+ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+ http.oauth2Login()
+ .and()
+ .authorizeRequests()
+ .anyRequest().authenticated();
+ return http.build();
+ }
+ }
+ ```
 
 ## Environment Variables Reference
 
@@ -327,30 +327,30 @@ ansible-playbook playbook.yml --skip-tags validation
 ## Security Considerations
 
 1. **Protect .env files**
-   - Set permissions to 0640 (owner/group readable only)
-   - Don't commit to version control
-   - Add to .gitignore: `echo '.env' >> .gitignore`
+ - Set permissions to 0640 (owner/group readable only)
+ - Don't commit to version control
+ - Add to .gitignore: `echo '.env' >> .gitignore`
 
 2. **Rotate credentials regularly**
-   - Generate new client secrets in Auth0 dashboard
-   - Update .env files on applications
-   - Revoke old secrets after verification
+ - Generate new client secrets in Auth0 dashboard
+ - Update .env files on applications
+ - Revoke old secrets after verification
 
 3. **Use Ansible Vault**
-   ```bash
-   # Store secrets securely
-   ansible-vault create group_vars/all/auth0_secrets.yml
-   ```
+ ```bash
+ # Store secrets securely
+ ansible-vault create group_vars/all/auth0_secrets.yml
+ ```
 
 4. **Limit credential scope**
-   - Auth0 client should only have needed permissions
-   - Use different clients for different apps
-   - Regular audit of client access logs
+ - Auth0 client should only have needed permissions
+ - Use different clients for different apps
+ - Regular audit of client access logs
 
 5. **Encrypt in transit**
-   - Use HTTPS for all Auth0 API calls (automatic)
-   - Use SSH for Ansible connections
-   - Enable TLS on application endpoints
+ - Use HTTPS for all Auth0 API calls (automatic)
+ - Use SSH for Ansible connections
+ - Enable TLS on application endpoints
 
 ## Limitations
 

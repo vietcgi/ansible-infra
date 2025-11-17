@@ -32,12 +32,12 @@ The current ansible-infra repository is optimized for single/unified deployments
 
 ### Solution Overview
 Implement a **multi-tenant, project-based architecture** that:
-- ✅ Scales from 1 to 100+ independent projects
-- ✅ Maintains strong isolation between projects
-- ✅ Provides flexible feature selection per project
-- ✅ Enables rapid project onboarding (< 5 minutes)
-- ✅ Reduces configuration drift and errors
-- ✅ Maintains security posture across all deployments
+- Scales from 1 to 100+ independent projects
+- Maintains strong isolation between projects
+- Provides flexible feature selection per project
+- Enables rapid project onboarding (< 5 minutes)
+- Reduces configuration drift and errors
+- Maintains security posture across all deployments
 
 ### Expected Outcomes
 | Metric | Current | Target | Improvement |
@@ -99,28 +99,28 @@ Implement a **multi-tenant, project-based architecture** that:
 
 ### In-Scope
 
-✅ **Core Components**
+ **Core Components**
 - Inventory restructuring for multi-project support
 - Group variables and host variables hierarchy
 - Project-based role selection and configuration
 - Secrets management per project (Ansible Vault integration)
 - Project scaffolding and initialization tooling
 
-✅ **Operational Capabilities**
+ **Operational Capabilities**
 - Project provisioning automation
 - Project configuration management
 - Project maintenance procedures
 - Project upgrade/migration procedures
 - Project validation and health checks
 
-✅ **Testing & Quality Assurance**
+ **Testing & Quality Assurance**
 - Unit tests for new infrastructure code
 - Integration tests for multi-project scenarios
 - Regression tests for existing functionality
 - Security validation per project
 - Performance baseline and monitoring
 
-✅ **Documentation & Knowledge Transfer**
+ **Documentation & Knowledge Transfer**
 - Architecture documentation
 - Deployment procedures per project type
 - Operational runbooks for common scenarios
@@ -129,7 +129,7 @@ Implement a **multi-tenant, project-based architecture** that:
 
 ### Out-of-Scope
 
-❌ **Not Included** (Future Phases)
+ **Not Included** (Future Phases)
 - Terraform/IaC integration (Phase 2)
 - Kubernetes cluster management (Phase 3)
 - Advanced multi-cloud orchestration (Phase 3)
@@ -146,16 +146,16 @@ Implement a **multi-tenant, project-based architecture** that:
 ```
 ansible-infra (Single Unified Deployment)
 ├── inventories/
-│   ├── production/hosts.yml
-│   ├── staging/hosts.yml
-│   └── development/hosts.yml
+│ ├── production/hosts.yml
+│ ├── staging/hosts.yml
+│ └── development/hosts.yml
 ├── playbooks/
-│   ├── provision.yml
-│   ├── configure.yml
-│   └── maintenance.yml
+│ ├── provision.yml
+│ ├── configure.yml
+│ └── maintenance.yml
 └── roles/
-    ├── common/
-    └── system_hardening_macos/
+ ├── common/
+ └── system_hardening_macos/
 
 CHALLENGE:
 - Fixed structure assumes one deployment model
@@ -169,30 +169,30 @@ CHALLENGE:
 ```
 ansible-infra (Multi-Project Foundation)
 ├── inventories/
-│   ├── projects/
-│   │   ├── _templates/              ← NEW: Project templates
-│   │   │   ├── inventory.yml.jinja2
-│   │   │   └── group_vars/
-│   │   ├── project-alpha/           ← NEW: Project instance
-│   │   │   ├── inventory.yml
-│   │   │   ├── group_vars/
-│   │   │   └── host_vars/
-│   │   ├── project-beta/
-│   │   └── project-gamma/
-│   └── shared/
-│       └── global_vars.yml          ← NEW: Cross-project defaults
+│ ├── projects/
+│ │ ├── _templates/ ← NEW: Project templates
+│ │ │ ├── inventory.yml.jinja2
+│ │ │ └── group_vars/
+│ │ ├── project-alpha/ ← NEW: Project instance
+│ │ │ ├── inventory.yml
+│ │ │ ├── group_vars/
+│ │ │ └── host_vars/
+│ │ ├── project-beta/
+│ │ └── project-gamma/
+│ └── shared/
+│ └── global_vars.yml ← NEW: Cross-project defaults
 ├── playbooks/
-│   ├── provision.yml                ← UPDATED: Project-aware
-│   ├── configure.yml                ← UPDATED: Flexible roles
-│   └── maintenance.yml              ← UPDATED: Per-project
+│ ├── provision.yml ← UPDATED: Project-aware
+│ ├── configure.yml ← UPDATED: Flexible roles
+│ └── maintenance.yml ← UPDATED: Per-project
 ├── roles/
-│   ├── common/
-│   ├── system_hardening_macos/
-│   └── (others)
+│ ├── common/
+│ ├── system_hardening_macos/
+│ └── (others)
 └── scripts/
-    ├── scaffold-project.sh          ← NEW: Project creation
-    ├── validate-project.sh          ← NEW: Project validation
-    └── migrate-project.sh           ← NEW: Project migration
+ ├── scaffold-project.sh ← NEW: Project creation
+ ├── validate-project.sh ← NEW: Project validation
+ └── migrate-project.sh ← NEW: Project migration
 
 BENEFITS:
 - Each project has isolated configuration
@@ -207,94 +207,94 @@ BENEFITS:
 ansible-infra/
 │
 ├── inventories/
-│   ├── projects/                          [NEW]
-│   │   ├── _templates/                    [NEW: Boilerplate]
-│   │   │   ├── inventory.yml.jinja2
-│   │   │   ├── group_vars/
-│   │   │   │   ├── all.yml
-│   │   │   │   ├── webservers.yml
-│   │   │   │   ├── databases.yml
-│   │   │   │   ├── monitoring_disabled.yml
-│   │   │   │   └── all_vault.yml         [Encrypted secrets]
-│   │   │   └── host_vars/
-│   │   │       └── .gitkeep
-│   │   │
-│   │   ├── project-alpha/                [NEW: Concrete project]
-│   │   │   ├── inventory.yml
-│   │   │   ├── group_vars/
-│   │   │   │   ├── all.yml
-│   │   │   │   ├── webservers.yml
-│   │   │   │   ├── databases.yml
-│   │   │   │   ├── monitoring_disabled.yml
-│   │   │   │   ├── all_vault.yml
-│   │   │   │   └── README.md
-│   │   │   └── host_vars/
-│   │   │       ├── web01.yml
-│   │   │       ├── web02.yml
-│   │   │       └── db01.yml
-│   │   │
-│   │   └── project-beta/, project-gamma/ [Future projects]
-│   │
-│   ├── shared/                            [NEW: Cross-project]
-│   │   └── global_vars.yml               [Defaults for all projects]
-│   │
-│   ├── production/                        [LEGACY: Will migrate]
-│   ├── staging/
-│   └── development/
+│ ├── projects/ [NEW]
+│ │ ├── _templates/ [NEW: Boilerplate]
+│ │ │ ├── inventory.yml.jinja2
+│ │ │ ├── group_vars/
+│ │ │ │ ├── all.yml
+│ │ │ │ ├── webservers.yml
+│ │ │ │ ├── databases.yml
+│ │ │ │ ├── monitoring_disabled.yml
+│ │ │ │ └── all_vault.yml [Encrypted secrets]
+│ │ │ └── host_vars/
+│ │ │ └── .gitkeep
+│ │ │
+│ │ ├── project-alpha/ [NEW: Concrete project]
+│ │ │ ├── inventory.yml
+│ │ │ ├── group_vars/
+│ │ │ │ ├── all.yml
+│ │ │ │ ├── webservers.yml
+│ │ │ │ ├── databases.yml
+│ │ │ │ ├── monitoring_disabled.yml
+│ │ │ │ ├── all_vault.yml
+│ │ │ │ └── README.md
+│ │ │ └── host_vars/
+│ │ │ ├── web01.yml
+│ │ │ ├── web02.yml
+│ │ │ └── db01.yml
+│ │ │
+│ │ └── project-beta/, project-gamma/ [Future projects]
+│ │
+│ ├── shared/ [NEW: Cross-project]
+│ │ └── global_vars.yml [Defaults for all projects]
+│ │
+│ ├── production/ [LEGACY: Will migrate]
+│ ├── staging/
+│ └── development/
 │
 ├── playbooks/
-│   ├── provision.yml                      [UPDATED]
-│   ├── configure.yml                      [UPDATED]
-│   ├── maintenance.yml                    [UPDATED]
-│   ├── validate.yml                       [NEW]
-│   └── upgrade.yml                        [NEW]
+│ ├── provision.yml [UPDATED]
+│ ├── configure.yml [UPDATED]
+│ ├── maintenance.yml [UPDATED]
+│ ├── validate.yml [NEW]
+│ └── upgrade.yml [NEW]
 │
 ├── roles/
-│   ├── common/
-│   ├── system_hardening_macos/
-│   └── (existing roles)
+│ ├── common/
+│ ├── system_hardening_macos/
+│ └── (existing roles)
 │
-├── scripts/                               [NEW]
-│   ├── scaffold-project.sh
-│   ├── validate-project.sh
-│   ├── migrate-project.sh
-│   ├── test-connectivity.sh
-│   └── backup-project.sh
+├── scripts/ [NEW]
+│ ├── scaffold-project.sh
+│ ├── validate-project.sh
+│ ├── migrate-project.sh
+│ ├── test-connectivity.sh
+│ └── backup-project.sh
 │
 ├── docs/
-│   ├── MULTI_PROJECT_GUIDE.md            [NEW]
-│   ├── PROJECT_STRUCTURE.md              [NEW]
-│   └── (existing docs)
+│ ├── MULTI_PROJECT_GUIDE.md [NEW]
+│ ├── PROJECT_STRUCTURE.md [NEW]
+│ └── (existing docs)
 │
 ├── .github/
-│   └── workflows/
-│       └── validate-projects.yml         [NEW: CI/CD]
+│ └── workflows/
+│ └── validate-projects.yml [NEW: CI/CD]
 │
-├── Makefile                               [UPDATED]
-├── ansible.cfg                            [UPDATED]
-├── requirements.yml                       [UPDATED: Pin versions]
-└── .gitignore                            [UPDATED: *.vault, .vaultpass]
+├── Makefile [UPDATED]
+├── ansible.cfg [UPDATED]
+├── requirements.yml [UPDATED: Pin versions]
+└── .gitignore [UPDATED: *.vault, .vaultpass]
 ```
 
 ### Variable Hierarchy (Precedence)
 
 ```
 Lower Precedence (Defaults)
-    ↓
-1. roles/<role>/defaults/main.yml         [Most generic defaults]
-    ↓
-2. inventories/shared/global_vars.yml     [Cross-project defaults]
-    ↓
-3. inventories/projects/<project>/group_vars/all.yml     [Project defaults]
-    ↓
+ ↓
+1. roles/<role>/defaults/main.yml [Most generic defaults]
+ ↓
+2. inventories/shared/global_vars.yml [Cross-project defaults]
+ ↓
+3. inventories/projects/<project>/group_vars/all.yml [Project defaults]
+ ↓
 4. inventories/projects/<project>/group_vars/<group>.yml [Group overrides]
-    ↓
-5. inventories/projects/<project>/host_vars/<host>.yml   [Host overrides]
-    ↓
+ ↓
+5. inventories/projects/<project>/host_vars/<host>.yml [Host overrides]
+ ↓
 6. inventories/projects/<project>/group_vars/all_vault.yml [Encrypted secrets]
-    ↓
+ ↓
 Higher Precedence (Most specific)
-7. playbook vars: or --extra-vars         [Runtime overrides]
+7. playbook vars: or --extra-vars [Runtime overrides]
 
 Example: SSH Port
 - Role default: 22
@@ -373,11 +373,11 @@ Example: SSH Port
 
 # After: project-aware
 - hosts: "{{ target_project | default('all') }}"
-  pre_tasks:
-    - name: Validate project exists
-      fail:
-        msg: "Project '{{ target_project }}' not found"
-      when: target_project not in groups.keys()
+ pre_tasks:
+ - name: Validate project exists
+ fail:
+ msg: "Project '{{ target_project }}' not found"
+ when: target_project not in groups.keys()
 ```
 
 **Success Criteria**:
@@ -582,13 +582,13 @@ make test-all-projects
 **Documentation Structure**:
 ```
 docs/
-├── MULTI_PROJECT_GUIDE.md      [Start here]
-├── PROJECT_STRUCTURE.md         [Architecture details]
-├── OPERATIONS_MANUAL.md        [Step-by-step procedures]
-├── TROUBLESHOOTING.md          [Common problems]
-├── MIGRATION_GUIDE.md          [Legacy→multi-project]
-├── EXAMPLES/                   [Real project examples]
-└── FAQS.md                    [Frequently asked questions]
+├── MULTI_PROJECT_GUIDE.md [Start here]
+├── PROJECT_STRUCTURE.md [Architecture details]
+├── OPERATIONS_MANUAL.md [Step-by-step procedures]
+├── TROUBLESHOOTING.md [Common problems]
+├── MIGRATION_GUIDE.md [Legacy→multi-project]
+├── EXAMPLES/ [Real project examples]
+└── FAQS.md [Frequently asked questions]
 ```
 
 **Success Criteria**:
@@ -657,7 +657,7 @@ docs/
 **Optimizations**:
 ```yaml
 # ansible.cfg
-forks = 20                    # Parallel execution
+forks = 20 # Parallel execution
 fact_caching = jsonfile
 fact_caching_connection = /tmp/ansible_facts
 fact_caching_timeout = 86400
@@ -740,33 +740,33 @@ pipelining = True
 ```yaml
 # inventories/projects/_templates/inventory.yml.jinja2
 all:
-  children:
-    webservers:
-      hosts:
-        web01:
-          ansible_host: 10.0.1.10
-        web02:
-          ansible_host: 10.0.1.11
-    databases:
-      hosts:
-        db01:
-          ansible_host: 10.0.2.10
-    prometheus_servers:
-      hosts:
-        prometheus01:
-          ansible_host: 10.0.3.10
-    loki_servers:
-      hosts:
-        loki01:
-          ansible_host: 10.0.3.20
-    grafana_servers:
-      hosts:
-        grafana01:
-          ansible_host: 10.0.3.30
-  vars:
-    ansible_user: ubuntu
-    ansible_port: 22
-    ansible_python_interpreter: /usr/bin/python3
+ children:
+ webservers:
+ hosts:
+ web01:
+ ansible_host: 10.0.1.10
+ web02:
+ ansible_host: 10.0.1.11
+ databases:
+ hosts:
+ db01:
+ ansible_host: 10.0.2.10
+ prometheus_servers:
+ hosts:
+ prometheus01:
+ ansible_host: 10.0.3.10
+ loki_servers:
+ hosts:
+ loki01:
+ ansible_host: 10.0.3.20
+ grafana_servers:
+ hosts:
+ grafana01:
+ ansible_host: 10.0.3.30
+ vars:
+ ansible_user: ubuntu
+ ansible_port: 22
+ ansible_python_interpreter: /usr/bin/python3
 ```
 
 #### Group Variables Specification
@@ -785,8 +785,8 @@ common_update_packages: true
 common_upgrade_packages: false
 common_ssh_port: 2222
 common_ntp_servers:
-  - 10.0.1.5
-  - 8.8.8.8
+ - 10.0.1.5
+ - 8.8.8.8
 
 # Monitoring Configuration
 monitoring_enabled: true
@@ -811,16 +811,16 @@ dr_replication_enabled: false
 # group_vars/webservers.yml
 ---
 webserver_config:
-  http_port: 80
-  https_port: 443
-  max_connections: 1000
+ http_port: 80
+ https_port: 443
+ max_connections: 1000
 
 # group_vars/databases.yml
 ---
 database_config:
-  backup_enabled: true
-  replication_enabled: true
-  log_retention_days: 30
+ backup_enabled: true
+ replication_enabled: true
+ log_retention_days: 30
 
 # group_vars/monitoring_disabled.yml
 ---
@@ -860,9 +860,9 @@ vault_tls_cert_key: "{{ encrypted_cert }}"
 
 # Usage in playbooks:
 - name: Set Grafana password
-  grafana_user:
-    username: admin
-    password: "{{ vault_grafana_admin_password }}"
+ grafana_user:
+ username: admin
+ password: "{{ vault_grafana_admin_password }}"
 ```
 
 ### Updated Playbook Structure
@@ -871,37 +871,37 @@ vault_tls_cert_key: "{{ encrypted_cert }}"
 # playbooks/provision.yml (UPDATED)
 ---
 - name: Provision Infrastructure
-  hosts: "{{ target_project | default('all') }}"
-  gather_facts: yes
+ hosts: "{{ target_project | default('all') }}"
+ gather_facts: yes
 
-  pre_tasks:
-    - name: Validate project configuration
-      block:
-        - name: Check project exists
-          assert:
-            that:
-              - target_project is defined
-              - target_project in groups.keys()
-            fail_msg: "Project '{{ target_project }}' not found"
+ pre_tasks:
+ - name: Validate project configuration
+ block:
+ - name: Check project exists
+ assert:
+ that:
+ - target_project is defined
+ - target_project in groups.keys()
+ fail_msg: "Project '{{ target_project }}' not found"
 
-        - name: Validate required variables
-          assert:
-            that:
-              - project_name is defined
-              - project_env is defined
-            fail_msg: "Missing required project variables"
+ - name: Validate required variables
+ assert:
+ that:
+ - project_name is defined
+ - project_env is defined
+ fail_msg: "Missing required project variables"
 
-        - name: Test connectivity
-          ping:
+ - name: Test connectivity
+ ping:
 
-  roles:
-    - common
+ roles:
+ - common
 
-  post_tasks:
-    - name: Generate provisioning report
-      template:
-        src: provisioning_report.j2
-        dest: "/var/log/ansible-infra/provisioning-{{ project_name }}.log"
+ post_tasks:
+ - name: Generate provisioning report
+ template:
+ src: provisioning_report.j2
+ dest: "/var/log/ansible-infra/provisioning-{{ project_name }}.log"
 ```
 
 ---
@@ -916,15 +916,15 @@ import pytest
 import yaml
 
 def test_inventory_syntax():
-    """Verify YAML syntax is valid"""
-    with open('inventories/projects/project-alpha/inventory.yml') as f:
-        yaml.safe_load(f)
+ """Verify YAML syntax is valid"""
+ with open('inventories/projects/project-alpha/inventory.yml') as f:
+ yaml.safe_load(f)
 
 def test_required_variables():
-    """Verify all required variables present"""
-    required = ['project_name', 'project_env', 'ansible_user']
-    for var in required:
-        assert var in group_vars
+ """Verify all required variables present"""
+ required = ['project_name', 'project_env', 'ansible_user']
+ for var in required:
+ assert var in group_vars
 ```
 
 ### Integration Testing Framework
@@ -950,21 +950,21 @@ perform_rollback_test()
 # molecule/default/molecule.yml
 ---
 platforms:
-  - name: ubuntu-22.04
-    image: geerlingguy/docker-ubuntu2204-ansible
-    command: /lib/systemd/systemd-cgroups-agent
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    privileged: true
+ - name: ubuntu-22.04
+ image: geerlingguy/docker-ubuntu2204-ansible
+ command: /lib/systemd/systemd-cgroups-agent
+ volumes:
+ - /sys/fs/cgroup:/sys/fs/cgroup:rw
+ cgroupns_mode: host
+ privileged: true
 
 provisioner:
-  name: ansible
-  lint:
-    name: ansible-lint
+ name: ansible
+ lint:
+ name: ansible-lint
 
 verifier:
-  name: ansible
+ name: ansible
 ```
 
 ---
@@ -1069,58 +1069,58 @@ verifier:
 #### Lead Architect (1.0 FTE)
 - **Role**: Design decisions, code review, risk management
 - **Responsibilities**:
-  - Oversee architecture implementation
-  - Review all code changes
-  - Make technical decisions
-  - Manage risks and contingencies
-  - Lead team training
+ - Oversee architecture implementation
+ - Review all code changes
+ - Make technical decisions
+ - Manage risks and contingencies
+ - Lead team training
 
 #### Senior Developer (1.0 FTE)
 - **Role**: Core implementation
 - **Responsibilities**:
-  - Implement Phase 1 (weeks 1-2)
-  - Implement Phase 2 (weeks 3-4)
-  - Lead testing (weeks 5-6)
-  - Production migration (weeks 7-8)
+ - Implement Phase 1 (weeks 1-2)
+ - Implement Phase 2 (weeks 3-4)
+ - Lead testing (weeks 5-6)
+ - Production migration (weeks 7-8)
 
 #### DevOps Engineer (0.5 FTE)
 - **Role**: Infrastructure, tooling, operations
 - **Responsibilities**:
-  - Script development (scaffold, validate tools)
-  - CI/CD pipeline implementation
-  - Security validation
-  - Performance optimization
-  - Documentation of operations
+ - Script development (scaffold, validate tools)
+ - CI/CD pipeline implementation
+ - Security validation
+ - Performance optimization
+ - Documentation of operations
 
 ### Timeline & Milestones
 
 ```
-Week 1-2:   Phase 1 (Architecture Foundation)
-  Day 1:    Inventory restructuring
-  Day 4:    Group/host variables
-  Day 6:    Playbook updates
-  Day 11:   Vault integration
+Week 1-2: Phase 1 (Architecture Foundation)
+ Day 1: Inventory restructuring
+ Day 4: Group/host variables
+ Day 6: Playbook updates
+ Day 11: Vault integration
 
-Week 3-4:   Phase 2 (Automation & Tooling)
-  Day 15:   Scaffold tool
-  Day 20:   Validation tool
-  Day 25:   Makefile enhancement
+Week 3-4: Phase 2 (Automation & Tooling)
+ Day 15: Scaffold tool
+ Day 20: Validation tool
+ Day 25: Makefile enhancement
 
-Week 5-6:   Phase 3 (Testing & Validation)
-  Day 29:   Unit tests
-  Day 36:   Integration tests
-  Day 43:   Security validation
+Week 5-6: Phase 3 (Testing & Validation)
+ Day 29: Unit tests
+ Day 36: Integration tests
+ Day 43: Security validation
 
-Week 7-8:   Phase 4 (Documentation & Transition)
-  Day 47:   Documentation complete
-  Day 53:   Team training
-  Day 57:   Production migration
+Week 7-8: Phase 4 (Documentation & Transition)
+ Day 47: Documentation complete
+ Day 53: Team training
+ Day 57: Production migration
 
-Week 9-12:  Phase 5 (Optimization & Hardening)
-  Day 61:   Performance optimization
-  Day 71:   Security hardening
-  Day 78:   Monitoring & alerting
-  Day 85:   Final documentation
+Week 9-12: Phase 5 (Optimization & Hardening)
+ Day 61: Performance optimization
+ Day 71: Security hardening
+ Day 78: Monitoring & alerting
+ Day 85: Final documentation
 ```
 
 ### Tools & Infrastructure Required
@@ -1159,8 +1159,8 @@ Week 9-12:  Phase 5 (Optimization & Hardening)
 ```bash
 # Create 5 projects successfully
 for i in {1..5}; do
-  ./scripts/scaffold-project.sh project-test-$i
-  ./scripts/validate-project.sh project-test-$i
+ ./scripts/scaffold-project.sh project-test-$i
+ ./scripts/validate-project.sh project-test-$i
 done
 # Verify each project independent and valid
 ```
@@ -1174,7 +1174,7 @@ done
 **Acceptance Test**:
 ```bash
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/project-alpha
+ -i inventories/projects/project-alpha
 # Must complete without errors
 # Verify all hosts provisioned correctly
 ```
@@ -1190,7 +1190,7 @@ ansible-playbook playbooks/provision.yml \
 # Deploy project WITHOUT monitoring
 monitoring_enabled: false
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/project-beta
+ -i inventories/projects/project-beta
 # Verify monitoring NOT installed
 ```
 
@@ -1206,7 +1206,7 @@ ansible-playbook playbooks/configure.yml \
 ansible-vault create inventories/projects/project-alpha/group_vars/all_vault.yml
 
 # Verify not in git
-git ls-files | grep vault  # Should be empty (or only _vault.yml files)
+git ls-files | grep vault # Should be empty (or only _vault.yml files)
 
 # Verify encrypted content
 cat inventories/projects/project-alpha/group_vars/all_vault.yml | head -1

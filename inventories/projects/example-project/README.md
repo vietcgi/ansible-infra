@@ -5,29 +5,29 @@ Infrastructure as Code for example-project using Ansible.
 ## Quick Start
 
 1. **Define your servers**
-   ```bash
-   edit inventory.yml
-   ```
+ ```bash
+ edit inventory.yml
+ ```
 
 2. **Configure defaults**
-   ```bash
-   edit group_vars/all.yml
-   ```
+ ```bash
+ edit group_vars/all.yml
+ ```
 
 3. **Set secrets**
-   ```bash
-   ansible-vault edit group_vars/all_vault.yml
-   ```
+ ```bash
+ ansible-vault edit group_vars/all_vault.yml
+ ```
 
 4. **Test connectivity**
-   ```bash
-   ansible all -i . -m ping
-   ```
+ ```bash
+ ansible all -i . -m ping
+ ```
 
 5. **Deploy**
-   ```bash
-   ansible-playbook ../../../playbooks/provision.yml -i .
-   ```
+ ```bash
+ ansible-playbook ../../../playbooks/provision.yml -i .
+ ```
 
 ## Files
 

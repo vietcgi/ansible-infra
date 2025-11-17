@@ -142,44 +142,44 @@ Following the successful wrapper pattern from PHASE 2.A, 2.B, and 2.C, PHASE 2.D
 
 #### Vault Templates
 1. **vault_server_config.j2** (100 LOC)
-   - Server mode configuration
-   - Storage backend setup
-   - HA cluster settings
-   - Auto-unseal configuration
+ - Server mode configuration
+ - Storage backend setup
+ - HA cluster settings
+ - Auto-unseal configuration
 
 2. **vault_pki_config.j2** (80 LOC)
-   - PKI backend configuration
-   - CA settings and policies
-   - Certificate templates
+ - PKI backend configuration
+ - CA settings and policies
+ - Certificate templates
 
 3. **vault_auth_config.j2** (70 LOC)
-   - Auth method configuration
-   - AppRole auth setup
-   - Policy definitions
-   - Access control
+ - Auth method configuration
+ - AppRole auth setup
+ - Policy definitions
+ - Access control
 
 4. **vault_audit_config.j2** (50 LOC)
-   - Audit backend configuration
-   - Log format and rotation
-   - Compliance settings
+ - Audit backend configuration
+ - Log format and rotation
+ - Compliance settings
 
 5. **vault_systemd_service.j2** (30 LOC)
-   - Systemd unit file
-   - Service dependencies
-   - Restart policies
+ - Systemd unit file
+ - Service dependencies
+ - Restart policies
 
 6. **vault_tls_config.j2** (20 LOC)
-   - TLS certificate paths
-   - Listener configuration
+ - TLS certificate paths
+ - Listener configuration
 
 #### Certificate Templates
 7. **certificate_service_template.j2** (60 LOC)
-   - Service certificate request template
-   - Certificate issuance policies
+ - Service certificate request template
+ - Certificate issuance policies
 
 8. **certificate_renewal_policy.j2** (40 LOC)
-   - Auto-renewal configuration
-   - Rotation triggers
+ - Auto-renewal configuration
+ - Rotation triggers
 
 ---
 
@@ -194,7 +194,7 @@ security_vault_download_url: ""
 security_vault_checksum: ""
 
 # Vault Mode
-security_vault_mode: "server"  # server or agent
+security_vault_mode: "server" # server or agent
 security_vault_cluster_address: ""
 security_vault_api_addr: ""
 
@@ -205,7 +205,7 @@ security_vault_https_port: 8201
 security_vault_cluster_port: 8201
 
 # Vault Storage
-security_vault_storage_backend: "file"  # file, consul, s3, etc.
+security_vault_storage_backend: "file" # file, consul, s3, etc.
 security_vault_storage_path: "/var/lib/vault"
 
 # High Availability
@@ -223,7 +223,7 @@ security_vault_audit_enabled: true
 security_vault_audit_log_path: "/var/log/vault"
 
 # Encryption
-security_vault_seal_type: "shamir"  # shamir or cloud-based
+security_vault_seal_type: "shamir" # shamir or cloud-based
 security_vault_unseal_keys: []
 security_vault_recovery_keys: []
 
@@ -301,12 +301,12 @@ security_vault_default_policy: "default"
 ### 1. Vault vs Sealed Secrets vs Ansible Vault
 **Decision**: Use Vault
 - **Rationale**:
-  - Dynamic secrets for database/API credentials
-  - Automatic certificate management (PKI)
-  - Audit logging and compliance
-  - Multi-environment support
-  - Better team collaboration
-  - Meets enterprise compliance requirements
+ - Dynamic secrets for database/API credentials
+ - Automatic certificate management (PKI)
+ - Audit logging and compliance
+ - Multi-environment support
+ - Better team collaboration
+ - Meets enterprise compliance requirements
 
 ### 2. Sealed vs Unsealed State Management
 **Decision**: Support both Shamir and Cloud auto-unseal

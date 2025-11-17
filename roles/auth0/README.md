@@ -17,8 +17,8 @@ This role manages Auth0 via the Auth0 Management API:
 ### Credentials
 1. Auth0 account (free tier supports up to 25,000 monthly active users)
 2. Machine-to-Machine (M2M) application in Auth0 with:
-   - Auth0 Management API access
-   - All necessary scopes enabled
+ - Auth0 Management API access
+ - All necessary scopes enabled
 
 ### Python Modules
 - `auth0-python` (automatically installed by role)
@@ -30,60 +30,60 @@ This role manages Auth0 via the Auth0 Management API:
 
 ### Required
 ```yaml
-auth0_domain: "acme-corp.auth0.com"        # Your Auth0 tenant domain
-auth0_client_id: "{{ vault_auth0_client_id }}"          # M2M app client ID
-auth0_client_secret: "{{ vault_auth0_client_secret }}"  # M2M app secret
+auth0_domain: "acme-corp.auth0.com" # Your Auth0 tenant domain
+auth0_client_id: "{{ vault_auth0_client_id }}" # M2M app client ID
+auth0_client_secret: "{{ vault_auth0_client_secret }}" # M2M app secret
 ```
 
 ### Applications
 ```yaml
 auth0_applications:
-  - name: "acme-webapp"
-    type: "regular_web"
-    redirect_uris:
-      - "https://app.example.com/callback"
-    allowed_logout_urls:
-      - "https://app.example.com/logout"
-    web_origins:
-      - "https://app.example.com"
+ - name: "acme-webapp"
+ type: "regular_web"
+ redirect_uris:
+ - "https://app.example.com/callback"
+ allowed_logout_urls:
+ - "https://app.example.com/logout"
+ web_origins:
+ - "https://app.example.com"
 ```
 
 ### Users
 ```yaml
 auth0_users:
-  - email: "john@example.com"
-    given_name: "John"
-    family_name: "Doe"
-    password: "{{ vault_user_password }}"
+ - email: "john@example.com"
+ given_name: "John"
+ family_name: "Doe"
+ password: "{{ vault_user_password }}"
 ```
 
 ### Roles and Permissions
 ```yaml
 auth0_roles:
-  - name: "admin"
-    description: "Administrator"
-    permissions:
-      - resource: "api://acme-api"
-        permission: "write:users"
+ - name: "admin"
+ description: "Administrator"
+ permissions:
+ - resource: "api://acme-api"
+ permission: "write:users"
 ```
 
 ### Connections (Social Login)
 ```yaml
 auth0_connections:
-  - name: "google-oauth2"
-    enabled: true
-    strategy: "google-oauth2"
-    options:
-      client_id: "{{ vault_google_client_id }}"
-      client_secret: "{{ vault_google_secret }}"
+ - name: "google-oauth2"
+ enabled: true
+ strategy: "google-oauth2"
+ options:
+ client_id: "{{ vault_google_client_id }}"
+ client_secret: "{{ vault_google_secret }}"
 ```
 
 ### Settings
 ```yaml
 auth0_mfa_enabled: true
 auth0_mfa_methods:
-  - "sms"
-  - "totp"
+ - "sms"
+ - "totp"
 auth0_password_policy: "good"
 auth0_log_retention_days: 30
 ```
@@ -91,44 +91,44 @@ auth0_log_retention_days: 30
 ## Tasks
 
 1. **validate_credentials.yml**
-   - Checks Auth0 credentials
-   - Installs auth0-python module
-   - Tests API connectivity
+ - Checks Auth0 credentials
+ - Installs auth0-python module
+ - Tests API connectivity
 
 2. **create_applications.yml**
-   - Creates OIDC/OAuth applications
-   - Sets redirect URIs and CORS origins
-   - Saves credentials to file
+ - Creates OIDC/OAuth applications
+ - Sets redirect URIs and CORS origins
+ - Saves credentials to file
 
 3. **manage_users.yml**
-   - Creates/updates users
-   - Sets user metadata
-   - Assigns roles
+ - Creates/updates users
+ - Sets user metadata
+ - Assigns roles
 
 4. **configure_roles.yml**
-   - Creates roles
-   - Defines permissions
-   - Links to API resources
+ - Creates roles
+ - Defines permissions
+ - Links to API resources
 
 5. **configure_connections.yml**
-   - Enables social logins (Google, Microsoft)
-   - Configures enterprise connections
+ - Enables social logins (Google, Microsoft)
+ - Configures enterprise connections
 
 6. **configure_api.yml**
-   - Creates API resources
-   - Defines scopes
-   - Sets token expiration
+ - Creates API resources
+ - Defines scopes
+ - Sets token expiration
 
 7. **configure_settings.yml**
-   - Enables MFA
-   - Sets password policy
-   - Configures rate limiting
-   - Applies branding
+ - Enables MFA
+ - Sets password policy
+ - Configures rate limiting
+ - Applies branding
 
 8. **generate_configs.yml**
-   - Creates .env files
-   - Generates application configs
-   - Outputs credential files
+ - Creates .env files
+ - Generates application configs
+ - Outputs credential files
 
 ## Usage
 
@@ -136,19 +136,19 @@ auth0_log_retention_days: 30
 ```yaml
 ---
 - name: Configure Auth0 for client
-  hosts: localhost
-  gather_facts: no
-  roles:
-    - auth0
-  vars:
-    auth0_domain: "acme-corp.auth0.com"
-    auth0_client_id: "{{ vault_auth0_client_id }}"
-    auth0_client_secret: "{{ vault_auth0_client_secret }}"
-    auth0_applications:
-      - name: "acme-webapp"
-        type: "regular_web"
-        redirect_uris:
-          - "https://acme.example.com/callback"
+ hosts: localhost
+ gather_facts: no
+ roles:
+ - auth0
+ vars:
+ auth0_domain: "acme-corp.auth0.com"
+ auth0_client_id: "{{ vault_auth0_client_id }}"
+ auth0_client_secret: "{{ vault_auth0_client_secret }}"
+ auth0_applications:
+ - name: "acme-webapp"
+ type: "regular_web"
+ redirect_uris:
+ - "https://acme.example.com/callback"
 ```
 
 ### Running Specific Tasks
@@ -202,40 +202,40 @@ vault_user_password: "initial_user_password"
 ```yaml
 ---
 - name: Onboard new client
-  hosts: localhost
-  gather_facts: no
-  roles:
-    - auth0
-  vars:
-    client_name: "acme-corp"
-    auth0_domain: "acme-corp.auth0.com"
-    auth0_client_id: "{{ vault_auth0_client_id }}"
-    auth0_client_secret: "{{ vault_auth0_client_secret }}"
+ hosts: localhost
+ gather_facts: no
+ roles:
+ - auth0
+ vars:
+ client_name: "acme-corp"
+ auth0_domain: "acme-corp.auth0.com"
+ auth0_client_id: "{{ vault_auth0_client_id }}"
+ auth0_client_secret: "{{ vault_auth0_client_secret }}"
 
-    auth0_applications:
-      - name: "acme-webapp"
-        type: "regular_web"
-        redirect_uris:
-          - "https://acme.example.com/callback"
-          - "http://localhost:3000/callback"
-      - name: "acme-api"
-        type: "non_interactive"
+ auth0_applications:
+ - name: "acme-webapp"
+ type: "regular_web"
+ redirect_uris:
+ - "https://acme.example.com/callback"
+ - "http://localhost:3000/callback"
+ - name: "acme-api"
+ type: "non_interactive"
 
-    auth0_users:
-      - email: "admin@acme.com"
-        given_name: "Admin"
-        family_name: "User"
-      - email: "user1@acme.com"
-        given_name: "John"
-        family_name: "Doe"
+ auth0_users:
+ - email: "admin@acme.com"
+ given_name: "Admin"
+ family_name: "User"
+ - email: "user1@acme.com"
+ given_name: "John"
+ family_name: "Doe"
 
-    auth0_connections:
-      - name: "google-oauth2"
-        enabled: true
-        strategy: "google-oauth2"
-        options:
-          client_id: "{{ vault_google_client_id }}"
-          client_secret: "{{ vault_google_secret }}"
+ auth0_connections:
+ - name: "google-oauth2"
+ enabled: true
+ strategy: "google-oauth2"
+ options:
+ client_id: "{{ vault_google_client_id }}"
+ client_secret: "{{ vault_google_secret }}"
 ```
 
 ## Troubleshooting

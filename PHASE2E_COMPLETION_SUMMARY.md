@@ -21,11 +21,11 @@ PHASE 2.E implements enterprise-grade database replication and high availability
 - **Replication Slots**: Physical replication slots with automatic cleanup to prevent WAL disk overflow
 - **Point-in-Time Recovery (PITR)**: WAL archiving with configurable backup command for recovery to any point in time
 - **Health Checks**: Comprehensive health check script monitoring:
-  - PostgreSQL daemon status
-  - Database connectivity and queries
-  - Replication lag < 60 seconds threshold
-  - WAL archiving status
-  - Disk space usage monitoring
+ - PostgreSQL daemon status
+ - Database connectivity and queries
+ - Replication lag < 60 seconds threshold
+ - WAL archiving status
+ - Disk space usage monitoring
 - **Systemd Integration**: Health check runs as systemd service with auto-restart on failure
 - **Backup Integration**: Daily automated base backups via cron with retention policy
 - **Prometheus Metrics**: Extended statistics configuration for monitoring (pg_stat_statements, query timing, lock tracking)
@@ -53,13 +53,13 @@ PHASE 2.E implements enterprise-grade database replication and high availability
 - **Incremental State Transfer (IST)**: Optimized incremental sync using gcache for faster node recovery
 - **Monitoring Tables**: Dedicated galera_monitor database with cluster status tracking
 - **Health Checks**: Multi-level health verification:
-  - MySQL daemon status
-  - Database connectivity
-  - Cluster state (wsrep_local_state == 4 = Synced)
-  - Cluster readiness (wsrep_ready == ON)
-  - Cluster connectivity (wsrep_connected == ON)
-  - Cluster size verification
-  - Status logging for troubleshooting
+ - MySQL daemon status
+ - Database connectivity
+ - Cluster state (wsrep_local_state == 4 = Synced)
+ - Cluster readiness (wsrep_ready == ON)
+ - Cluster connectivity (wsrep_connected == ON)
+ - Cluster size verification
+ - Status logging for troubleshooting
 - **Systemd Integration**: Health check service with auto-restart capability
 - **SST User Management**: Dedicated backup user with minimal required privileges
 - **Slow Query Logging**: Configurable slow query log with threshold tuning
@@ -106,36 +106,36 @@ PHASE 2.E implements enterprise-grade database replication and high availability
 
 **Test Coverage:**
 1. Wrapper task file existence (2 tests)
-   - PostgreSQL replication wrapper exists
-   - MySQL Galera wrapper exists
+ - PostgreSQL replication wrapper exists
+ - MySQL Galera wrapper exists
 
 2. Template file validation (1 test)
-   - All 7 template files present
+ - All 7 template files present
 
 3. YAML syntax validation (1 test)
-   - Both wrapper task files are valid YAML
+ - Both wrapper task files are valid YAML
 
 4. Variable coverage tests (5 tests)
-   - PostgreSQL variables in defaults/main.yml
-   - MySQL variables in defaults/main.yml
-   - Backup variables configured
-   - Failover variables configured
-   - Monitoring variables configured
+ - PostgreSQL variables in defaults/main.yml
+ - MySQL variables in defaults/main.yml
+ - Backup variables configured
+ - Failover variables configured
+ - Monitoring variables configured
 
 5. FQCN compliance (2 tests)
-   - PostgreSQL wrapper uses 100% FQCN modules
-   - MySQL wrapper uses 100% FQCN modules
+ - PostgreSQL wrapper uses 100% FQCN modules
+ - MySQL wrapper uses 100% FQCN modules
 
 6. Line-of-code validation (2 tests)
-   - Wrapper tasks: 778 LOC (required: 600-1500) ✓
-   - Templates: 281 LOC (required: 200-800) ✓
+ - Wrapper tasks: 778 LOC (required: 600-1500) ✓
+ - Templates: 281 LOC (required: 200-800) ✓
 
 7. Template content validation (2 tests)
-   - PostgreSQL recovery.conf contains required Jinja2 variables
-   - MySQL Galera config contains required Jinja2 variables
+ - PostgreSQL recovery.conf contains required Jinja2 variables
+ - MySQL Galera config contains required Jinja2 variables
 
 8. Sensible defaults validation (1 test)
-   - All variables have reasonable default values
+ - All variables have reasonable default values
 
 ### 5. Integration Points
 
@@ -158,10 +158,10 @@ PHASE 2.E implements enterprise-grade database replication and high availability
 ### PostgreSQL Design
 ```
 Primary (with WAL archiving)
-    ↓ streaming replication
-    ├→ Replica 1 (hot standby)
-    ├→ Replica 2 (hot standby)
-    └→ Replica N (hot standby)
+ ↓ streaming replication
+ ├→ Replica 1 (hot standby)
+ ├→ Replica 2 (hot standby)
+ └→ Replica N (hot standby)
 
 Features:
 - Replication slots prevent WAL disk overflow
@@ -174,9 +174,9 @@ Features:
 ### MySQL Galera Design
 ```
 Node 1 (wsrep_local_state = 4: Synced)
-   ↔ Galera replication protocol (multi-master)
+ ↔ Galera replication protocol (multi-master)
 Node 2 (wsrep_local_state = 4: Synced)
-   ↔ Galera replication protocol (multi-master)
+ ↔ Galera replication protocol (multi-master)
 Node 3 (wsrep_local_state = 4: Synced)
 
 Features:

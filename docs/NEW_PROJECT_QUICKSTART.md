@@ -8,10 +8,10 @@
 
 ```bash
 # Check you have these installed
-ansible --version          # 2.10+
-python --version           # 3.8+
-git --version             # Any recent version
-ansible-galaxy --version  # Should come with ansible
+ansible --version # 2.10+
+python --version # 3.8+
+git --version # Any recent version
+ansible-galaxy --version # Should come with ansible
 ```
 
 If anything is missing, see [Installation Guide](INSTALLATION.md).
@@ -47,11 +47,11 @@ Output:
 inventories/projects/my-project/
 ├── inventory.yml
 ├── group_vars/
-│   ├── all.yml
-│   ├── webservers.yml
-│   ├── databases.yml
-│   ├── monitoring_disabled.yml
-│   └── all_vault.yml (encrypted)
+│ ├── all.yml
+│ ├── webservers.yml
+│ ├── databases.yml
+│ ├── monitoring_disabled.yml
+│ └── all_vault.yml (encrypted)
 └── host_vars/
 ```
 
@@ -63,30 +63,30 @@ Edit `inventories/projects/my-project/inventory.yml`:
 
 ```yaml
 all:
-  children:
-    webservers:
-      hosts:
-        web01:
-          ansible_host: 10.0.1.10
-        web02:
-          ansible_host: 10.0.1.11
+ children:
+ webservers:
+ hosts:
+ web01:
+ ansible_host: 10.0.1.10
+ web02:
+ ansible_host: 10.0.1.11
 
-    databases:
-      hosts:
-        db01:
-          ansible_host: 10.0.2.10
+ databases:
+ hosts:
+ db01:
+ ansible_host: 10.0.2.10
 
-    monitoring_servers:
-      hosts:
-        prometheus01:
-          ansible_host: 10.0.3.10
-        grafana01:
-          ansible_host: 10.0.3.20
+ monitoring_servers:
+ hosts:
+ prometheus01:
+ ansible_host: 10.0.3.10
+ grafana01:
+ ansible_host: 10.0.3.20
 
-  vars:
-    ansible_user: ubuntu          # SSH user
-    ansible_port: 22              # SSH port
-    ansible_python_interpreter: /usr/bin/python3
+ vars:
+ ansible_user: ubuntu # SSH user
+ ansible_port: 22 # SSH port
+ ansible_python_interpreter: /usr/bin/python3
 ```
 
 **Tips**:
@@ -111,8 +111,8 @@ project_description: "My first infrastructure project"
 # Server Configuration
 common_hostname_prefix: myproj
 common_ntp_servers:
-  - 0.ubuntu.pool.ntp.org
-  - 1.ubuntu.pool.ntp.org
+ - 0.ubuntu.pool.ntp.org
+ - 1.ubuntu.pool.ntp.org
 common_ssh_port: 2222
 
 # Monitoring (optional)
@@ -142,9 +142,9 @@ vault_grafana_admin_password: "SecurePassword123!"
 vault_prometheus_scrape_token: "your-token-here"
 vault_database_root_password: "DBPassword456!"
 vault_ssh_key_private: |
-  -----BEGIN OPENSSH PRIVATE KEY-----
-  ...your-key-content...
-  -----END OPENSSH PRIVATE KEY-----
+ -----BEGIN OPENSSH PRIVATE KEY-----
+ ...your-key-content...
+ -----END OPENSSH PRIVATE KEY-----
 
 # Save and close the editor
 ```
@@ -167,11 +167,11 @@ ansible all -i inventories/projects/my-project -m ping
 
 # Expected output:
 # web01 | SUCCESS => {
-#     "ansible_facts": {
-#         "discovered_interpreter_python": "/usr/bin/python3"
-#     },
-#     "changed": false,
-#     "ping": "pong"
+# "ansible_facts": {
+# "discovered_interpreter_python": "/usr/bin/python3"
+# },
+# "changed": false,
+# "ping": "pong"
 # }
 ```
 
@@ -188,19 +188,19 @@ ansible all -i inventories/projects/my-project -m ping
 ```bash
 # Option 1: Dry-run first (safe, no changes)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --check
+ -i inventories/projects/my-project \
+ --check
 
 # Option 2: Actually deploy
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 
 # Option 3: Deploy specific servers
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  -l webservers \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ -l webservers \
+ --vault-password-file ~/.vault_password
 ```
 
 ---
@@ -212,20 +212,20 @@ After provisioning, configure services:
 ```bash
 # Full configuration
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 
 # Specific roles only
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --tags "grafana,prometheus" \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --tags "grafana,prometheus" \
+ --vault-password-file ~/.vault_password
 
 # Skip monitoring
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --skip-tags "monitoring" \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --skip-tags "monitoring" \
+ --vault-password-file ~/.vault_password
 ```
 
 ---
@@ -234,22 +234,22 @@ ansible-playbook playbooks/configure.yml \
 
 ### By Default (provision.yml)
 
-- ✅ OS updates and patches
-- ✅ Core packages (git, curl, wget, etc.)
-- ✅ NTP synchronization
-- ✅ SSH hardening
-- ✅ Sysctl tuning
-- ✅ Audit logging
-- ✅ Firewall configuration
-- ✅ User management
+- OS updates and patches
+- Core packages (git, curl, wget, etc.)
+- NTP synchronization
+- SSH hardening
+- Sysctl tuning
+- Audit logging
+- Firewall configuration
+- User management
 
 ### With configure.yml
 
-- ✅ Grafana Agent (monitoring)
-- ✅ Prometheus (metrics)
-- ✅ Loki (logs)
-- ✅ Node Exporter (system metrics)
-- ✅ Custom service configuration
+- Grafana Agent (monitoring)
+- Prometheus (metrics)
+- Loki (logs)
+- Node Exporter (system metrics)
+- Custom service configuration
 
 ---
 
@@ -261,9 +261,9 @@ ansible-playbook playbooks/configure.yml \
 # 1. Add to inventory
 # inventories/projects/my-project/inventory.yml
 databases:
-  hosts:
-    db02:  # NEW
-      ansible_host: 10.0.2.11
+ hosts:
+ db02: # NEW
+ ansible_host: 10.0.2.11
 
 # 2. Create host-specific config (optional)
 # inventories/projects/my-project/host_vars/db02.yml
@@ -273,8 +273,8 @@ disk_capacity_gb: 1000
 
 # 3. Deploy to new server
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  -l db02
+ -i inventories/projects/my-project \
+ -l db02
 ```
 
 ### Update Configuration
@@ -285,12 +285,12 @@ edit inventories/projects/my-project/group_vars/all.yml
 
 # 2. Test changes
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --check
+ -i inventories/projects/my-project \
+ --check
 
 # 3. Apply changes
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project
+ -i inventories/projects/my-project
 ```
 
 ### Disable Monitoring
@@ -301,8 +301,8 @@ monitoring_enabled: false
 
 # Or skip during playbook
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --skip-tags "monitoring"
+ -i inventories/projects/my-project \
+ --skip-tags "monitoring"
 ```
 
 ### Access Grafana
@@ -332,8 +332,8 @@ common_ssh_port: 2222
 ```yaml
 # inventories/projects/my-project/group_vars/all.yml
 common_ntp_servers:
-  - 10.0.1.5      # Your internal NTP
-  - 8.8.8.8       # Google DNS
+ - 10.0.1.5 # Your internal NTP
+ - 8.8.8.8 # Google DNS
 ```
 
 ### Disable Specific Features
@@ -342,16 +342,16 @@ common_ntp_servers:
 # inventories/projects/my-project/group_vars/all.yml
 ssh_hardening_enabled: false
 firewall_enabled: false
-security_hardening_level: minimal  # or 'production'
+security_hardening_level: minimal # or 'production'
 ```
 
 ### Group-Specific Settings
 
 ```yaml
 # inventories/projects/my-project/group_vars/webservers.yml
-common_ssh_port: 2223        # Different port for web servers
-enable_caching: true         # Enable caching for web servers
-max_connections: 5000        # Higher limit for web servers
+common_ssh_port: 2223 # Different port for web servers
+enable_caching: true # Enable caching for web servers
+max_connections: 5000 # Higher limit for web servers
 ```
 
 ### Host-Specific Settings
@@ -360,8 +360,8 @@ max_connections: 5000        # Higher limit for web servers
 # inventories/projects/my-project/host_vars/web01.yml
 ansible_host: 10.0.1.10
 hostname: web01-prod
-enable_monitoring: false     # Special case for this host
-disk_capacity_gb: 500        # More disk for this server
+enable_monitoring: false # Special case for this host
+disk_capacity_gb: 500 # More disk for this server
 ```
 
 ---
@@ -393,13 +393,13 @@ chmod 600 ~/.vault_password
 
 # Use password file
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 
 # Or enter interactively
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --ask-vault-pass
+ -i inventories/projects/my-project \
+ --ask-vault-pass
 ```
 
 ### Playbook Hangs or Times Out
@@ -407,13 +407,13 @@ ansible-playbook playbooks/provision.yml \
 ```bash
 # Increase timeout
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --timeout=60
+ -i inventories/projects/my-project \
+ --timeout=60
 
 # Run with verbose output
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  -vvv
+ -i inventories/projects/my-project \
+ -vvv
 
 # Check server logs
 ssh ubuntu@10.0.1.10 'tail -f /var/log/syslog'
@@ -424,13 +424,13 @@ ssh ubuntu@10.0.1.10 'tail -f /var/log/syslog'
 ```bash
 # Run in check mode
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --check
+ -i inventories/projects/my-project \
+ --check
 
 # See what would change (verbose)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --check -vvv
+ -i inventories/projects/my-project \
+ --check -vvv
 
 # Review the diffs carefully before deploying
 ```

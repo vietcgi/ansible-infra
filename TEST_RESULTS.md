@@ -112,115 +112,115 @@ The Ansible common role has been thoroughly tested and validated across all supp
 - **Status**: ✓ VERIFIED
 - **Coverage**: All distributions (Debian, RedHat, Alpine, macOS)
 - **Files Verified**:
-  - tasks/system_update.yml: Conditional tasks for all package managers
-  - tasks/core_packages.yml: Distribution-specific package installation
-  - defaults/main.yml: Configurable package lists
+ - tasks/system_update.yml: Conditional tasks for all package managers
+ - tasks/core_packages.yml: Distribution-specific package installation
+ - defaults/main.yml: Configurable package lists
 - **Validation Results**:
-  - Debian package manager (apt): Verified in code
-  - RedHat package manager (yum/dnf): Verified in code
-  - Alpine package manager (apk): Verified in code (added in 10/10 update)
-  - macOS package manager (homebrew): Verified in code
+ - Debian package manager (apt): Verified in code
+ - RedHat package manager (yum/dnf): Verified in code
+ - Alpine package manager (apk): Verified in code (added in 10/10 update)
+ - macOS package manager (homebrew): Verified in code
 - **Result**: All package managers properly handled with error resilience
 
 ### SSH Hardening
 - **Status**: ✓ VERIFIED
 - **Coverage**: All Unix/Linux systems
 - **Files Verified**:
-  - tasks/ssh_hardening.yml: Comprehensive hardening implementation
-  - templates/sshd_config.j2: Modern cryptography configuration
-  - tasks with tags: ssh, hardening, security, critical
+ - tasks/ssh_hardening.yml: Comprehensive hardening implementation
+ - templates/sshd_config.j2: Modern cryptography configuration
+ - tasks with tags: ssh, hardening, security, critical
 - **Validation Results**:
-  - Post-quantum key exchange (sntrup761x25519): Implemented
-  - AEAD ciphers (ChaCha20-Poly1305, AES-GCM): Configured
-  - Authentication methods: Key-based only
-  - Backup before applying: Yes (with timestamp)
-  - Configuration validation: sshd -t checks
+ - Post-quantum key exchange (sntrup761x25519): Implemented
+ - AEAD ciphers (ChaCha20-Poly1305, AES-GCM): Configured
+ - Authentication methods: Key-based only
+ - Backup before applying: Yes (with timestamp)
+ - Configuration validation: sshd -t checks
 - **Result**: SSH hardening exceeds industry standards
 
 ### NTP/Time Synchronization
 - **Status**: ✓ VERIFIED
 - **Coverage**: All systems
 - **Files Verified**:
-  - tasks/ntp.yml: NTP server configuration
-  - defaults/main.yml: Configurable NTP servers
+ - tasks/ntp.yml: NTP server configuration
+ - defaults/main.yml: Configurable NTP servers
 - **Validation Results**:
-  - NTP server configuration: Multiple servers supported
-  - Timezone management: Included
-  - Fallback handling: Implemented
+ - NTP server configuration: Multiple servers supported
+ - Timezone management: Included
+ - Fallback handling: Implemented
 - **Result**: Time synchronization properly configured
 
 ### Sysctl Kernel Parameters
 - **Status**: ✓ VERIFIED
 - **Coverage**: All Linux systems
 - **Files Verified**:
-  - tasks/sysctl.yml: Kernel parameter configuration
-  - defaults/main.yml: 20+ configurable sysctl parameters
+ - tasks/sysctl.yml: Kernel parameter configuration
+ - defaults/main.yml: 20+ configurable sysctl parameters
 - **Validation Results**:
-  - Network hardening: IP forwarding, source route protection
-  - TCP/IP optimization: Window scaling, TCP timestamps
-  - Security settings: ICMP restrictions, SYN cookies
+ - Network hardening: IP forwarding, source route protection
+ - TCP/IP optimization: Window scaling, TCP timestamps
+ - Security settings: ICMP restrictions, SYN cookies
 - **Result**: Kernel parameters properly hardened
 
 ### Audit Logging
 - **Status**: ✓ VERIFIED
 - **Coverage**: Linux systems (STIG compliant)
 - **Files Verified**:
-  - tasks/audit.yml: Auditd configuration
-  - templates/audit.rules.j2: STIG-compliant audit rules
+ - tasks/audit.yml: Auditd configuration
+ - templates/audit.rules.j2: STIG-compliant audit rules
 - **Validation Results**:
-  - Auditd installation: Distribution-aware
-  - Rule configuration: STIG standards met
-  - Log rotation: Configured
-  - Critical tag: Applied to all audit tasks
+ - Auditd installation: Distribution-aware
+ - Rule configuration: STIG standards met
+ - Log rotation: Configured
+ - Critical tag: Applied to all audit tasks
 - **Result**: STIG-compliant audit logging configured
 
 ### Firewall Configuration
 - **Status**: ✓ VERIFIED
 - **Coverage**: Appropriate platforms (macOS focused)
 - **Files Verified**:
-  - tasks/firewall_alf.yml: Application Firewall for macOS
-  - tasks/firewall_pf.yml: Packet Filter for macOS
+ - tasks/firewall_alf.yml: Application Firewall for macOS
+ - tasks/firewall_pf.yml: Packet Filter for macOS
 - **Validation Results**:
-  - Application Firewall (ALF): Rules configured
-  - Packet Filter (PF): SSH rate limiting
-  - Stealth mode: Enabled
-  - SSH protection: Rate limiting rules
+ - Application Firewall (ALF): Rules configured
+ - Packet Filter (PF): SSH rate limiting
+ - Stealth mode: Enabled
+ - SSH protection: Rate limiting rules
 - **Result**: Firewall properly configured per platform
 
 ### System Limits
 - **Status**: ✓ VERIFIED
 - **Coverage**: All systems
 - **Files Verified**:
-  - tasks/limits.yml: System limits configuration
-  - defaults/main.yml: Configurable limits
+ - tasks/limits.yml: System limits configuration
+ - defaults/main.yml: Configurable limits
 - **Validation Results**:
-  - File descriptor limits: 65536 default
-  - Process limits: Configurable
-  - Resource constraints: Per-user
+ - File descriptor limits: 65536 default
+ - Process limits: Configurable
+ - Resource constraints: Per-user
 - **Result**: System limits properly enforced
 
 ### DNS Configuration
 - **Status**: ✓ VERIFIED
 - **Coverage**: All systems
 - **Files Verified**:
-  - tasks/dns.yml: DNS resolver configuration
-  - defaults/main.yml: Multiple DNS server support
+ - tasks/dns.yml: DNS resolver configuration
+ - defaults/main.yml: Multiple DNS server support
 - **Validation Results**:
-  - Resolver configuration: /etc/resolv.conf managed
-  - Multiple DNS servers: Supported (CloudFlare, Google, Quad9)
-  - Fallback handling: Yes
+ - Resolver configuration: /etc/resolv.conf managed
+ - Multiple DNS servers: Supported (CloudFlare, Google, Quad9)
+ - Fallback handling: Yes
 - **Result**: DNS configuration properly managed
 
 ### Logging Configuration
 - **Status**: ✓ VERIFIED
 - **Coverage**: All systems
 - **Files Verified**:
-  - tasks/logging.yml: Syslog configuration
-  - defaults/main.yml: Log retention settings
+ - tasks/logging.yml: Syslog configuration
+ - defaults/main.yml: Log retention settings
 - **Validation Results**:
-  - Log rotation: logrotate configured
-  - Log retention: 30-day default
-  - Syslog configuration: Per-distribution support
+ - Log rotation: logrotate configured
+ - Log retention: 30-day default
+ - Syslog configuration: Per-distribution support
 - **Result**: Logging properly configured
 
 ---
@@ -436,40 +436,40 @@ The framework exceeds industry standards and is ready for immediate deployment t
 
 **VM Launch**: ✓ SUCCESS
 ```
-Name:           ansible-test-ubuntu24
-State:          Running
-IPv4:           192.168.64.2
-Release:        Ubuntu 24.04.3 LTS
-Disk usage:     2.0GiB out of 9.6GiB
-Memory usage:   330.8MiB out of 1.9GiB
+Name: ansible-test-ubuntu24
+State: Running
+IPv4: 192.168.64.2
+Release: Ubuntu 24.04.3 LTS
+Disk usage: 2.0GiB out of 9.6GiB
+Memory usage: 330.8MiB out of 1.9GiB
 ```
 
 **Test Results**:
 1. OS Detection: ✓ PASS
-   - Linux kernel 6.8.0-87-generic (ARM64 architecture)
-   - Ubuntu 24.04.3 LTS detected correctly
+ - Linux kernel 6.8.0-87-generic (ARM64 architecture)
+ - Ubuntu 24.04.3 LTS detected correctly
 
 2. Python 3 Availability: ✓ PASS
-   - Python 3.12.3 pre-installed
-   - Compatible with Ansible requirements
+ - Python 3.12.3 pre-installed
+ - Compatible with Ansible requirements
 
 3. Package Manager Check: ✓ PASS
-   - dpkg version 1.22.6 confirmed
-   - Debian-based package management functional
+ - dpkg version 1.22.6 confirmed
+ - Debian-based package management functional
 
 4. Network Connectivity: ✓ PASS
-   - Ping to 8.8.8.8: Successful (21.59ms latency)
-   - Network configuration working
+ - Ping to 8.8.8.8: Successful (21.59ms latency)
+ - Network configuration working
 
 5. Framework Transfer: ✓ PASS
-   - Ansible framework successfully transferred via multipass transfer
-   - Role structure verified: All 10 task files present
-   - Files confirmed: audit.yml, core_packages.yml, dns.yml, limits.yml, logging.yml, ntp.yml, etc.
+ - Ansible framework successfully transferred via multipass transfer
+ - Role structure verified: All 10 task files present
+ - Files confirmed: audit.yml, core_packages.yml, dns.yml, limits.yml, logging.yml, ntp.yml, etc.
 
 6. Role Structure Validation: ✓ PASS
-   - /tmp/ansible-infra/roles/common/tasks/ directory verified
-   - All required task files accessible
-   - Permissions and structure correct
+ - /tmp/ansible-infra/roles/common/tasks/ directory verified
+ - All required task files accessible
+ - Permissions and structure correct
 
 ### Test Summary
 - **Total Test Cases**: 6

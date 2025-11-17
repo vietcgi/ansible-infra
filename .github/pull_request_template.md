@@ -95,12 +95,12 @@ Any additional context for reviewers:
 ---
 
 **Before Submitting:**
-1. ✅ This PR addresses ONE issue (no scope creep)
-2. ✅ All tests pass locally
-3. ✅ Code is linted and formatted
-4. ✅ Commits are logical and well-named
-5. ✅ Documentation is updated
-6. ✅ Ready for code review
+1. This PR addresses ONE issue (no scope creep)
+2. All tests pass locally
+3. Code is linted and formatted
+4. Commits are logical and well-named
+5. Documentation is updated
+6. Ready for code review
 
 **Need Help?**
 - See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines

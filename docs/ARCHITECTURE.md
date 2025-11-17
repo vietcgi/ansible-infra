@@ -15,23 +15,23 @@ The ansible-infra framework uses a **hybrid deployment model** to handle the com
 ### Why "Hybrid"?
 
 **The Challenge**: Official Ansible collections are Linux-focused
-- ✅ prometheus.prometheus - 26 roles for Linux monitoring
-- ✅ grafana.grafana - 7 roles for Linux dashboarding
-- ❌ No macOS support in official collections
-- ❌ systemd (Linux) vs launchd (macOS) incompatibility
+- prometheus.prometheus - 26 roles for Linux monitoring
+- grafana.grafana - 7 roles for Linux dashboarding
+- No macOS support in official collections
+- systemd (Linux) vs launchd (macOS) incompatibility
 
 **The Solution**: Use a hybrid approach
 
 ```
 Official Collections (Linux Backend)
-├─ prometheus.prometheus         (26+ roles)
-├─ grafana.grafana               (7+ roles)
-└─ community.general             (utilities)
+├─ prometheus.prometheus (26+ roles)
+├─ grafana.grafana (7+ roles)
+└─ community.general (utilities)
 
 + Custom Roles (macOS Specific)
-├─ system_hardening_macos        ✅ IMPLEMENTED
-├─ macos_monitoring              (planned)
-└─ app_health_check              (planned)
+├─ system_hardening_macos IMPLEMENTED
+├─ macos_monitoring (planned)
+└─ app_health_check (planned)
 
 = Unified Framework
 ├─ Works on any Linux distribution
@@ -48,34 +48,34 @@ Official Collections (Linux Backend)
 
 ```
 ┌─────────────────────────────────────┐
-│     CLIENT LAYER (Distributed)      │
+│ CLIENT LAYER (Distributed) │
 ├─────────────────────────────────────┤
-│                                     │
-│  macOS Clients (e.g., Arnio)        │
-│  ├─ Common role                     │
-│  ├─ system_hardening_macos          │
-│  ├─ macos_monitoring                │
-│  └─ app_health_check                │
-│                                     │
-│  Linux Servers                      │
-│  ├─ Common role                     │
-│  ├─ prometheus.prometheus           │
-│  ├─ Official collections            │
-│  └─ Custom roles (as needed)        │
-│                                     │
+│ │
+│ macOS Clients (e.g., Arnio) │
+│ ├─ Common role │
+│ ├─ system_hardening_macos │
+│ ├─ macos_monitoring │
+│ └─ app_health_check │
+│ │
+│ Linux Servers │
+│ ├─ Common role │
+│ ├─ prometheus.prometheus │
+│ ├─ Official collections │
+│ └─ Custom roles (as needed) │
+│ │
 └─────────────────────────────────────┘
-          (Ansible Push)
-              ↓
+ (Ansible Push)
+ ↓
 ┌─────────────────────────────────────┐
-│  BACKEND LAYER (Centralized)        │
+│ BACKEND LAYER (Centralized) │
 ├─────────────────────────────────────┤
-│                                     │
-│  Linux Server                       │
-│  ├─ Prometheus (metrics)            │
-│  ├─ Grafana (dashboards)            │
-│  ├─ AlertManager (alerting)         │
-│  └─ Persistent Storage              │
-│                                     │
+│ │
+│ Linux Server │
+│ ├─ Prometheus (metrics) │
+│ ├─ Grafana (dashboards) │
+│ ├─ AlertManager (alerting) │
+│ └─ Persistent Storage │
+│ │
 └─────────────────────────────────────┘
 ```
 
@@ -91,11 +91,11 @@ Official Collections (Linux Backend)
 - **Purpose**: OS baseline for all servers
 - **Platforms**: Linux (Ubuntu, Debian, RHEL) + macOS
 - **Includes**:
-  - System updates
-  - SSH hardening
-  - NTP configuration
-  - Basic security settings
-  - Package management
+ - System updates
+ - SSH hardening
+ - NTP configuration
+ - Basic security settings
+ - Package management
 
 **Why**: Every system needs basic hardening and configuration
 
@@ -119,20 +119,20 @@ Official Collections (Linux Backend)
 #### 3. **Custom Roles** (Client-Specific)
 
 **macOS Roles** (for Arnio and Mac-heavy clients)
-- `system_hardening_macos` - ✅ IMPLEMENTED
-  - 31 security controls
-  - NIST + CIS compliance
-  - Post-quantum SSH
-  - Firewall configuration (ALF + PF)
+- `system_hardening_macos` - IMPLEMENTED
+ - 31 security controls
+ - NIST + CIS compliance
+ - Post-quantum SSH
+ - Firewall configuration (ALF + PF)
 
 - `macos_monitoring` - (planned)
-  - Node exporter via launchd
-  - Homebrew package management
-  - macOS-specific metrics
+ - Node exporter via launchd
+ - Homebrew package management
+ - macOS-specific metrics
 
 - `app_health_check` - (planned)
-  - Blackbox exporter wrapper
-  - Application-level monitoring
+ - Blackbox exporter wrapper
+ - Application-level monitoring
 
 **Linux Roles** (for specialized deployments)
 - Client-specific monitoring roles
@@ -149,10 +149,10 @@ Official Collections (Linux Backend)
 |---------|-------|-------|----------|
 | Service management | systemd | launchd | Custom roles for macOS |
 | Package management | apt/yum | homebrew | community.general.homebrew |
-| SSH hardening | ✅ | ✅ | Common role supports both |
-| Monitoring | ✅ | ⚠️ | Custom metrics collection |
-| Prometheus | ✅ | ❌ | Run on Linux backend |
-| Grafana | ✅ | ❌ | Run on Linux backend |
+| SSH hardening | | | Common role supports both |
+| Monitoring | | ⚠️ | Custom metrics collection |
+| Prometheus | | | Run on Linux backend |
+| Grafana | | | Run on Linux backend |
 
 ---
 
@@ -163,16 +163,16 @@ Official Collections (Linux Backend)
 ```
 inventories/
 ├── production/
-│   ├── hosts.yml           (Production servers)
-│   └── group_vars/         (Production-specific variables)
+│ ├── hosts.yml (Production servers)
+│ └── group_vars/ (Production-specific variables)
 │
 ├── staging/
-│   ├── hosts.yml           (Staging servers)
-│   └── group_vars/         (Staging-specific variables)
+│ ├── hosts.yml (Staging servers)
+│ └── group_vars/ (Staging-specific variables)
 │
 └── development/
-    ├── hosts.yml           (Dev servers)
-    └── group_vars/         (Dev-specific variables)
+ ├── hosts.yml (Dev servers)
+ └── group_vars/ (Dev-specific variables)
 ```
 
 ### Variable Precedence
@@ -188,29 +188,29 @@ inventories/
 ```yaml
 ---
 hosts:
-  arnio_macs:
-    - mac01.internal
-    - mac02.internal
-    - mac03.internal
+ arnio_macs:
+ - mac01.internal
+ - mac02.internal
+ - mac03.internal
 
 group_vars:
-  arnio_macs:
-    # Common role variables
-    enable_auto_update: true
-    ssh_port: 2222
-    ntp_servers:
-      - time1.apple.com
-      - time2.apple.com
+ arnio_macs:
+ # Common role variables
+ enable_auto_update: true
+ ssh_port: 2222
+ ntp_servers:
+ - time1.apple.com
+ - time2.apple.com
 
-    # Hardening variables
-    firewall_enabled: true
-    pf_ssh_rate_limit: 5     # 5 connections per 30 seconds
-    xprotect_enabled: true
-    sip_verify: true
+ # Hardening variables
+ firewall_enabled: true
+ pf_ssh_rate_limit: 5 # 5 connections per 30 seconds
+ xprotect_enabled: true
+ sip_verify: true
 
-    # Monitoring variables
-    node_exporter_port: 9100
-    prometheus_backend: monitoring.internal:9090
+ # Monitoring variables
+ node_exporter_port: 9100
+ prometheus_backend: monitoring.internal:9090
 ```
 
 ---
@@ -268,17 +268,17 @@ group_vars:
 macOS Clients
 ├─ Node exporter (custom launchd wrapper)
 └─ Custom health checks
-         ↓
+ ↓
 Linux Backend (Prometheus)
 ├─ Scrapes metrics from clients
 ├─ Stores time-series data
 └─ Evaluates alert rules
-         ↓
+ ↓
 Grafana
 ├─ Queries Prometheus
 ├─ Renders dashboards
 └─ Sends alerts
-         ↓
+ ↓
 Alert Destinations
 ├─ Email
 ├─ Slack
@@ -322,9 +322,9 @@ Alert Destinations
 
 **Local Validation** (Developer Machine)
 ```bash
-make test-fast              # Lint + syntax (2 min)
-make molecule-test          # Multi-scenario tests (12 min)
-make security               # Security scanning
+make test-fast # Lint + syntax (2 min)
+make molecule-test # Multi-scenario tests (12 min)
+make security # Security scanning
 ```
 
 **Staging Validation** (Test Environment)
@@ -338,14 +338,14 @@ make test-connectivity
 
 **Safe Deployment Process**
 1. Run in check mode first
-   ```bash
-   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --check
-   ```
+ ```bash
+ ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --check
+ ```
 
 2. Deploy to first server
-   ```bash
-   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml -l first_server
-   ```
+ ```bash
+ ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml -l first_server
+ ```
 
 3. Verify before rolling out
 4. Deploy to remaining servers

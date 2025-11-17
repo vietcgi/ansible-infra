@@ -30,7 +30,7 @@ Complete roadmap to take this framework from **beta (63%)** to **production-read
 # Create test inventory
 mkdir -p inventories/projects/auth0_test/group_vars
 cp inventories/projects/_templates/client_template.yml \
-   inventories/projects/auth0_test/group_vars/all.yml
+ inventories/projects/auth0_test/group_vars/all.yml
 
 # Edit with real Auth0 credentials
 vim inventories/projects/auth0_test/group_vars/all.yml
@@ -40,10 +40,10 @@ ansible-vault create inventories/projects/auth0_test/auth0_vault.yml
 
 # Test auth0 role only (no servers needed, local execution)
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/auth0_test/localhost.yml \
-  --ask-vault-pass \
-  -t auth0,validation \
-  --check
+ -i inventories/projects/auth0_test/localhost.yml \
+ --ask-vault-pass \
+ -t auth0,validation \
+ --check
 
 # Verify in Auth0 dashboard
 # - Check Applications created
@@ -67,30 +67,30 @@ ansible-playbook playbooks/client_onboarding.yml \
 
 **Checklist**:
 - [ ] Review vault usage in all playbooks
-  - No hardcoded secrets anywhere
-  - All Auth0 credentials in vault only
-  - .gitignore includes vault files
+ - No hardcoded secrets anywhere
+ - All Auth0 credentials in vault only
+ - .gitignore includes vault files
 
 - [ ] Check file permissions documentation
-  - .env files should be 0640 (not world-readable)
-  - Document why this is important
-  - Show how to verify on deployed systems
+ - .env files should be 0640 (not world-readable)
+ - Document why this is important
+ - Show how to verify on deployed systems
 
 - [ ] Audit Auth0 M2M app scope
-  - Only grant minimum necessary scopes
-  - Document why each scope is needed
-  - Review for principle of least privilege
+ - Only grant minimum necessary scopes
+ - Document why each scope is needed
+ - Review for principle of least privilege
 
 - [ ] HTTPS enforcement verification
-  - Auth0 URLs are HTTPS only
-  - Document certificate pinning (optional)
-  - Verify no HTTP callbacks allowed
+ - Auth0 URLs are HTTPS only
+ - Document certificate pinning (optional)
+ - Verify no HTTP callbacks allowed
 
 - [ ] Secret rotation documentation
-  - When to rotate (90-day cycle recommended)
-  - How to rotate in Auth0
-  - How to deploy rotated secrets
-  - Rollback procedures if needed
+ - When to rotate (90-day cycle recommended)
+ - How to rotate in Auth0
+ - How to deploy rotated secrets
+ - Rollback procedures if needed
 
 **Deliverable**: Security audit report (500 words)
 
@@ -107,33 +107,33 @@ ansible-playbook playbooks/client_onboarding.yml \
 **Before** (current):
 ```yaml
 - name: Validate Auth0 credentials
-  assert:
-    that:
-      - auth0_domain is defined
-    fail_msg: "auth0_domain must be defined"
+ assert:
+ that:
+ - auth0_domain is defined
+ fail_msg: "auth0_domain must be defined"
 ```
 
 **After** (improved):
 ```yaml
 - name: Validate Auth0 credentials
-  assert:
-    that:
-      - auth0_domain is defined
-      - auth0_domain | length > 0
-    fail_msg: |
-      ERROR: Auth0 domain not configured
+ assert:
+ that:
+ - auth0_domain is defined
+ - auth0_domain | length > 0
+ fail_msg: |
+ ERROR: Auth0 domain not configured
 
-      You need to set 'auth0_domain' in your inventory:
+ You need to set 'auth0_domain' in your inventory:
 
-      Example:
-        auth0_domain: "my-tenant.auth0.com"
+ Example:
+ auth0_domain: "my-tenant.auth0.com"
 
-      To get your domain:
-      1. Log in to https://auth0.com/
-      2. Dashboard → Settings → Domain
-      3. Copy the domain (without https://)
+ To get your domain:
+ 1. Log in to https://auth0.com/
+ 2. Dashboard → Settings → Domain
+ 3. Copy the domain (without https://)
 
-      For more help, see docs/AUTH0_INTEGRATION.md
+ For more help, see docs/AUTH0_INTEGRATION.md
 ```
 
 **Do this for**:
@@ -157,13 +157,13 @@ ansible-playbook playbooks/client_onboarding.yml \
 
 # Should create:
 inventories/projects/acme_corp/
-├── hosts.yml                  (template with instructions)
+├── hosts.yml (template with instructions)
 ├── group_vars/
-│   └── all.yml               (client_template.yml content)
+│ └── all.yml (client_template.yml content)
 ├── host_vars/
-│   ├── server1.yml           (example)
-│   └── server2.yml           (example)
-└── auth0_vault.yml           (empty vault template)
+│ ├── server1.yml (example)
+│ └── server2.yml (example)
+└── auth0_vault.yml (empty vault template)
 
 # Also outputs:
 # 1. Instructions for next steps
@@ -184,22 +184,22 @@ mkdir -p "${CLIENT_DIR}/group_vars" "${CLIENT_DIR}/host_vars"
 
 # Copy templates
 cp inventories/projects/_templates/client_template.yml \
-   "${CLIENT_DIR}/group_vars/all.yml"
+ "${CLIENT_DIR}/group_vars/all.yml"
 
 # Create hosts template
 cat > "${CLIENT_DIR}/hosts.yml" << 'EOF'
 ---
 # Edit this file with your server information
 all:
-  children:
-    app_servers:
-      hosts:
-        server1:
-          ansible_host: 10.0.0.10
-          ansible_user: ubuntu
-        server2:
-          ansible_host: 10.0.0.11
-          ansible_user: ubuntu
+ children:
+ app_servers:
+ hosts:
+ server1:
+ ansible_host: 10.0.0.10
+ ansible_user: ubuntu
+ server2:
+ ansible_host: 10.0.0.11
+ ansible_user: ubuntu
 EOF
 
 # Create vault template
@@ -221,7 +221,7 @@ echo "1. Edit configuration: vim ${CLIENT_DIR}/group_vars/all.yml"
 echo "2. Create vault: ansible-vault edit ${CLIENT_DIR}/auth0_vault.yml"
 echo "3. Add servers: vim ${CLIENT_DIR}/hosts.yml"
 echo "4. Deploy: ansible-playbook playbooks/client_onboarding.yml \\"
-echo "            -i ${CLIENT_DIR}/hosts.yml --ask-vault-pass"
+echo " -i ${CLIENT_DIR}/hosts.yml --ask-vault-pass"
 ```
 
 **Time**: 1-1.5 hours
@@ -239,19 +239,19 @@ echo "            -i ${CLIENT_DIR}/hosts.yml --ask-vault-pass"
 **A. example-client-nodejs/**
 ```
 inventories/projects/example-client-nodejs/
-├── README.md               # Explains the example
-├── hosts.yml              # Real server config (anonymized IPs)
-├── group_vars/all.yml     # Full configuration with comments
-└── auth0_vault.yml        # Vault template (not real secrets)
+├── README.md # Explains the example
+├── hosts.yml # Real server config (anonymized IPs)
+├── group_vars/all.yml # Full configuration with comments
+└── auth0_vault.yml # Vault template (not real secrets)
 ```
 
 **B. example-client-python/**
 ```
 inventories/projects/example-client-python/
-├── README.md              # Explains the example
-├── hosts.yml              # Django example config
-├── group_vars/all.yml     # Python-specific settings
-└── auth0_vault.yml        # Vault template
+├── README.md # Explains the example
+├── hosts.yml # Django example config
+├── group_vars/all.yml # Python-specific settings
+└── auth0_vault.yml # Vault template
 ```
 
 **Time**: 2 hours
@@ -269,8 +269,8 @@ inventories/projects/example-client-python/
 
 ## Deploy to client
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/my-client/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/my-client/hosts.yml \
+ --ask-vault-pass
 
 ## Common commands
 ansible all -i inventory.yml -m ping
@@ -316,7 +316,7 @@ ansible-playbook --syntax-check playbooks/client_onboarding.yml
 
 # Test 2: Vault file validation
 ansible-vault view inventories/projects/example-client-nodejs/auth0_vault.yml \
-  --vault-password-file=.vaultpass > /dev/null
+ --vault-password-file=.vaultpass > /dev/null
 [ $? -eq 0 ] && PASS=$((PASS+1)) || FAIL=$((FAIL+1))
 
 echo "Tests passed: $PASS, failed: $FAIL"

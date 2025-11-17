@@ -12,9 +12,9 @@
 ### Prerequisites
 ```bash
 # Verify requirements
-ansible --version          # 2.10 or higher
-python3 --version         # 3.8 or higher
-ssh -V                    # OpenSSH available
+ansible --version # 2.10 or higher
+python3 --version # 3.8 or higher
+ssh -V # OpenSSH available
 
 # Clone repository
 git clone <repo-url> ansible-infra
@@ -26,12 +26,12 @@ cd ansible-infra
 ```bash
 # 1. Configure inventory
 cp inventory.example.yml inventory.yml
-vim inventory.yml  # Edit with your infrastructure details
+vim inventory.yml # Edit with your infrastructure details
 
 # 2. Set up variables
 mkdir -p group_vars host_vars
 cp group_vars.example.yml group_vars/all.yml
-vim group_vars/all.yml  # Configure for your environment
+vim group_vars/all.yml # Configure for your environment
 
 # 3. Verify connectivity
 ansible all -i inventory.yml -m ping
@@ -88,8 +88,8 @@ kubernetes_pod_network_cidr: "10.244.0.0/16"
 kubernetes_service_cidr: "10.96.0.0/12"
 cluster_domain: "cluster.local"
 dns_servers:
-  - 10.0.0.1   # Your DNS server
-  - 8.8.8.8    # Public fallback
+ - 10.0.0.1 # Your DNS server
+ - 8.8.8.8 # Public fallback
 ```
 
 #### 1.3 Security Planning
@@ -142,7 +142,7 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ansible -N ""
 
 # Distribute SSH keys to all nodes
 for node in <node-ips>; do
-  ssh-copy-id -i ~/.ssh/id_ansible.pub ubuntu@$node
+ ssh-copy-id -i ~/.ssh/id_ansible.pub ubuntu@$node
 done
 
 # Test connectivity
@@ -155,35 +155,35 @@ ansible all -i inventory.yml -m ping
 # inventory.yml
 ---
 all:
-  vars:
-    ansible_user: ubuntu
-    ansible_private_key_file: ~/.ssh/id_ansible
-    ansible_become: yes
-    ansible_become_method: sudo
+ vars:
+ ansible_user: ubuntu
+ ansible_private_key_file: ~/.ssh/id_ansible
+ ansible_become: yes
+ ansible_become_method: sudo
 
-  children:
-    control_plane:
-      hosts:
-        cp-1:
-          ansible_host: 10.0.1.10
-        cp-2:
-          ansible_host: 10.0.1.11
-        cp-3:
-          ansible_host: 10.0.1.12
+ children:
+ control_plane:
+ hosts:
+ cp-1:
+ ansible_host: 10.0.1.10
+ cp-2:
+ ansible_host: 10.0.1.11
+ cp-3:
+ ansible_host: 10.0.1.12
 
-    workers:
-      hosts:
-        worker-1:
-          ansible_host: 10.0.2.10
-        worker-2:
-          ansible_host: 10.0.2.11
-        worker-3:
-          ansible_host: 10.0.2.12
+ workers:
+ hosts:
+ worker-1:
+ ansible_host: 10.0.2.10
+ worker-2:
+ ansible_host: 10.0.2.11
+ worker-3:
+ ansible_host: 10.0.2.12
 
-    kubernetes:
-      children:
-        control_plane:
-        workers:
+ kubernetes:
+ children:
+ control_plane:
+ workers:
 ```
 
 ### Phase 3: Framework Deployment (60-90 minutes)
@@ -193,10 +193,10 @@ all:
 ```bash
 # System hardening, monitoring, and security foundation
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t phase1 \
-  -e "security_enabled=true" \
-  -e "monitoring_enabled=true" \
-  -v
+ -t phase1 \
+ -e "security_enabled=true" \
+ -e "monitoring_enabled=true" \
+ -v
 
 # Expected: 20-30 minutes
 # Check: SSH hardening, firewall rules, monitoring agents installed
@@ -207,10 +207,10 @@ ansible-playbook -i inventory.yml playbooks/site.yml \
 ```bash
 # Advanced services: Docker, databases, service discovery
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t phase2 \
-  -e "container_runtime=containerd" \
-  -e "database_ha_enabled=true" \
-  -v
+ -t phase2 \
+ -e "container_runtime=containerd" \
+ -e "database_ha_enabled=true" \
+ -v
 
 # Expected: 30-40 minutes
 # Check: Docker/Containerd running, databases initialized
@@ -221,11 +221,11 @@ ansible-playbook -i inventory.yml playbooks/site.yml \
 ```bash
 # Full Kubernetes orchestration with service mesh and observability
 ansible-playbook -i inventory.yml playbooks/site.yml \
-  -t phase3 \
-  -e "kubernetes_enabled=true" \
-  -e "service_mesh_enabled=true" \
-  -e "monitoring_enabled=true" \
-  -v
+ -t phase3 \
+ -e "kubernetes_enabled=true" \
+ -e "service_mesh_enabled=true" \
+ -e "monitoring_enabled=true" \
+ -v
 
 # Expected: 30-50 minutes
 # Check: Kubectl works, all nodes Ready, pods running
@@ -263,9 +263,9 @@ kubectl label namespace production monitoring=enabled istio-injection=enabled
 
 # Deploy sample application
 ansible-playbook -i inventory.yml playbooks/deploy-app.yml \
-  -e "app_name=demo-app" \
-  -e "app_image=nginx:latest" \
-  -e "deployment_namespace=production"
+ -e "app_name=demo-app" \
+ -e "app_image=nginx:latest" \
+ -e "deployment_namespace=production"
 
 # Verify application
 kubectl get deployment -n production
@@ -336,7 +336,7 @@ kubectl create namespace test-recovery
 
 # Restore from backup
 kubectl apply -f /var/backups/kubernetes/applications/production-backup.yaml \
-  --namespace=test-recovery
+ --namespace=test-recovery
 
 # Verify restoration
 kubectl get all -n test-recovery
@@ -380,14 +380,14 @@ kubectl top pods -A
 
 ## Deployment Verification Checklist
 
-### Infrastructure Layer ✅
+### Infrastructure Layer 
 - [ ] All nodes in "Ready" status
 - [ ] Network connectivity verified between nodes
 - [ ] DNS resolution working correctly
 - [ ] NTP synchronization verified
 - [ ] Firewall rules configured correctly
 
-### Kubernetes Layer ✅
+### Kubernetes Layer 
 - [ ] `kubectl get nodes` shows all nodes ready
 - [ ] `kubectl get pods -A` shows all pods running
 - [ ] `kubectl cluster-info` shows all components
@@ -395,27 +395,27 @@ kubectl top pods -A
 - [ ] Metrics server collecting metrics
 - [ ] Helm package manager working
 
-### Container Runtime ✅
+### Container Runtime 
 - [ ] Container runtime (Docker/Containerd) running
 - [ ] `docker ps` or `ctr ps` shows containers
 - [ ] Container images can be pulled
 - [ ] Volume mounts working
 
-### Networking ✅
+### Networking 
 - [ ] Pod-to-pod communication working
 - [ ] Pod-to-service communication working
 - [ ] External service access working
 - [ ] Network policies enforced
 - [ ] DNS resolution in pods working
 
-### Service Mesh ✅
+### Service Mesh 
 - [ ] Istio/Linkerd control plane running
 - [ ] Sidecars injected into pods
 - [ ] mTLS certificates generated
 - [ ] VirtualServices routing traffic correctly
 - [ ] Kiali dashboard accessible
 
-### Monitoring & Observability ✅
+### Monitoring & Observability 
 - [ ] Prometheus collecting metrics
 - [ ] Grafana dashboards accessible
 - [ ] Elasticsearch receiving logs
@@ -423,13 +423,13 @@ kubectl top pods -A
 - [ ] Jaeger collecting traces
 - [ ] Alerts configured and working
 
-### Storage ✅
+### Storage 
 - [ ] Storage classes available
 - [ ] PersistentVolumes provisioned
 - [ ] PersistentVolumeClaims bound
 - [ ] Data persistence working
 
-### Disaster Recovery ✅
+### Disaster Recovery 
 - [ ] Backup scripts in place
 - [ ] Backup cron jobs configured
 - [ ] Backups being created
@@ -523,84 +523,84 @@ kubectl get servicemonitor -A -o yaml | grep interval
 ## Performance Optimization Tips
 
 1. **Right-size resource requests and limits**
-   - Monitor actual usage
-   - Set requests = 90th percentile
-   - Set limits = 1.5-2x requests
+ - Monitor actual usage
+ - Set requests = 90th percentile
+ - Set limits = 1.5-2x requests
 
 2. **Enable pod horizontal autoscaling**
-   ```yaml
-   minReplicas: 3
-   maxReplicas: 10
-   targetCPUUtilizationPercentage: 80
-   ```
+ ```yaml
+ minReplicas: 3
+ maxReplicas: 10
+ targetCPUUtilizationPercentage: 80
+ ```
 
 3. **Use node selectors and affinity**
-   - Pin workloads to appropriate nodes
-   - Spread replicas across nodes
-   - Use pod anti-affinity for HA
+ - Pin workloads to appropriate nodes
+ - Spread replicas across nodes
+ - Use pod anti-affinity for HA
 
 4. **Optimize storage**
-   - Use appropriate storage classes
-   - Set retention policies
-   - Monitor storage usage
+ - Use appropriate storage classes
+ - Set retention policies
+ - Monitor storage usage
 
 5. **Monitor and log efficiently**
-   - Use sampling for high-volume logs
-   - Prune old data regularly
-   - Use efficient metrics collection
+ - Use sampling for high-volume logs
+ - Prune old data regularly
+ - Use efficient metrics collection
 
 ---
 
 ## Security Best Practices
 
 1. **RBAC (Role-Based Access Control)**
-   - Principle of least privilege
-   - Regular access reviews
-   - Audit all changes
+ - Principle of least privilege
+ - Regular access reviews
+ - Audit all changes
 
 2. **Network Policies**
-   - Default deny all traffic
-   - Explicitly allow required traffic
-   - Segment by namespace
+ - Default deny all traffic
+ - Explicitly allow required traffic
+ - Segment by namespace
 
 3. **Pod Security Standards**
-   - Use restricted profiles
-   - Run as non-root
-   - Use read-only filesystems
+ - Use restricted profiles
+ - Run as non-root
+ - Use read-only filesystems
 
 4. **Secrets Management**
-   - Use Kubernetes Secrets with encryption
-   - Consider external secret management
-   - Regular rotation of credentials
+ - Use Kubernetes Secrets with encryption
+ - Consider external secret management
+ - Regular rotation of credentials
 
 5. **Backup & Disaster Recovery**
-   - Regular backup testing
-   - Offsite backup copies
-   - Document recovery procedures
+ - Regular backup testing
+ - Offsite backup copies
+ - Document recovery procedures
 
 ---
 
 ## Next Steps After Deployment
 
 1. **Week 1: Stabilization**
-   - Monitor cluster health
-   - Review and tune alerts
-   - Train operations team
+ - Monitor cluster health
+ - Review and tune alerts
+ - Train operations team
 
 2. **Week 2-4: Optimization**
-   - Baseline performance metrics
-   - Optimize resource allocations
-   - Performance tuning
+ - Baseline performance metrics
+ - Optimize resource allocations
+ - Performance tuning
 
 3. **Month 2: Production Hardening**
-   - Security audit
-   - Disaster recovery drill
-   - Load testing
+ - Security audit
+ - Disaster recovery drill
+ - Load testing
 
 4. **Ongoing: Operations**
-   - Regular backups
-   - Security updates
-   - Capacity planning
+ - Regular backups
+ - Security updates
+ - Capacity planning
 
 ---
 

@@ -19,7 +19,7 @@ For an experienced operator, basic client onboarding takes ~15 minutes:
 # 1. Create client configuration
 mkdir -p inventories/projects/acme_corp
 cp inventories/projects/_templates/client_template.yml \
-   inventories/projects/acme_corp/group_vars/all.yml
+ inventories/projects/acme_corp/group_vars/all.yml
 
 # 2. Configure Auth0 credentials
 ansible-vault create inventories/projects/acme_corp/auth0_vault.yml
@@ -27,18 +27,18 @@ ansible-vault create inventories/projects/acme_corp/auth0_vault.yml
 # 3. Create inventory
 cat > inventories/projects/acme_corp/hosts.yml << 'EOF'
 all:
-  children:
-    app_servers:
-      hosts:
-        server1:
-          ansible_host: IP_ADDRESS
-          ansible_user: ubuntu
+ children:
+ app_servers:
+ hosts:
+ server1:
+ ansible_host: IP_ADDRESS
+ ansible_user: ubuntu
 EOF
 
 # 4. Run onboarding
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass
 
 # 5. Verify and deploy applications
 ```
@@ -105,9 +105,9 @@ vim group_vars/all.yml
 
 **Key customizations**:
 ```yaml
-client_name: "acme-corp"                    # Your client name
-client_domain: "acme.example.com"           # Your domain
-client_env: "production"                    # Your environment
+client_name: "acme-corp" # Your client name
+client_domain: "acme.example.com" # Your domain
+client_env: "production" # Your environment
 
 # For Node.js application
 app_framework: "nodejs"
@@ -157,29 +157,29 @@ Create `hosts.yml` with your target servers:
 cat > hosts.yml << 'EOF'
 ---
 all:
-  vars:
-    # Default connection settings
-    ansible_user: "ubuntu"
-    ansible_ssh_private_key_file: "~/.ssh/id_rsa"
-    ansible_python_interpreter: "/usr/bin/python3"
+ vars:
+ # Default connection settings
+ ansible_user: "ubuntu"
+ ansible_ssh_private_key_file: "~/.ssh/id_rsa"
+ ansible_python_interpreter: "/usr/bin/python3"
 
-  children:
-    app_servers:
-      hosts:
-        acme-prod-01:
-          ansible_host: "203.0.113.10"
-          app_framework: "nodejs"
-          app_name: "api-gateway"
+ children:
+ app_servers:
+ hosts:
+ acme-prod-01:
+ ansible_host: "203.0.113.10"
+ app_framework: "nodejs"
+ app_name: "api-gateway"
 
-        acme-prod-02:
-          ansible_host: "203.0.113.11"
-          app_framework: "nodejs"
-          app_name: "web-app"
+ acme-prod-02:
+ ansible_host: "203.0.113.11"
+ app_framework: "nodejs"
+ app_name: "web-app"
 
-    database_servers:
-      hosts:
-        acme-db-01:
-          ansible_host: "203.0.113.20"
+ database_servers:
+ hosts:
+ acme-db-01:
+ ansible_host: "203.0.113.20"
 EOF
 ```
 
@@ -193,7 +193,7 @@ ansible all -i hosts.yml -m ping
 
 # Expected output:
 # acme-prod-01 | SUCCESS => {
-#     "ping": "pong"
+# "ping": "pong"
 # }
 ```
 
@@ -214,10 +214,10 @@ First, do a dry run to preview changes without applying them:
 
 ```bash
 ansible-playbook ../../playbooks/client_onboarding.yml \
-  -i hosts.yml \
-  --ask-vault-pass \
-  --check \
-  --diff
+ -i hosts.yml \
+ --ask-vault-pass \
+ --check \
+ --diff
 ```
 
 You'll be prompted to enter the vault password. Review the output for:
@@ -232,9 +232,9 @@ Once verified, apply the actual configuration:
 
 ```bash
 ansible-playbook ../../playbooks/client_onboarding.yml \
-  -i hosts.yml \
-  --ask-vault-pass \
-  -v
+ -i hosts.yml \
+ --ask-vault-pass \
+ -v
 ```
 
 Monitor the output for:
@@ -290,21 +290,21 @@ timedatectl
 Log in to your Auth0 tenant and verify:
 
 1. **Applications Created**:
-   - Navigate to Applications → Applications
-   - Should see your client applications listed
-   - Verify client IDs match generated credentials
+ - Navigate to Applications → Applications
+ - Should see your client applications listed
+ - Verify client IDs match generated credentials
 
 2. **Users Created** (if configured):
-   - Navigate to User Management → Users
-   - Verify admin user and other users are present
+ - Navigate to User Management → Users
+ - Verify admin user and other users are present
 
 3. **Roles Configured** (if configured):
-   - Navigate to User Management → Roles
-   - Verify roles and permissions are defined
+ - Navigate to User Management → Roles
+ - Verify roles and permissions are defined
 
 4. **Social Login** (if configured):
-   - Navigate to Connections
-   - Verify Google, Microsoft, or other providers enabled
+ - Navigate to Connections
+ - Verify Google, Microsoft, or other providers enabled
 
 ### 3. Verify Application Configuration
 
@@ -323,9 +323,9 @@ grep AUTH0 /opt/acme-corp-app/.env | cut -d= -f1
 # AUTH0_AUDIENCE
 
 # Check framework-specific configs
-ls -la /opt/acme-corp-app/auth0.config.js    # Node.js
-ls -la /opt/acme-corp-app/auth0_config.py    # Python
-ls -la /opt/acme-corp-app/config/auth0.go    # Go
+ls -la /opt/acme-corp-app/auth0.config.js # Node.js
+ls -la /opt/acme-corp-app/auth0_config.py # Python
+ls -la /opt/acme-corp-app/config/auth0.go # Go
 ```
 
 ### 4. Test Auth0 Connectivity
@@ -335,13 +335,13 @@ From application server, test Auth0 API:
 ```bash
 # Using curl to test Auth0 API
 curl -X POST https://YOUR_DOMAIN/oauth/token \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"client_id\": \"YOUR_CLIENT_ID\",
-    \"client_secret\": \"YOUR_CLIENT_SECRET\",
-    \"audience\": \"https://YOUR_DOMAIN/api/v2/\",
-    \"grant_type\": \"client_credentials\"
-  }"
+ -H "Content-Type: application/json" \
+ -d "{
+ \"client_id\": \"YOUR_CLIENT_ID\",
+ \"client_secret\": \"YOUR_CLIENT_SECRET\",
+ \"audience\": \"https://YOUR_DOMAIN/api/v2/\",
+ \"grant_type\": \"client_credentials\"
+ }"
 
 # Should return an access token (no errors)
 ```
@@ -356,8 +356,8 @@ app_framework: "nodejs"
 app_name: "api-gateway"
 app_root_path: "/opt/api-gateway"
 app_env_vars:
-  API_PORT: "3000"
-  LOG_LEVEL: "info"
+ API_PORT: "3000"
+ LOG_LEVEL: "info"
 ```
 
 **After onboarding**, deploy Node.js app:
@@ -375,8 +375,8 @@ app_framework: "django"
 app_name: "web-portal"
 app_root_path: "/opt/web-portal"
 app_env_vars:
-  DATABASE_URL: "postgresql://user:pass@db.example.com/web_portal"
-  REDIS_URL: "redis://cache.example.com:6379"
+ DATABASE_URL: "postgresql://user:pass@db.example.com/web_portal"
+ REDIS_URL: "redis://cache.example.com:6379"
 ```
 
 **After onboarding**, deploy Django:
@@ -394,15 +394,15 @@ Run onboarding multiple times with different `app_*` variables:
 ```bash
 # First application
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -e "app_name=api-gateway app_framework=nodejs"
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -e "app_name=api-gateway app_framework=nodejs"
 
 # Second application
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -e "app_name=web-app app_framework=nodejs"
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -e "app_name=web-app app_framework=nodejs"
 ```
 
 ### Scenario 4: Staging and Production
@@ -412,13 +412,13 @@ Create separate inventory directories:
 ```bash
 inventories/projects/acme_corp/
 ├── staging/
-│   ├── hosts.yml
-│   ├── group_vars/all.yml
-│   └── auth0_vault.yml
+│ ├── hosts.yml
+│ ├── group_vars/all.yml
+│ └── auth0_vault.yml
 └── prod/
-    ├── hosts.yml
-    ├── group_vars/all.yml
-    └── auth0_vault.yml
+ ├── hosts.yml
+ ├── group_vars/all.yml
+ └── auth0_vault.yml
 ```
 
 Deploy to each environment separately:
@@ -426,13 +426,13 @@ Deploy to each environment separately:
 ```bash
 # Deploy to staging
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/staging/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/acme_corp/staging/hosts.yml \
+ --ask-vault-pass
 
 # Deploy to production
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/prod/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/acme_corp/prod/hosts.yml \
+ --ask-vault-pass
 ```
 
 ## Post-Onboarding
@@ -493,11 +493,11 @@ Set up monitoring for the client infrastructure:
 ```bash
 # Deploy monitoring agent
 ansible-playbook playbooks/setup_monitoring.yml \
-  -i inventories/projects/acme_corp/hosts.yml
+ -i inventories/projects/acme_corp/hosts.yml
 
 # Configure alerts
 ansible-playbook playbooks/configure_alerts.yml \
-  -i inventories/projects/acme_corp/hosts.yml
+ -i inventories/projects/acme_corp/hosts.yml
 ```
 
 ### 5. Establish Support Process
@@ -521,17 +521,17 @@ To remove client infrastructure:
 ```bash
 # Dry run to preview removal
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -e "onboarding_state=absent" \
-  --check \
-  --diff
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -e "onboarding_state=absent" \
+ --check \
+ --diff
 
 # Apply removal
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acme_corp/hosts.yml \
-  --ask-vault-pass \
-  -e "onboarding_state=absent"
+ -i inventories/projects/acme_corp/hosts.yml \
+ --ask-vault-pass \
+ -e "onboarding_state=absent"
 ```
 
 This will:

@@ -33,73 +33,73 @@ According to Ansible documentation and community practices:
 #### [CHECK] System Updates & Packages
 - **Industry Standard**: Update package cache, upgrade packages, install core utilities
 - **Your Implementation**:
-  - `system_update.yml` handles both Debian and RedHat package managers
-  - `core_packages.yml` installs universal tools (git, curl, wget, vim, htop, etc.)
-  - Uses Ansible `package` module (distribution-agnostic)
-  - **Status**: PERFECT
+ - `system_update.yml` handles both Debian and RedHat package managers
+ - `core_packages.yml` installs universal tools (git, curl, wget, vim, htop, etc.)
+ - Uses Ansible `package` module (distribution-agnostic)
+ - **Status**: PERFECT
 
 #### [CHECK] Time Synchronization (NTP/Chrony)
 - **Industry Standard**: Essential for security, logging, and application coordination
 - **Your Implementation**:
-  - `ntp.yml` configures NTP servers
-  - Supports multiple NTP servers with fallback
-  - Timezone management included
-  - **Status**: PERFECT
+ - `ntp.yml` configures NTP servers
+ - Supports multiple NTP servers with fallback
+ - Timezone management included
+ - **Status**: PERFECT
 
 #### [CHECK] SSH Hardening
 - **Industry Standard**: Key-based authentication, restricted permissions, disable weak protocols
 - **Your Implementation**:
-  - `ssh_hardening.yml` with comprehensive sshd_config template
-  - Post-quantum cryptography (sntrup761x25519)
-  - AEAD ciphers (chacha20-poly1305, aes-gcm)
-  - Disable root login, password authentication
-  - Backup and validation before applying
-  - **Status**: PERFECT (exceeds standard)
+ - `ssh_hardening.yml` with comprehensive sshd_config template
+ - Post-quantum cryptography (sntrup761x25519)
+ - AEAD ciphers (chacha20-poly1305, aes-gcm)
+ - Disable root login, password authentication
+ - Backup and validation before applying
+ - **Status**: PERFECT (exceeds standard)
 
 #### [CHECK] Firewall Configuration
 - **Industry Standard**: Restrict unnecessary network access
 - **Your Implementation**:
-  - `firewall_alf.yml` for application-level filtering
-  - `firewall_pf.yml` for packet filtering
-  - Rate limiting for SSH
-  - Stealth mode enabled
-  - **Status**: EXCELLENT (exceeds standard for common role)
+ - `firewall_alf.yml` for application-level filtering
+ - `firewall_pf.yml` for packet filtering
+ - Rate limiting for SSH
+ - Stealth mode enabled
+ - **Status**: EXCELLENT (exceeds standard for common role)
 
 #### [CHECK] Sysctl/Kernel Parameters
 - **Industry Standard**: Network hardening, performance tuning, security settings
 - **Your Implementation**:
-  - `sysctl.yml` manages kernel parameters
-  - TCP/IP hardening (source route protection, ICMP restrictions)
-  - Network performance tuning
-  - **Status**: PERFECT
+ - `sysctl.yml` manages kernel parameters
+ - TCP/IP hardening (source route protection, ICMP restrictions)
+ - Network performance tuning
+ - **Status**: PERFECT
 
 #### [CHECK] System Limits & Resource Constraints
 - **Industry Standard**: Prevent resource exhaustion, DOS attacks
 - **Your Implementation**:
-  - `limits.yml` sets file descriptor limits
-  - Configurable per-user limits
-  - **Status**: GOOD - Industry standard
+ - `limits.yml` sets file descriptor limits
+ - Configurable per-user limits
+ - **Status**: GOOD - Industry standard
 
 #### [CHECK] DNS Configuration
 - **Industry Standard**: Reliable DNS resolution, optional custom servers
 - **Your Implementation**:
-  - `dns.yml` configures /etc/resolv.conf
-  - Multiple DNS servers with fallback
-  - **Status**: GOOD - Industry standard
+ - `dns.yml` configures /etc/resolv.conf
+ - Multiple DNS servers with fallback
+ - **Status**: GOOD - Industry standard
 
 #### [CHECK] Audit Logging
 - **Industry Standard**: Compliance, security monitoring, incident response
 - **Your Implementation**:
-  - `audit.yml` installs and configures auditd
-  - Configurable audit rules
-  - **Status**: PERFECT (STIG requirement, OpenStack standard)
+ - `audit.yml` installs and configures auditd
+ - Configurable audit rules
+ - **Status**: PERFECT (STIG requirement, OpenStack standard)
 
 #### [CHECK] Logging Configuration
 - **Industry Standard**: Centralized logging, log rotation, retention
 - **Your Implementation**:
-  - `logging.yml` manages rsyslog/journald
-  - Log retention configuration
-  - **Status**: GOOD - Industry standard
+ - `logging.yml` manages rsyslog/journald
+ - Log retention configuration
+ - **Status**: GOOD - Industry standard
 
 ---
 
@@ -120,7 +120,7 @@ Your role currently supports:
 **Pattern Used**: Conditional tasks based on `ansible_os_family`
 
 ```yaml
-when: ansible_os_family == "Debian"  # or "RedHat", "Darwin"
+when: ansible_os_family == "Debian" # or "RedHat", "Darwin"
 ```
 
 **Best Practices Alignment**:
@@ -221,38 +221,38 @@ Your role vs. linux-system-roles:
 ## Strengths
 
 1. **Comprehensive Foundation**
-   - Covers all essential baseline configurations
-   - No critical gaps in coverage
-   - Ready for production use
+ - Covers all essential baseline configurations
+ - No critical gaps in coverage
+ - Ready for production use
 
 2. **Multi-Distribution Design**
-   - Works across Ubuntu, Debian, CentOS, RedHat, Rocky, AlmaLinux
-   - Proper conditional patterns
-   - Maintainable code
+ - Works across Ubuntu, Debian, CentOS, RedHat, Rocky, AlmaLinux
+ - Proper conditional patterns
+ - Maintainable code
 
 3. **Security-First Approach**
-   - Modern cryptography (post-quantum safe)
-   - AEAD ciphers with authentication
-   - Audit logging enabled by default
-   - Sysctl hardening included
+ - Modern cryptography (post-quantum safe)
+ - AEAD ciphers with authentication
+ - Audit logging enabled by default
+ - Sysctl hardening included
 
 4. **Idempotent & Safe**
-   - Can be run repeatedly without issues
-   - Configuration validation before applying
-   - Proper backup strategy
-   - Graceful error handling
+ - Can be run repeatedly without issues
+ - Configuration validation before applying
+ - Proper backup strategy
+ - Graceful error handling
 
 5. **Flexible & Configurable**
-   - 79+ configuration variables
-   - Sensible defaults (can deploy as-is)
-   - Easy per-environment customization
-   - All security settings configurable
+ - 79+ configuration variables
+ - Sensible defaults (can deploy as-is)
+ - Easy per-environment customization
+ - All security settings configurable
 
 6. **Professional Quality**
-   - Comprehensive documentation
-   - Section headers for navigation
-   - Debug output for visibility
-   - Completion summaries
+ - Comprehensive documentation
+ - Section headers for navigation
+ - Debug output for visibility
+ - Completion summaries
 
 ---
 
@@ -262,9 +262,9 @@ Your role vs. linux-system-roles:
 **If you plan to support Alpine containers:**
 ```yaml
 - name: Install packages (Alpine)
-  apk:
-    name: "{{ common_core_packages }}"
-  when: ansible_distribution == "Alpine"
+ apk:
+ name: "{{ common_core_packages }}"
+ when: ansible_distribution == "Alpine"
 ```
 
 **Current Status**: Not required unless Alpine is in scope

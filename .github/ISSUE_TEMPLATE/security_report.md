@@ -15,11 +15,11 @@ Please follow our responsible disclosure policy:
 1. **Do NOT** create this issue if it describes an active vulnerability
 2. Instead, email: **security@your-org.com** with details
 3. Include:
-   - Vulnerability description
-   - Impact assessment
-   - Reproduction steps
-   - Suggested fix (if available)
-   - Your contact information
+ - Vulnerability description
+ - Impact assessment
+ - Reproduction steps
+ - Suggested fix (if available)
+ - Your contact information
 4. Allow 48 hours for response before public disclosure
 
 For more information, see: [SECURITY.md](../../SECURITY.md)

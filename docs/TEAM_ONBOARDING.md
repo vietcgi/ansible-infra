@@ -23,14 +23,14 @@ Before starting, ensure you have:
 
 ```bash
 # Required
-git --version              # Any recent version
-ansible --version          # 2.10 or later
-python3 --version          # 3.8 or later
-ssh -V                      # OpenSSH (usually pre-installed)
+git --version # Any recent version
+ansible --version # 2.10 or later
+python3 --version # 3.8 or later
+ssh -V # OpenSSH (usually pre-installed)
 
 # Nice to have
-vim --version              # Or your favorite editor
-jq --version               # For JSON processing
+vim --version # Or your favorite editor
+jq --version # For JSON processing
 ```
 
 ### Installation (if needed)
@@ -44,7 +44,7 @@ sudo apt update
 sudo apt install ansible git python3-pip
 
 # Check installation
-ansible --version  # Should show 2.10+
+ansible --version # Should show 2.10+
 ```
 
 ### Access & Permissions
@@ -71,12 +71,12 @@ cd ansible-infra
 ls -la
 
 # You should see:
-# - roles/              (reusable Ansible roles)
-# - playbooks/          (main playbooks)
-# - inventories/        (server definitions)
-# - docs/              (documentation)
-# - ansible.cfg        (Ansible configuration)
-# - requirements.yml   (dependencies)
+# - roles/ (reusable Ansible roles)
+# - playbooks/ (main playbooks)
+# - inventories/ (server definitions)
+# - docs/ (documentation)
+# - ansible.cfg (Ansible configuration)
+# - requirements.yml (dependencies)
 ```
 
 ### Step 2: Install Dependencies (5 minutes)
@@ -142,16 +142,16 @@ cd /path/to/ansible-infra
 
 ```
 inventories/projects/
-├── example-project/        ← Your first project
-├── customer-alpha/         ← Another project
-└── staging/               ← Another project
+├── example-project/ ← Your first project
+├── customer-alpha/ ← Another project
+└── staging/ ← Another project
 ```
 
 **Roles**: Reusable components used by projects
 
 ```
 roles/
-├── common/                 ← Foundation setup
+├── common/ ← Foundation setup
 ├── system_hardening_macos/ ← macOS-specific
 └── (add your own)
 ```
@@ -163,19 +163,19 @@ roles/
 Variables are applied in this order (later ones override earlier):
 
 ```
-1. roles/<role>/defaults/main.yml           [Framework defaults]
-   ↓ (override with)
-2. inventories/shared/global_vars.yml       [Cross-project]
-   ↓ (override with)
-3. group_vars/all.yml                       [Project-wide]
-   ↓ (override with)
-4. group_vars/<group>.yml                   [Group-specific]
-   ↓ (override with)
-5. host_vars/<host>.yml                     [Host-specific]
-   ↓ (override with)
-6. group_vars/all_vault.yml                 [Encrypted secrets]
-   ↓ (override with)
-7. ansible-playbook -e "var=value"         [Runtime]
+1. roles/<role>/defaults/main.yml [Framework defaults]
+ ↓ (override with)
+2. inventories/shared/global_vars.yml [Cross-project]
+ ↓ (override with)
+3. group_vars/all.yml [Project-wide]
+ ↓ (override with)
+4. group_vars/<group>.yml [Group-specific]
+ ↓ (override with)
+5. host_vars/<host>.yml [Host-specific]
+ ↓ (override with)
+6. group_vars/all_vault.yml [Encrypted secrets]
+ ↓ (override with)
+7. ansible-playbook -e "var=value" [Runtime]
 ```
 
 **Example**: SSH port configuration
@@ -185,13 +185,13 @@ Variables are applied in this order (later ones override earlier):
 common_ssh_port: 22
 
 # Project override (group_vars/all.yml)
-common_ssh_port: 2222  # All servers in project use 2222
+common_ssh_port: 2222 # All servers in project use 2222
 
 # Group override (group_vars/webservers.yml)
-common_ssh_port: 2223  # Web servers use 2223
+common_ssh_port: 2223 # Web servers use 2223
 
 # Host override (host_vars/web01.yml)
-common_ssh_port: 2224  # Only web01 uses 2224
+common_ssh_port: 2224 # Only web01 uses 2224
 
 # Result:
 # web01: 2224 (host override)
@@ -238,9 +238,9 @@ vault_grafana_admin_password: "secret123"
 
 # Access in playbook
 - name: Set Grafana password
-  grafana_user:
-    password: "{{ vault_grafana_admin_password }}"
-    no_log: true  # Important: never log passwords
+ grafana_user:
+ password: "{{ vault_grafana_admin_password }}"
+ no_log: true # Important: never log passwords
 ```
 
 ---
@@ -261,11 +261,11 @@ edit inventories/projects/my-first-project/inventory.yml
 
 # Add a sample server:
 all:
-  children:
-    webservers:
-      hosts:
-        web01:
-          ansible_host: localhost  # For testing locally
+ children:
+ webservers:
+ hosts:
+ web01:
+ ansible_host: localhost # For testing locally
 
 # 4. Edit project defaults
 edit inventories/projects/my-first-project/group_vars/all.yml
@@ -296,7 +296,7 @@ common_ssh_port: 2222
 
 # 3. Verify with ansible
 ansible all -i inventories/projects/my-first-project -m debug \
-  -a "var=common_ssh_port"
+ -a "var=common_ssh_port"
 
 # Expected: web01 should show 2222
 ```
@@ -306,18 +306,18 @@ ansible all -i inventories/projects/my-first-project -m debug \
 ```bash
 # 1. Run provision playbook in check mode (no changes)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-first-project \
-  --check \
-  --diff
+ -i inventories/projects/my-first-project \
+ --check \
+ --diff
 
 # 2. Review what WOULD change
 # (Don't worry if some tasks are skipped)
 
 # 3. Run specific task
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-first-project \
-  --tags "ntp" \
-  --check
+ -i inventories/projects/my-first-project \
+ --tags "ntp" \
+ --check
 
 # Expected: Should show NTP configuration changes
 ```
@@ -327,7 +327,7 @@ ansible-playbook playbooks/provision.yml \
 ```bash
 # 1. Copy host template
 cp inventories/projects/my-first-project/host_vars/EXAMPLE_HOST.yml \
-   inventories/projects/my-first-project/host_vars/web01.yml
+ inventories/projects/my-first-project/host_vars/web01.yml
 
 # 2. Edit host config
 edit inventories/projects/my-first-project/host_vars/web01.yml
@@ -339,7 +339,7 @@ disk_capacity_gb: 500
 
 # 3. Verify with ansible
 ansible web01 -i inventories/projects/my-first-project -m debug \
-  -a "var=hostname"
+ -a "var=hostname"
 
 # Expected: Should show "web01-prod"
 ```
@@ -399,22 +399,22 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/my-new-project
 ```bash
 # Provision (OS-level setup)
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 
 # Configure (services)
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 ```
 
 ### Test Without Making Changes
 
 ```bash
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --check \
-  --diff
+ -i inventories/projects/my-project \
+ --check \
+ --diff
 ```
 
 ### Run Specific Roles/Tags
@@ -422,13 +422,13 @@ ansible-playbook playbooks/provision.yml \
 ```bash
 # Only NTP
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --tags "ntp"
+ -i inventories/projects/my-project \
+ --tags "ntp"
 
 # Skip monitoring
 ansible-playbook playbooks/configure.yml \
-  -i inventories/projects/my-project \
-  --skip-tags "monitoring"
+ -i inventories/projects/my-project \
+ --skip-tags "monitoring"
 ```
 
 ### Get Host Information
@@ -483,8 +483,8 @@ chmod 600 ~/.vault_password
 
 # Use in playbook
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --vault-password-file ~/.vault_password
+ -i inventories/projects/my-project \
+ --vault-password-file ~/.vault_password
 ```
 
 ### "Playbook hangs or times out"
@@ -492,13 +492,13 @@ ansible-playbook playbooks/provision.yml \
 ```bash
 # Run with verbose output to see where it's hanging
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  -vvv
+ -i inventories/projects/my-project \
+ -vvv
 
 # Increase timeout
 ansible-playbook playbooks/provision.yml \
-  -i inventories/projects/my-project \
-  --timeout=60
+ -i inventories/projects/my-project \
+ --timeout=60
 ```
 
 ---
@@ -508,29 +508,29 @@ ansible-playbook playbooks/provision.yml \
 ### When You're Stuck
 
 1. **Check the docs**
-   - README.md - Overview
-   - docs/ARCHITECTURE.md - Design decisions
-   - docs/NEW_PROJECT_QUICKSTART.md - Step-by-step guide
-   - docs/TROUBLESHOOTING.md - Common issues
+ - README.md - Overview
+ - docs/ARCHITECTURE.md - Design decisions
+ - docs/NEW_PROJECT_QUICKSTART.md - Step-by-step guide
+ - docs/TROUBLESHOOTING.md - Common issues
 
 2. **Run in verbose mode**
-   ```bash
-   ansible-playbook playbooks/provision.yml \
-     -i inventories/projects/my-project \
-     -vvv
-   ```
+ ```bash
+ ansible-playbook playbooks/provision.yml \
+ -i inventories/projects/my-project \
+ -vvv
+ ```
 
 3. **Check server logs**
-   ```bash
-   ssh ubuntu@10.0.1.10
-   tail -f /var/log/syslog
-   journalctl -u grafana-agent -f
-   ```
+ ```bash
+ ssh ubuntu@10.0.1.10
+ tail -f /var/log/syslog
+ journalctl -u grafana-agent -f
+ ```
 
 4. **Ask for help**
-   - Create a GitHub issue with full output
-   - Include playbook output (redact secrets)
-   - Include your inventory (redact IPs/credentials)
+ - Create a GitHub issue with full output
+ - Include playbook output (redact secrets)
+ - Include your inventory (redact IPs/credentials)
 
 ### Learning Path
 
@@ -585,7 +585,7 @@ You're now part of the infrastructure team. This framework is designed to make y
 - Never commit unencrypted secrets
 - Ask questions - that's how we all learn
 
-Happy deploying! 🚀
+Happy deploying! 
 
 ---
 

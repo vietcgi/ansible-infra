@@ -1,6 +1,6 @@
 # ansible-infra Framework - Complete Overview
 
-**Status**: ✅ **PRODUCTION READY** (100%)
+**Status**: **PRODUCTION READY** (100%)
 **Date**: November 16, 2025
 **Latest Commit**: 46bc7f9
 
@@ -22,46 +22,46 @@ An **enterprise-grade infrastructure automation framework** that deploys, config
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ CLIENT ONBOARDING PLAYBOOK (state-based)               │
-│ Single entry point for all deployments                 │
+│ CLIENT ONBOARDING PLAYBOOK (state-based) │
+│ Single entry point for all deployments │
 └──────────────────┬──────────────────────────────────────┘
-                   │
-        ┌──────────┴──────────┬──────────────┐
-        │                     │              │
-        ▼                     ▼              ▼
-┌──────────────┐     ┌──────────────┐    ┌──────────────┐
-│ COMMON ROLE  │     │ AUTH0 ROLE   │    │ APP INTEG.   │
-│ (OS Baseline)│     │ (Identity)   │    │ (Frameworks) │
-│              │     │              │    │              │
-│ • Packages   │     │ • M2M Apps   │    │ • Node.js    │
-│ • Hostname   │     │ • Regular    │    │ • Python     │
-│ • DNS        │     │   Apps       │    │ • Django     │
-│ • Firewall   │     │ • Users      │    │ • Go         │
-│ • SSH        │     │ • Roles      │    │ • Java       │
-│ • Fail2ban   │     │              │    │              │
-│ • Updates    │     └──────────────┘    └──────────────┘
+ │
+ ┌──────────┴──────────┬──────────────┐
+ │ │ │
+ ▼ ▼ ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ COMMON ROLE │ │ AUTH0 ROLE │ │ APP INTEG. │
+│ (OS Baseline)│ │ (Identity) │ │ (Frameworks) │
+│ │ │ │ │ │
+│ • Packages │ │ • M2M Apps │ │ • Node.js │
+│ • Hostname │ │ • Regular │ │ • Python │
+│ • DNS │ │ Apps │ │ • Django │
+│ • Firewall │ │ • Users │ │ • Go │
+│ • SSH │ │ • Roles │ │ • Java │
+│ • Fail2ban │ │ │ │ │
+│ • Updates │ └──────────────┘ └──────────────┘
 └──────────────┘
 ```
 
 ### Three-Tier Design
 
 1. **Common Role** (1100+ lines)
-   - OS baseline configuration
-   - Network and security setup
-   - Package management
-   - Works on 10+ distributions
+ - OS baseline configuration
+ - Network and security setup
+ - Package management
+ - Works on 10+ distributions
 
 2. **Auth0 Role** (957 lines)
-   - Identity management integration
-   - Application creation and configuration
-   - User management
-   - Role-based access control
+ - Identity management integration
+ - Application creation and configuration
+ - User management
+ - Role-based access control
 
 3. **App Integration Role** (1316+ lines)
-   - Multi-framework support
-   - Configuration file generation
-   - Environment variable management
-   - Framework-specific setup
+ - Multi-framework support
+ - Configuration file generation
+ - Environment variable management
+ - Framework-specific setup
 
 ---
 
@@ -74,8 +74,8 @@ Deploy complete client environments with a single command:
 ```bash
 ./scripts/create-client.sh mycompany --domain mycompany.com
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/mycompany/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/mycompany/hosts.yml \
+ --ask-vault-pass
 ```
 
 ### Multi-Framework Support
@@ -89,24 +89,24 @@ Automatically configures applications for:
 
 ### Security Features
 
-- ✅ Vault-encrypted credentials (all secrets)
-- ✅ SSH key-based authentication only
-- ✅ Firewall configuration (UFW/IPTables)
-- ✅ Fail2ban intrusion detection
-- ✅ Automatic security updates
-- ✅ File permissions hardening (0640 for .env)
-- ✅ HTTPS-only communication
-- ✅ OWASP Top 10 compliant
-- ✅ CIS Benchmark compatible
+- Vault-encrypted credentials (all secrets)
+- SSH key-based authentication only
+- Firewall configuration (UFW/IPTables)
+- Fail2ban intrusion detection
+- Automatic security updates
+- File permissions hardening (0640 for .env)
+- HTTPS-only communication
+- OWASP Top 10 compliant
+- CIS Benchmark compatible
 
 ### Testing & Validation
 
-- ✅ Docker-based multi-OS testing (8 distributions)
-- ✅ YAML syntax validation (all files)
-- ✅ Role structure verification
-- ✅ Security audit (95/100 score)
-- ✅ Test scripts included
-- ✅ Example clients provided
+- Docker-based multi-OS testing (8 distributions)
+- YAML syntax validation (all files)
+- Role structure verification
+- Security audit (95/100 score)
+- Test scripts included
+- Example clients provided
 
 ---
 
@@ -115,60 +115,60 @@ Automatically configures applications for:
 ```
 ansible-infra/
 ├── playbooks/
-│   └── client_onboarding.yml          # Main orchestration playbook
+│ └── client_onboarding.yml # Main orchestration playbook
 │
 ├── roles/
-│   ├── common/                        # OS baseline (11 tasks)
-│   │   ├── tasks/
-│   │   ├── defaults/
-│   │   ├── vars/
-│   │   └── README.md
-│   │
-│   ├── auth0/                         # Auth0 integration (8 tasks)
-│   │   ├── tasks/
-│   │   ├── defaults/
-│   │   ├── vars/
-│   │   └── README.md
-│   │
-│   └── app_integration/               # App setup (8 tasks, 5 frameworks)
-│       ├── tasks/
-│       ├── defaults/
-│       ├── templates/
-│       └── README.md
+│ ├── common/ # OS baseline (11 tasks)
+│ │ ├── tasks/
+│ │ ├── defaults/
+│ │ ├── vars/
+│ │ └── README.md
+│ │
+│ ├── auth0/ # Auth0 integration (8 tasks)
+│ │ ├── tasks/
+│ │ ├── defaults/
+│ │ ├── vars/
+│ │ └── README.md
+│ │
+│ └── app_integration/ # App setup (8 tasks, 5 frameworks)
+│ ├── tasks/
+│ ├── defaults/
+│ ├── templates/
+│ └── README.md
 │
 ├── inventories/
-│   └── projects/
-│       ├── _templates/
-│       │   ├── client_template.yml   # Configuration template
-│       │   └── vault_template.yml    # Secrets template
-│       │
-│       ├── example-client-nodejs/    # Complete Node.js example
-│       │   ├── hosts.yml
-│       │   ├── group_vars/all.yml
-│       │   └── README.md
-│       │
-│       └── example-client-python/    # Complete Python example
-│           ├── hosts.yml
-│           ├── group_vars/all.yml
-│           └── README.md
+│ └── projects/
+│ ├── _templates/
+│ │ ├── client_template.yml # Configuration template
+│ │ └── vault_template.yml # Secrets template
+│ │
+│ ├── example-client-nodejs/ # Complete Node.js example
+│ │ ├── hosts.yml
+│ │ ├── group_vars/all.yml
+│ │ └── README.md
+│ │
+│ └── example-client-python/ # Complete Python example
+│ ├── hosts.yml
+│ ├── group_vars/all.yml
+│ └── README.md
 │
 ├── scripts/
-│   ├── create-client.sh              # Automated client setup
-│   ├── test-syntax.sh                # YAML validation
-│   ├── test-roles.sh                 # Role verification
-│   └── test-multipass.sh             # Real VM testing
+│ ├── create-client.sh # Automated client setup
+│ ├── test-syntax.sh # YAML validation
+│ ├── test-roles.sh # Role verification
+│ └── test-multipass.sh # Real VM testing
 │
 ├── docs/
-│   ├── AUTH0_INTEGRATION.md          # Detailed Auth0 guide
-│   ├── CLIENT_ONBOARDING.md          # Step-by-step walkthrough
-│   └── SECURITY_AUDIT.md             # 95/100 security review
+│ ├── AUTH0_INTEGRATION.md # Detailed Auth0 guide
+│ ├── CLIENT_ONBOARDING.md # Step-by-step walkthrough
+│ └── SECURITY_AUDIT.md # 95/100 security review
 │
 └── [Documentation Files]
-    ├── PRODUCTION_READY.md           # Certification document
-    ├── TESTING_GUIDE.md              # 3 testing options
-    ├── NEXT_STEPS.md                 # Implementation roadmap
-    ├── TEST_RESULTS_SUMMARY.md       # Comprehensive test results
-    └── README.md                     # Quick start guide
+ ├── PRODUCTION_READY.md # Certification document
+ ├── TESTING_GUIDE.md # 3 testing options
+ ├── NEXT_STEPS.md # Implementation roadmap
+ ├── TEST_RESULTS_SUMMARY.md # Comprehensive test results
+ └── README.md # Quick start guide
 ```
 
 ---
@@ -205,8 +205,8 @@ ansible all -i inventories/projects/mycompany/hosts.yml -m ping
 
 # Deploy with single command
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/mycompany/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/mycompany/hosts.yml \
+ --ask-vault-pass
 ```
 
 ### 4. Verify
@@ -244,29 +244,29 @@ ansible-playbook playbooks/client_onboarding.yml \
 ## Testing & Validation
 
 ### Docker-Based Multi-OS Testing
-✅ Ubuntu 20.04, 22.04, 24.04
-✅ Debian 11, 12
-✅ Alpine 3.16, 3.20
-✅ CentOS Stream 8
+ Ubuntu 20.04, 22.04, 24.04
+ Debian 11, 12
+ Alpine 3.16, 3.20
+ CentOS Stream 8
 
 **Result**: All distributions verified, framework accessible
 
 ### YAML Syntax Validation
-✅ All playbooks checked
-✅ All role tasks validated
-✅ Variable references verified
-✅ No syntax errors found
+ All playbooks checked
+ All role tasks validated
+ Variable references verified
+ No syntax errors found
 
 ### Security Audit
-✅ 95/100 comprehensive review
-✅ No hardcoded secrets
-✅ OWASP Top 10 compliant
-✅ CIS Benchmarks implemented
+ 95/100 comprehensive review
+ No hardcoded secrets
+ OWASP Top 10 compliant
+ CIS Benchmarks implemented
 
 ### Real-World Testing
-✅ Example clients provided (Node.js + Python)
-✅ Configuration templates tested
-✅ Deployment procedures verified
+ Example clients provided (Node.js + Python)
+ Configuration templates tested
+ Deployment procedures verified
 
 ---
 
@@ -279,13 +279,13 @@ ansible-playbook playbooks/client_onboarding.yml \
 
 | Control | Status | Details |
 |---------|--------|---------|
-| Credential Management | ✅ | Vault encryption, no hardcoded secrets |
-| Network Security | ✅ | HTTPS only, TLS validation |
-| SSH Hardening | ✅ | Key-only auth, root login disabled |
-| File Permissions | ✅ | 0640 for .env, 0600 for credentials |
-| Auth0 Integration | ✅ | M2M app proper scopes |
-| OWASP Compliance | ✅ | No top 10 vulnerabilities |
-| CIS Benchmarks | ✅ | Firewall, updates, fail2ban |
+| Credential Management | | Vault encryption, no hardcoded secrets |
+| Network Security | | HTTPS only, TLS validation |
+| SSH Hardening | | Key-only auth, root login disabled |
+| File Permissions | | 0640 for .env, 0600 for credentials |
+| Auth0 Integration | | M2M app proper scopes |
+| OWASP Compliance | | No top 10 vulnerabilities |
+| CIS Benchmarks | | Firewall, updates, fail2ban |
 
 ---
 
@@ -305,11 +305,11 @@ bash scripts/test-multipass.sh
 
 # Dry-run deployment (no changes)
 ansible-playbook playbooks/client_onboarding.yml \
-  -i <inventory> --check --diff
+ -i <inventory> --check --diff
 
 # Actually deploy
 ansible-playbook playbooks/client_onboarding.yml \
-  -i <inventory> --ask-vault-pass
+ -i <inventory> --ask-vault-pass
 
 # View vault contents
 ansible-vault view inventories/projects/<client>/auth0_vault.yml
@@ -325,15 +325,15 @@ client_env: "production"
 
 # Auth0 applications
 auth0_applications:
-  - name: "myapp"
-    type: "regular_web"
-    redirect_uris: ["https://mycompany.com/callback"]
+ - name: "myapp"
+ type: "regular_web"
+ redirect_uris: ["https://mycompany.com/callback"]
 
 # Application framework
-app_framework: "nodejs"  # or python, django, go, java
+app_framework: "nodejs" # or python, django, go, java
 app_name: "myapp"
 app_env_vars:
-  API_PORT: "3000"
+ API_PORT: "3000"
 ```
 
 ---
@@ -353,17 +353,17 @@ app_env_vars:
 ## Support & Maintenance
 
 ### Included in Framework
-- ✅ Complete documentation (2500+ lines)
-- ✅ Example clients (Node.js + Python)
-- ✅ Automated testing scripts
-- ✅ Security guidelines
-- ✅ Troubleshooting guides
+- Complete documentation (2500+ lines)
+- Example clients (Node.js + Python)
+- Automated testing scripts
+- Security guidelines
+- Troubleshooting guides
 
 ### Ongoing Updates
-- ✅ Auth0 integration automatically updated
-- ✅ Security patches applied via playbook re-runs
-- ✅ Framework changes backward compatible
-- ✅ Testing performed before each update
+- Auth0 integration automatically updated
+- Security patches applied via playbook re-runs
+- Framework changes backward compatible
+- Testing performed before each update
 
 ---
 
@@ -375,7 +375,7 @@ app_env_vars:
 ```bash
 ./scripts/create-client.sh acmecorp --domain acmecorp.com
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/acmecorp/hosts.yml
+ -i inventories/projects/acmecorp/hosts.yml
 ```
 
 **Results**:
@@ -390,23 +390,23 @@ ansible-playbook playbooks/client_onboarding.yml \
 ## Next Steps
 
 1. **Try It Today**
-   - Use TESTING_GUIDE.md (30 min - 2 hours)
-   - Choose from 3 testing options
+ - Use TESTING_GUIDE.md (30 min - 2 hours)
+ - Choose from 3 testing options
 
 2. **Deploy First Customer**
-   - Use scripts/create-client.sh
-   - Follow CLIENT_ONBOARDING.md
-   - Reference example clients
+ - Use scripts/create-client.sh
+ - Follow CLIENT_ONBOARDING.md
+ - Reference example clients
 
 3. **Scale to Many Customers**
-   - Framework supports unlimited clients
-   - Same process for each customer
-   - Central management possible
+ - Framework supports unlimited clients
+ - Same process for each customer
+ - Central management possible
 
 4. **Monitor & Maintain**
-   - Auth0 logging and dashboards
-   - Application monitoring integration
-   - Credential rotation (90-day cycle)
+ - Auth0 logging and dashboards
+ - Application monitoring integration
+ - Credential rotation (90-day cycle)
 
 ---
 
@@ -432,13 +432,13 @@ ansible-playbook playbooks/client_onboarding.yml \
 
 **ansible-infra** is a production-ready, fully-tested, comprehensively documented infrastructure automation framework that makes deploying client environments fast, secure, and reliable.
 
-- ✅ **Ready to Use**: Deploy first client in 15 minutes
-- ✅ **Fully Tested**: 8+ distributions, all syntax validated
-- ✅ **Well Documented**: 2500+ lines of guides
-- ✅ **Enterprise Security**: 95/100 audit score
-- ✅ **Flexible & Scalable**: 5+ frameworks, unlimited clients
+- **Ready to Use**: Deploy first client in 15 minutes
+- **Fully Tested**: 8+ distributions, all syntax validated
+- **Well Documented**: 2500+ lines of guides
+- **Enterprise Security**: 95/100 audit score
+- **Flexible & Scalable**: 5+ frameworks, unlimited clients
 
-**Status**: ✅ **PRODUCTION CERTIFIED - READY FOR CUSTOMER DEPLOYMENT**
+**Status**: **PRODUCTION CERTIFIED - READY FOR CUSTOMER DEPLOYMENT**
 
 ---
 
@@ -452,7 +452,7 @@ ansible-playbook playbooks/client_onboarding.yml \
 
 ---
 
-**Framework Status**: ✅ 100% Production Ready
+**Framework Status**: 100% Production Ready
 **Last Updated**: November 16, 2025
 **Certification Level**: Full (100%)
 **Next Validation**: With next major framework update

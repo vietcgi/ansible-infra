@@ -28,7 +28,7 @@ This is a complete working example of a client configuration for deploying Node.
 ```bash
 # Copy example configuration
 cp -r inventories/projects/example-client-nodejs \
-      inventories/projects/mycompany
+ inventories/projects/mycompany
 
 # Edit configuration
 cd inventories/projects/mycompany
@@ -40,11 +40,11 @@ Edit `hosts.yml` and replace example IPs with your servers:
 
 ```yaml
 app_servers:
-  hosts:
-    prod-01:
-      ansible_host: "203.0.113.10"    # ← Replace with your IP
-    prod-02:
-      ansible_host: "203.0.113.11"    # ← Replace with your IP
+ hosts:
+ prod-01:
+ ansible_host: "203.0.113.10" # ← Replace with your IP
+ prod-02:
+ ansible_host: "203.0.113.11" # ← Replace with your IP
 ```
 
 ### 3. Create Vault
@@ -88,16 +88,16 @@ ansible all -i hosts.yml -m ping --ask-vault-pass
 ```bash
 # Dry-run to preview changes
 ansible-playbook ../../playbooks/client_onboarding.yml \
-  -i hosts.yml \
-  --ask-vault-pass \
-  --check \
-  --diff
+ -i hosts.yml \
+ --ask-vault-pass \
+ --check \
+ --diff
 
 # If everything looks good, deploy:
 ansible-playbook ../../playbooks/client_onboarding.yml \
-  -i hosts.yml \
-  --ask-vault-pass \
-  -v
+ -i hosts.yml \
+ --ask-vault-pass \
+ -v
 ```
 
 ## Configuration Breakdown
@@ -110,42 +110,42 @@ ansible-playbook ../../playbooks/client_onboarding.yml \
 
 ```yaml
 prod-01:
-  ansible_host: "203.0.113.10"
-  app_framework: "nodejs"
-  app_name: "api-gateway"
+ ansible_host: "203.0.113.10"
+ app_framework: "nodejs"
+ app_name: "api-gateway"
 ```
 
 ### group_vars/all.yml
 
 **Client Information**:
 ```yaml
-client_name: "example"                          # Company/client name
-client_domain: "example.com"                    # Primary domain
-client_env: "production"                        # Environment
+client_name: "example" # Company/client name
+client_domain: "example.com" # Primary domain
+client_env: "production" # Environment
 ```
 
 **Auth0 Applications**:
 ```yaml
 auth0_applications:
-  - name: "example-api"                         # Application name in Auth0
-    type: "non_interactive"                     # Backend app (no UI)
+ - name: "example-api" # Application name in Auth0
+ type: "non_interactive" # Backend app (no UI)
 
-  - name: "example-webapp"                      # Web application
-    type: "regular_web"
-    redirect_uris:
-      - "https://example.com/callback"
-      - "https://app.example.com/callback"
+ - name: "example-webapp" # Web application
+ type: "regular_web"
+ redirect_uris:
+ - "https://example.com/callback"
+ - "https://app.example.com/callback"
 ```
 
 **Node.js Application**:
 ```yaml
-app_framework: "nodejs"                         # Activates Node.js config
-app_name: "api-gateway"                         # App identifier
-app_root_path: "/opt/api-gateway"              # Where app is deployed
+app_framework: "nodejs" # Activates Node.js config
+app_name: "api-gateway" # App identifier
+app_root_path: "/opt/api-gateway" # Where app is deployed
 app_env_vars:
-  API_PORT: "3000"
-  LOG_LEVEL: "info"
-  CACHE_ENABLED: "true"
+ API_PORT: "3000"
+ LOG_LEVEL: "info"
+ CACHE_ENABLED: "true"
 ```
 
 ## What Gets Deployed
@@ -155,32 +155,32 @@ After running the playbook, you'll have:
 ### On Each Server
 
 1. **OS Baseline** (via common role):
-   - Security updates applied
-   - Firewall configured
-   - SSH hardened
-   - System users created
+ - Security updates applied
+ - Firewall configured
+ - SSH hardened
+ - System users created
 
 2. **Auth0 Configuration** (via auth0 role):
-   - Applications created in Auth0 tenant
-   - Users registered (if configured)
-   - Roles and permissions set up
-   - Social login enabled (if configured)
+ - Applications created in Auth0 tenant
+ - Users registered (if configured)
+ - Roles and permissions set up
+ - Social login enabled (if configured)
 
 3. **Application Setup** (via app_integration role):
-   - `.env` file generated with Auth0 credentials
-   - `auth0.config.js` created for Node.js
-   - File permissions secured (0640)
-   - Ready for application deployment
+ - `.env` file generated with Auth0 credentials
+ - `auth0.config.js` created for Node.js
+ - File permissions secured (0640)
+ - Ready for application deployment
 
 ### Generated Files
 
 ```
 /opt/api-gateway/
-├── .env                          # Auth0 domain, client ID, secret
-├── auth0.config.js              # Node.js configuration module
-├── package.json                 # (you provide)
-├── server.js                    # (you provide)
-└── node_modules/                # (npm install)
+├── .env # Auth0 domain, client ID, secret
+├── auth0.config.js # Node.js configuration module
+├── package.json # (you provide)
+├── server.js # (you provide)
+└── node_modules/ # (npm install)
 ```
 
 ### In Auth0 Dashboard
@@ -204,15 +204,15 @@ const Auth0Config = require('./auth0.config');
 const { ManagementClient } = require('auth0');
 
 const management = new ManagementClient({
-  domain: process.env.AUTH0_DOMAIN,
-  clientId: process.env.AUTH0_CLIENT_ID,
-  clientSecret: process.env.AUTH0_CLIENT_SECRET
+ domain: process.env.AUTH0_DOMAIN,
+ clientId: process.env.AUTH0_CLIENT_ID,
+ clientSecret: process.env.AUTH0_CLIENT_SECRET
 });
 
 // Example: Get all users
 management.getUsers()
-  .then(users => console.log('Users:', users))
-  .catch(err => console.error('Error:', err));
+ .then(users => console.log('Users:', users))
+ .catch(err => console.error('Error:', err));
 ```
 
 ## Modifications
@@ -222,18 +222,18 @@ management.getUsers()
 Edit `hosts.yml`:
 ```yaml
 app_servers:
-  hosts:
-    prod-01:
-      ansible_host: "203.0.113.10"
-      app_name: "api-gateway"
+ hosts:
+ prod-01:
+ ansible_host: "203.0.113.10"
+ app_name: "api-gateway"
 
-    prod-02:
-      ansible_host: "203.0.113.11"
-      app_name: "api-gateway"
+ prod-02:
+ ansible_host: "203.0.113.11"
+ app_name: "api-gateway"
 
-    prod-03:                            # ← New server
-      ansible_host: "203.0.113.12"
-      app_name: "api-gateway"
+ prod-03: # ← New server
+ ansible_host: "203.0.113.12"
+ app_name: "api-gateway"
 ```
 
 ### Deploy Different Apps on Different Servers
@@ -260,20 +260,20 @@ Create separate directories:
 ```bash
 inventories/projects/example-client-nodejs/
 ├── staging/
-│   ├── hosts.yml
-│   ├── group_vars/all.yml
-│   └── auth0_vault.yml
+│ ├── hosts.yml
+│ ├── group_vars/all.yml
+│ └── auth0_vault.yml
 └── production/
-    ├── hosts.yml
-    ├── group_vars/all.yml
-    └── auth0_vault.yml
+ ├── hosts.yml
+ ├── group_vars/all.yml
+ └── auth0_vault.yml
 ```
 
 Deploy to staging:
 ```bash
 ansible-playbook playbooks/client_onboarding.yml \
-  -i inventories/projects/example-client-nodejs/staging/hosts.yml \
-  --ask-vault-pass
+ -i inventories/projects/example-client-nodejs/staging/hosts.yml \
+ --ask-vault-pass
 ```
 
 ## Security Checklist
@@ -325,16 +325,16 @@ Check playbook output for errors in app_integration role. Verify:
 
 ## Next Steps
 
-1. ✅ Copy example to your project
-2. ✅ Update server IPs and names
-3. ✅ Create vault with Auth0 credentials
-4. ✅ Customize configuration
-5. ✅ Test connectivity
-6. ✅ Deploy with playbook
-7. ✅ Verify in Auth0 dashboard
-8. ✅ Deploy your Node.js application
-9. ✅ Test Auth0 login flow
-10. ✅ Set up monitoring and backups
+1. Copy example to your project
+2. Update server IPs and names
+3. Create vault with Auth0 credentials
+4. Customize configuration
+5. Test connectivity
+6. Deploy with playbook
+7. Verify in Auth0 dashboard
+8. Deploy your Node.js application
+9. Test Auth0 login flow
+10. Set up monitoring and backups
 
 ## Documentation
 

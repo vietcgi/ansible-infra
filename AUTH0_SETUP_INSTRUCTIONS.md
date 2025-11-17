@@ -1,17 +1,17 @@
 # Auth0 M2M Setup Instructions - REQUIRED SCOPES FIX
 
-**Status**: Token authentication working ✅ | Scopes need to be added ⚠️
+**Status**: Token authentication working | Scopes need to be added ⚠️
 
 ---
 
 ## What We Found
 
 Your Auth0 M2M application successfully authenticates:
-- ✅ Domain: `vietcgi.us.auth0.com`
-- ✅ Client ID: Valid
-- ✅ Client Secret: Valid
-- ✅ Token generation: Working
-- ❌ **Management API scopes**: Missing or incorrectly configured
+- Domain: `vietcgi.us.auth0.com`
+- Client ID: Valid
+- Client Secret: Valid
+- Token generation: Working
+- **Management API scopes**: Missing or incorrectly configured
 
 **Error**: `401 Unauthorized - Invalid token` when accessing Management API endpoints
 
@@ -24,56 +24,56 @@ Your Auth0 M2M application successfully authenticates:
 ### Step-by-Step Instructions
 
 **1. Go to Auth0 Dashboard**
-   - Visit: https://manage.auth0.com/
-   - Sign in with your account
+ - Visit: https://manage.auth0.com/
+ - Sign in with your account
 
 **2. Navigate to M2M Applications**
-   - Left sidebar → Applications → Applications
-   - Find: Your M2M app (check the name/Client ID)
+ - Left sidebar → Applications → Applications
+ - Find: Your M2M app (check the name/Client ID)
 
 **3. Open Application Settings**
-   - Click on your application name
+ - Click on your application name
 
 **4. Go to "APIs" Tab**
-   - Look for the APIs section in the application settings
-   - You should see "Auth0 Management API"
+ - Look for the APIs section in the application settings
+ - You should see "Auth0 Management API"
 
 **5. Grant All Scopes**
-   - If "Auth0 Management API" is NOT listed:
-     - Click "Add API"
-     - Select "Auth0 Management API"
+ - If "Auth0 Management API" is NOT listed:
+ - Click "Add API"
+ - Select "Auth0 Management API"
 
-   - If it IS listed but scopes are limited:
-     - Click the dropdown or settings icon next to it
-     - Select the checkbox for "Expand All Scopes" OR manually check:
-       - `read:clients`
-       - `create:clients`
-       - `update:clients`
-       - `delete:clients`
-       - `read:users`
-       - `create:users`
-       - `update:users`
-       - `delete:users`
-       - `read:roles`
-       - `create:roles`
-       - `update:roles`
-       - `delete:roles`
-       - `read:connections`
-       - `create:connections`
-       - `update:connections`
-       - `delete:connections`
-       - `read:permissions`
-       - `create:permissions`
-       - `update:permissions`
-       - `delete:permissions`
+ - If it IS listed but scopes are limited:
+ - Click the dropdown or settings icon next to it
+ - Select the checkbox for "Expand All Scopes" OR manually check:
+ - `read:clients`
+ - `create:clients`
+ - `update:clients`
+ - `delete:clients`
+ - `read:users`
+ - `create:users`
+ - `update:users`
+ - `delete:users`
+ - `read:roles`
+ - `create:roles`
+ - `update:roles`
+ - `delete:roles`
+ - `read:connections`
+ - `create:connections`
+ - `update:connections`
+ - `delete:connections`
+ - `read:permissions`
+ - `create:permissions`
+ - `update:permissions`
+ - `delete:permissions`
 
 **6. Save Changes**
-   - Click "Save" or "Update"
+ - Click "Save" or "Update"
 
 **7. Test Again**
-   - Run the test script again
-   - Token will now include the required scopes
-   - Management API endpoints should respond
+ - Run the test script again
+ - Token will now include the required scopes
+ - Management API endpoints should respond
 
 ---
 
@@ -95,7 +95,7 @@ Without the proper scopes, even with a valid token, Auth0 rejects all requests.
 **Your M2M Application**:
 - Domain: `vietcgi.us.auth0.com`
 - Client ID: `UKa51NnAoM7uGA7TgaKpQhbxh4PD4tiv`
-- Current Status: ✅ Authentication working, ⚠️ Scopes pending
+- Current Status: Authentication working, ⚠️ Scopes pending
 
 ---
 
@@ -145,13 +145,13 @@ The framework needs **all of these** to:
 ## After Scopes Are Added
 
 The ansible-infra framework will:
-1. ✅ Authenticate to Auth0
-2. ✅ Create applications with proper OIDC settings
-3. ✅ Provision users
-4. ✅ Configure roles and permissions
-5. ✅ Set up connections
-6. ✅ Generate application configuration files
-7. ✅ Store credentials securely
+1. Authenticate to Auth0
+2. Create applications with proper OIDC settings
+3. Provision users
+4. Configure roles and permissions
+5. Set up connections
+6. Generate application configuration files
+7. Store credentials securely
 
 ---
 

@@ -2,7 +2,7 @@
 
 Deploy production-grade infrastructure in **15 minutes with 100% consistency**.
 
-**Status**: ✅ Production-Ready | 🚀 Quick Deploy | 🔒 Secure | 📚 Documented
+**Status**: Production-Ready | Quick Deploy | 🔒 Secure | Documented
 
 ---
 
@@ -30,7 +30,7 @@ edit inventories/projects/my-project/group_vars/all.yml
 # 3. Deploy (< 5 minutes)
 ansible-playbook playbooks/provision.yml -i inventories/projects/my-project
 
-# Done ✅
+# Done 
 ```
 
 **Total time**: 15 minutes to production-ready infrastructure
@@ -70,14 +70,14 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/my-project
 
 ## Key Features
 
-✅ **Multi-Project Support** - Manage unlimited isolated projects
-✅ **Automated Project Creation** - New project in 30 seconds
-✅ **Configuration Management** - Variable hierarchy for easy overrides
-✅ **Security by Default** - SSH hardened, firewall configured, secrets encrypted
-✅ **Monitoring Ready** - Grafana, Prometheus, Loki included
-✅ **Fully Idempotent** - Safe to run repeatedly, no side effects
-✅ **Comprehensive Documentation** - Everything documented and tested
-✅ **Team Ready** - 1-hour onboarding guide included
+ **Multi-Project Support** - Manage unlimited isolated projects
+ **Automated Project Creation** - New project in 30 seconds
+ **Configuration Management** - Variable hierarchy for easy overrides
+ **Security by Default** - SSH hardened, firewall configured, secrets encrypted
+ **Monitoring Ready** - Grafana, Prometheus, Loki included
+ **Fully Idempotent** - Safe to run repeatedly, no side effects
+ **Comprehensive Documentation** - Everything documented and tested
+ **Team Ready** - 1-hour onboarding guide included
 
 ---
 
@@ -85,34 +85,34 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/my-project
 
 ```
 ansible-infra/
-├── START_HERE.md                    ← Read this first
-├── README.md                        ← You are here
-├── MULTI_PROJECT_IMPLEMENTATION_PLAN.md  ← Enterprise roadmap
+├── START_HERE.md ← Read this first
+├── README.md ← You are here
+├── MULTI_PROJECT_IMPLEMENTATION_PLAN.md ← Enterprise roadmap
 │
 ├── docs/
-│   ├── NEW_PROJECT_QUICKSTART.md    ← Deploy in 15 minutes
-│   ├── ARCHITECTURE.md              ← Technical design
-│   ├── PROJECT_REUSABILITY_GUIDE.md ← Advanced patterns
-│   └── TEAM_ONBOARDING.md          ← Team training
+│ ├── NEW_PROJECT_QUICKSTART.md ← Deploy in 15 minutes
+│ ├── ARCHITECTURE.md ← Technical design
+│ ├── PROJECT_REUSABILITY_GUIDE.md ← Advanced patterns
+│ └── TEAM_ONBOARDING.md ← Team training
 │
 ├── scripts/
-│   └── scaffold-project.sh          ← Create new projects
+│ └── scaffold-project.sh ← Create new projects
 │
 ├── playbooks/
-│   ├── provision.yml                ← OS setup
-│   ├── configure.yml                ← Services
-│   └── maintenance.yml              ← Updates
+│ ├── provision.yml ← OS setup
+│ ├── configure.yml ← Services
+│ └── maintenance.yml ← Updates
 │
 ├── roles/
-│   ├── common/                      ← Universal
-│   └── system_hardening_macos/      ← macOS
+│ ├── common/ ← Universal
+│ └── system_hardening_macos/ ← macOS
 │
 └── inventories/
-    ├── projects/
-    │   ├── _templates/              ← Templates
-    │   └── example-project/         ← Example
-    ├── shared/                      ← Cross-project defaults
-    └── (legacy)                     ← Old structure
+ ├── projects/
+ │ ├── _templates/ ← Templates
+ │ └── example-project/ ← Example
+ ├── shared/ ← Cross-project defaults
+ └── (legacy) ← Old structure
 ```
 
 ---
@@ -124,7 +124,7 @@ ansible-infra/
 ./scripts/scaffold-project.sh hetzner-java
 # Edit: add IP, Java version
 ansible-playbook playbooks/provision.yml -i inventories/projects/hetzner-java
-# ✅ Done in 15 minutes
+# Done in 15 minutes
 ```
 
 ### Deploy Gaming Server
@@ -132,7 +132,7 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/hetzner-java
 ./scripts/scaffold-project.sh gaming-server
 # Edit: add Wine/Proton config
 ansible-playbook playbooks/provision.yml -i inventories/projects/gaming-server
-# ✅ Done in 15 minutes
+# Done in 15 minutes
 ```
 
 ### Deploy Multiple Environments
@@ -142,7 +142,7 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/gaming-server
 # Edit each with different settings
 ansible-playbook playbooks/provision.yml -i inventories/projects/myapp-staging
 ansible-playbook playbooks/provision.yml -i inventories/projects/myapp-production
-# ✅ Both done in 30 minutes, fully consistent
+# Both done in 30 minutes, fully consistent
 ```
 
 ---
@@ -150,14 +150,14 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/myapp-productio
 ## What Gets Deployed (Automatically)
 
 Every project gets:
-- ✅ Latest security patches
-- ✅ SSH hardened (key-based only)
-- ✅ Firewall configured
-- ✅ NTP time sync
-- ✅ System hardening (sysctl, limits)
-- ✅ Audit logging
-- ✅ Monitoring agents
-- ✅ Core packages
+- Latest security patches
+- SSH hardened (key-based only)
+- Firewall configured
+- NTP time sync
+- System hardening (sysctl, limits)
+- Audit logging
+- Monitoring agents
+- Core packages
 
 You only customize what's different for your project.
 
@@ -210,7 +210,7 @@ GPL-3.0-or-later
 
 ---
 
-**Framework Status**: Production Ready ✅
+**Framework Status**: Production Ready 
 **Version**: 1.0
 **Last Updated**: 2025-11-16
 

@@ -52,14 +52,14 @@ Comprehensive testing was conducted on the Ansible framework across available di
 
 **VM Specifications**:
 ```
-Name:               test-ubuntu24-1763323681
-State:              Running
-Architecture:       ARM64 (Apple Silicon)
-Kernel:             6.8.0-87-generic #88-Ubuntu PREEMPT_DYNAMIC
-Release:            Ubuntu 24.04.3 LTS
-CPU Allocation:     2 cores
-Memory Allocated:   2 GB
-Disk Allocated:     10 GB
+Name: test-ubuntu24-1763323681
+State: Running
+Architecture: ARM64 (Apple Silicon)
+Kernel: 6.8.0-87-generic #88-Ubuntu PREEMPT_DYNAMIC
+Release: Ubuntu 24.04.3 LTS
+CPU Allocation: 2 cores
+Memory Allocated: 2 GB
+Disk Allocated: 10 GB
 ```
 
 **Test Results**:
@@ -84,14 +84,14 @@ Disk Allocated:     10 GB
 
 **VM Specifications**:
 ```
-Name:               test-ubuntu22-1763325526
-State:              Running
-Architecture:       ARM64 (Apple Silicon)
-Kernel:             5.15.0-161-generic #171-Ubuntu
-Release:            Ubuntu 22.04 LTS
-CPU Allocation:     2 cores
-Memory Allocated:    2 GB
-Disk Allocated:      10 GB
+Name: test-ubuntu22-1763325526
+State: Running
+Architecture: ARM64 (Apple Silicon)
+Kernel: 5.15.0-161-generic #171-Ubuntu
+Release: Ubuntu 22.04 LTS
+CPU Allocation: 2 cores
+Memory Allocated: 2 GB
+Disk Allocated: 10 GB
 ```
 
 **Test Results**:
@@ -117,42 +117,42 @@ The following distributions are supported in framework code but could not be tes
 - **Status**: SUPPORTED in code
 - **Tested via**: Code inspection
 - **Evidence**:
-  - `roles/common/tasks/system_update.yml` - Alpine APK conditional tasks
-  - `roles/common/tasks/core_packages.yml` - Alpine package installation
-  - `roles/common/meta/main.yml` - Alpine platforms declared (3.16-3.20)
+ - `roles/common/tasks/system_update.yml` - Alpine APK conditional tasks
+ - `roles/common/tasks/core_packages.yml` - Alpine package installation
+ - `roles/common/meta/main.yml` - Alpine platforms declared (3.16-3.20)
 - **Image Availability**: Alpine image not accessible via Multipass on macOS at test time
 
 #### Debian 11, 12
 - **Status**: SUPPORTED in code
 - **Tested via**: Code inspection + Ubuntu 22.04/24.04 Debian-family testing
 - **Evidence**:
-  - `roles/common/tasks/system_update.yml` - Debian-based conditional tasks
-  - Debian package manager detection confirmed working on Ubuntu tests
+ - `roles/common/tasks/system_update.yml` - Debian-based conditional tasks
+ - Debian package manager detection confirmed working on Ubuntu tests
 - **Image Availability**: Debian-specific images not available via Multipass on macOS
 
 #### CentOS Stream 8, 9
 - **Status**: SUPPORTED in code
 - **Tested via**: Code inspection
 - **Evidence**:
-  - `roles/common/tasks/system_update.yml` - RedHat YUM/DNF conditionals
-  - `roles/common/tasks/core_packages.yml` - RedHat package installation
-  - `roles/common/meta/main.yml` - CentOS platforms declared
+ - `roles/common/tasks/system_update.yml` - RedHat YUM/DNF conditionals
+ - `roles/common/tasks/core_packages.yml` - RedHat package installation
+ - `roles/common/meta/main.yml` - CentOS platforms declared
 - **Image Availability**: CentOS images not available via Multipass on macOS
 
 #### Rocky Linux 8, 9
 - **Status**: SUPPORTED in code
 - **Tested via**: Code inspection
 - **Evidence**:
-  - RedHat family package manager support covers Rocky
-  - `roles/common/meta/main.yml` - Rocky platforms declared
+ - RedHat family package manager support covers Rocky
+ - `roles/common/meta/main.yml` - Rocky platforms declared
 - **Image Availability**: Rocky images not available via Multipass on macOS
 
 #### AlmaLinux 8, 9
 - **Status**: SUPPORTED in code
 - **Tested via**: Code inspection
 - **Evidence**:
-  - RedHat family package manager support covers AlmaLinux
-  - `roles/common/meta/main.yml` - AlmaLinux platforms declared
+ - RedHat family package manager support covers AlmaLinux
+ - `roles/common/meta/main.yml` - AlmaLinux platforms declared
 - **Image Availability**: AlmaLinux images not available via Multipass on macOS
 
 #### macOS 12, 13, 14
@@ -160,9 +160,9 @@ The following distributions are supported in framework code but could not be tes
 - **Testing**: Deployed as separate `system_hardening_macos` role
 - **Tested via**: Code inspection and framework metadata
 - **Evidence**:
-  - Dedicated `roles/system_hardening_macos/` directory
-  - macOS-specific tasks (firewall_alf.yml, firewall_pf.yml)
-  - `roles/system_hardening_macos/meta/main.yml` - macOS platforms declared
+ - Dedicated `roles/system_hardening_macos/` directory
+ - macOS-specific tasks (firewall_alf.yml, firewall_pf.yml)
+ - `roles/system_hardening_macos/meta/main.yml` - macOS platforms declared
 
 ---
 
@@ -250,25 +250,25 @@ All 9 core components verified through direct code inspection:
 
 ### Live Test Execution Summary
 ```
-Total Distributions Tested:     2
-Distributions Passed:           2
-Distributions Failed:           0
-Success Rate:                   100%
+Total Distributions Tested: 2
+Distributions Passed: 2
+Distributions Failed: 0
+Success Rate: 100%
 
 Test Categories per OS:
-  - OS Detection:             2/2 ✓
-  - Python Availability:      2/2 ✓
-  - Package Manager:          2/2 ✓
-  - Framework Transfer:       2/2 ✓
-  - Role Structure:           2/2 ✓
+ - OS Detection: 2/2 ✓
+ - Python Availability: 2/2 ✓
+ - Package Manager: 2/2 ✓
+ - Framework Transfer: 2/2 ✓
+ - Role Structure: 2/2 ✓
 ```
 
 ### Code-Based Verification Summary
 ```
-Total Components Verified:      9
-All Components Verified:        9/9
-Supported Platforms:            11
-Package Managers Supported:     4 (apt, yum/dnf, apk, homebrew)
+Total Components Verified: 9
+All Components Verified: 9/9
+Supported Platforms: 11
+Package Managers Supported: 4 (apt, yum/dnf, apk, homebrew)
 ```
 
 ---
@@ -335,9 +335,9 @@ For comprehensive testing of all distributions, consider:
 
 ### Supported in Code (9/11)
 - ✓ All 9 untested distributions: EXPECTED TO WORK
-  - Based on proper Ansible conditionals
-  - Following Ansible best practices
-  - Aligned with industry standards
+ - Based on proper Ansible conditionals
+ - Following Ansible best practices
+ - Aligned with industry standards
 
 ---
 

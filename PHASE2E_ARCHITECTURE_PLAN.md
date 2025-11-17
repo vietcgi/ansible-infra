@@ -31,13 +31,13 @@ PHASE 2.E implements enterprise-grade database high availability and replication
 #### PostgreSQL HA Architecture
 ```
 Primary (Master)
-    ↓ (streaming replication)
+ ↓ (streaming replication)
 Replica-1 (Standby)
-    ↓ (cascading replication - optional)
+ ↓ (cascading replication - optional)
 Replica-2 (Standby)
 
 Failover Manager (Patroni/etcd or pgpool-II)
-    ↓ (health checks every 10s)
+ ↓ (health checks every 10s)
 Automatic promotion on primary failure
 ```
 
@@ -187,7 +187,7 @@ Quorum-based decision making
 **Cluster Initialization**:
 ```
 Node-1: SET GLOBAL wsrep_provider_options="gmcast.listen_addr=tcp://10.0.1.10:4567";
-        SET GLOBAL wsrep_cluster_address="gcomm://";  # Bootstrap
+ SET GLOBAL wsrep_cluster_address="gcomm://"; # Bootstrap
 Node-2,3: Join cluster (automatic via wsrep_cluster_address)
 ```
 
@@ -285,21 +285,21 @@ Node-2,3: Join cluster (automatic via wsrep_cluster_address)
 ```yaml
 # Example PostgreSQL alerts
 - alert: PostgreSQLReplicationLag
-  expr: pg_replication_lag_seconds > 30
-  for: 2m
+ expr: pg_replication_lag_seconds > 30
+ for: 2m
 
 - alert: PostgreSQLWALArchivingFailure
-  expr: time() - pg_stat_archiver_last_wal_time > 300
+ expr: time() - pg_stat_archiver_last_wal_time > 300
 
 - alert: PostgreSQLConnectionPooling
-  expr: pg_stat_activity_count > pg_max_connections * 0.8
+ expr: pg_stat_activity_count > pg_max_connections * 0.8
 
 # Example MySQL alerts
 - alert: MySQLGaleraNodeOutOfSync
-  expr: mysql_wsrep_local_state != 4
+ expr: mysql_wsrep_local_state != 4
 
 - alert: MySQLReplicationLag
-  expr: mysql_slave_status_seconds_behind_master > 60
+ expr: mysql_slave_status_seconds_behind_master > 60
 ```
 
 **Output Artifacts**:
@@ -404,30 +404,30 @@ namespace: /service
 name: {{ inventory_hostname }}
 
 restapi:
-  listen: {{ hostvars[inventory_hostname].ansible_default_ipv4.address }}:8008
+ listen: {{ hostvars[inventory_hostname].ansible_default_ipv4.address }}:8008
 
 etcd:
-  hosts:
-    {% for etcd_host in groups['etcd'] %}
-    - {{ etcd_host }}:2379
-    {% endfor %}
+ hosts:
+ {% for etcd_host in groups['etcd'] %}
+ - {{ etcd_host }}:2379
+ {% endfor %}
 
 postgresql:
-  use_pg_rewind: true
-  parameters:
-    max_wal_senders: {{ database_postgresql_max_wal_senders }}
-    wal_level: replica
-    hot_standby: true
+ use_pg_rewind: true
+ parameters:
+ max_wal_senders: {{ database_postgresql_max_wal_senders }}
+ wal_level: replica
+ hot_standby: true
 
 bootstrap:
-  dcs:
-    ttl: 30
-    loop_wait: 10
-    retry_timeout: 10
-    maximum_lag_on_failover: 1048576
-  postgresql:
-    data_dir: /var/lib/postgresql/data
-    bin_dir: /usr/lib/postgresql/15/bin
+ dcs:
+ ttl: 30
+ loop_wait: 10
+ retry_timeout: 10
+ maximum_lag_on_failover: 1048576
+ postgresql:
+ data_dir: /var/lib/postgresql/data
+ bin_dir: /usr/lib/postgresql/15/bin
 ```
 
 ---
@@ -474,11 +474,11 @@ failover_command = '/etc/pgpool-II/failover.sh %d %h %p %D %m %H %M %P %r %R'
 
 # PostgreSQL backup using pg_basebackup
 pg_basebackup -h {{ primary_host }} \
-  -D {{ backup_path }}/{{ backup_date }} \
-  -U replication \
-  -P \
-  -v \
-  -W
+ -D {{ backup_path }}/{{ backup_date }} \
+ -U replication \
+ -P \
+ -v \
+ -W
 
 # Create backup manifest
 echo "Backup-Date: {{ backup_date }}" > {{ backup_path }}/{{ backup_date }}/backup.info
@@ -490,7 +490,7 @@ pg_verify_builtin_directory /path/to/backup
 
 # Archive to S3
 aws s3 sync {{ backup_path }}/{{ backup_date }} \
-  s3://{{ backup_bucket }}/postgres/{{ backup_date }}/
+ s3://{{ backup_bucket }}/postgres/{{ backup_date }}/
 ```
 
 ---
@@ -502,27 +502,27 @@ aws s3 sync {{ backup_path }}/{{ backup_date }} \
 ```yaml
 groups:
 - name: database_alerts
-  interval: 30s
-  rules:
-  - alert: PostgreSQLReplicationLag
-    expr: pg_replication_lag_seconds > 30
-    for: 2m
-    labels:
-      severity: warning
-    annotations:
-      summary: "PostgreSQL replication lag {{ $value }}s"
+ interval: 30s
+ rules:
+ - alert: PostgreSQLReplicationLag
+ expr: pg_replication_lag_seconds > 30
+ for: 2m
+ labels:
+ severity: warning
+ annotations:
+ summary: "PostgreSQL replication lag {{ $value }}s"
 
-  - alert: PostgreSQLWALArchiveFailed
-    expr: time() - pg_stat_archiver_last_wal_time > 600
-    for: 5m
-    labels:
-      severity: critical
+ - alert: PostgreSQLWALArchiveFailed
+ expr: time() - pg_stat_archiver_last_wal_time > 600
+ for: 5m
+ labels:
+ severity: critical
 
-  - alert: MySQLGaleraNodeLost
-    expr: count(mysql_wsrep_local_state == 4) < 2
-    for: 1m
-    labels:
-      severity: critical
+ - alert: MySQLGaleraNodeLost
+ expr: count(mysql_wsrep_local_state == 4) < 2
+ for: 1m
+ labels:
+ severity: critical
 ```
 
 ---
@@ -622,29 +622,29 @@ groups:
 ## Task Execution Order
 
 1. **Phase 1: Installation** (2-3 hours)
-   - PostgreSQL installation and configuration
-   - MySQL/MariaDB installation
-   - Failover manager setup (Patroni or pgpool)
+ - PostgreSQL installation and configuration
+ - MySQL/MariaDB installation
+ - Failover manager setup (Patroni or pgpool)
 
 2. **Phase 2: Replication Setup** (2-3 hours)
-   - Primary/Replica streaming replication
-   - Galera cluster initialization
-   - Replication verification
+ - Primary/Replica streaming replication
+ - Galera cluster initialization
+ - Replication verification
 
 3. **Phase 3: Failover Setup** (1-2 hours)
-   - Failover manager configuration
-   - Health check tuning
-   - Automatic promotion testing
+ - Failover manager configuration
+ - Health check tuning
+ - Automatic promotion testing
 
 4. **Phase 4: Backup & Recovery** (2-3 hours)
-   - Backup script deployment
-   - Point-in-time recovery testing
-   - Backup retention policies
+ - Backup script deployment
+ - Point-in-time recovery testing
+ - Backup retention policies
 
 5. **Phase 5: Monitoring & Alerting** (1-2 hours)
-   - Exporter installation
-   - Prometheus integration
-   - Alert rule configuration
+ - Exporter installation
+ - Prometheus integration
+ - Alert rule configuration
 
 ---
 

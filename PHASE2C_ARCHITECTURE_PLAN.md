@@ -106,37 +106,37 @@ Following the successful wrapper pattern established in PHASE 2.A and 2.B, PHASE
 
 #### Consul Templates
 1. **consul_server_config.j2** (80 LOC)
-   - Server node configuration
-   - Bootstrap settings, ACLs, TLS
-   - Server list and cluster settings
+ - Server node configuration
+ - Bootstrap settings, ACLs, TLS
+ - Server list and cluster settings
 
 2. **consul_client_config.j2** (60 LOC)
-   - Client node configuration
-   - Server addresses, DNS settings
-   - Service stanza templates
+ - Client node configuration
+ - Server addresses, DNS settings
+ - Service stanza templates
 
 3. **consul_custom_config.j2** (40 LOC)
-   - Custom Consul configurations
-   - Advanced ACL policies
-   - Watch configurations
+ - Custom Consul configurations
+ - Advanced ACL policies
+ - Watch configurations
 
 4. **consul_systemd_service.j2** (30 LOC)
-   - Systemd unit file for Consul
-   - Service dependencies and restart policy
+ - Systemd unit file for Consul
+ - Service dependencies and restart policy
 
 5. **consul_dns_stub.j2** (20 LOC)
-   - systemd-resolved DNS stub configuration
-   - Consul DNS forwarding setup
+ - systemd-resolved DNS stub configuration
+ - Consul DNS forwarding setup
 
 #### HAProxy Templates
 1. **haproxy_config.j2** (100 LOC)
-   - Complete HAProxy configuration
-   - Global settings, defaults, frontends, backends
-   - Dynamic backend generation from Consul
+ - Complete HAProxy configuration
+ - Global settings, defaults, frontends, backends
+ - Dynamic backend generation from Consul
 
 2. **haproxy_consul_template.j2** (50 LOC)
-   - Consul template for dynamic HAProxy config
-   - Service discovery integration
+ - Consul template for dynamic HAProxy config
+ - Service discovery integration
 
 ---
 
@@ -160,7 +160,7 @@ service_discovery_consul_serf_wan_port: 8302
 service_discovery_consul_server_port: 8300
 
 # Consul Mode
-service_discovery_consul_node_type: "server"  # server or client
+service_discovery_consul_node_type: "server" # server or client
 service_discovery_consul_ui_enabled: true
 service_discovery_consul_dns_enabled: true
 service_discovery_consul_dns_integration: true
@@ -270,21 +270,21 @@ loadbalancing_haproxy_default_options: {}
 ### 1. Consul vs Etcd
 **Decision**: Use Consul
 - **Rationale**:
-  - Built-in DNS interface (port 8600)
-  - Health checking built-in
-  - Better Ansible tooling support
-  - Mature ecosystem with many integrations
-  - Web UI for management
-  - Service discovery out-of-box
+ - Built-in DNS interface (port 8600)
+ - Health checking built-in
+ - Better Ansible tooling support
+ - Mature ecosystem with many integrations
+ - Web UI for management
+ - Service discovery out-of-box
 
 ### 2. HAProxy vs Nginx
 **Decision**: Use HAProxy
 - **Rationale**:
-  - Lower latency load balancing
-  - Better for high-concurrency scenarios
-  - Simpler dynamic configuration
-  - Stats API for monitoring
-  - Thread-per-connection model
+ - Lower latency load balancing
+ - Better for high-concurrency scenarios
+ - Simpler dynamic configuration
+ - Stats API for monitoring
+ - Thread-per-connection model
 
 ### 3. Server vs Client Nodes
 **Decision**: Support both modes
