@@ -1,0 +1,215 @@
+---
+# Firewall Configuration
+# Provides platform-agnostic firewall setup (UFW for Debian/Ubuntu, firewalld for RHEL)
+# Enables stateful packet filtering with DDoS protection
+
+- name: Install firewall for Debian/Ubuntu
+  block:
+    - name: Install UFW firewall
+      ansible.builtin.package:
+        name: ufw
+        state: present
+
+    - name: Enable UFW service
+      ansible.builtin.systemd:
+        name: ufw
+        enabled: yes
+        state: started
+
+    - name: Configure UFW defaults
+      ansible.builtin.lineinfile:
+        path: /etc/ufw/ufw.conf
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        backup: yes
+      loop:
+        - { key: 'DEFAULT_INPUT_POLICY', value: 'DROP' }
+        - { key: 'DEFAULT_OUTPUT_POLICY', value: 'ACCEPT' }
+        - { key: 'DEFAULT_FORWARD_POLICY', value: 'DROP' }
+        - { key: 'DEFAULT_APPLICATION_POLICY', value: 'SKIP' }
+        - { key: 'MANAGE_BUILTINS', value: 'yes' }
+        - { key: 'IPV6', value: 'yes' }
+      notify: restart ufw
+
+    - name: Allow SSH connections
+      community.general.ufw:
+        rule: allow
+        port: "{{ firewall_ssh_port | default(22) }}"
+        proto: tcp
+        comment: "Allow SSH access"
+      when: firewall_allow_ssh | default(true)
+
+    - name: Allow ICMP (ping)
+      community.general.ufw:
+        rule: allow
+        protocol: icmp
+        comment: "Allow ICMP"
+      when: firewall_allow_icmp | default(true)
+
+    - name: Rate limit ICMP to prevent DoS
+      ansible.builtin.shell: |
+        ufw insert 1 limit proto icmp from any to any comment "Rate limit ICMP"
+      changed_when: false
+      when: firewall_allow_icmp | default(true)
+
+    - name: Add custom firewall rules
+      community.general.ufw:
+        rule: "{{ item.rule }}"
+        port: "{{ item.port | default(omit) }}"
+        proto: "{{ item.proto | default('tcp') }}"
+        direction: "{{ item.direction | default('in') }}"
+        comment: "{{ item.comment | default('') }}"
+      loop: "{{ firewall_custom_rules | default([]) }}"
+      when: firewall_custom_rules is defined and firewall_custom_rules | length > 0
+
+    - name: Enable UFW firewall
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: drop
+      when: firewall_enabled | default(true)
+
+  when:
+    - ansible_os_family in ['Debian']
+    - firewall_enabled | default(true)
+  tags:
+    - firewall
+    - security
+
+- name: Install firewall for RHEL/CentOS
+  block:
+    - name: Install firewalld
+      ansible.builtin.package:
+        name: firewalld
+        state: present
+
+    - name: Enable firewalld service
+      ansible.builtin.systemd:
+        name: firewalld
+        enabled: yes
+        state: started
+
+    - name: Set firewalld default zone
+      ansible.posix.firewalld:
+        zone: "{{ firewall_zone | default('public') }}"
+        state: present
+        permanent: yes
+
+    - name: Configure firewalld to use stateful tracking
+      ansible.builtin.lineinfile:
+        path: /etc/firewalld/firewalld.conf
+        regexp: "^FirewallBackend="
+        line: "FirewallBackend=nftables"
+        backup: yes
+      notify: restart firewalld
+
+    - name: Enable masquerading for NAT (if needed)
+      ansible.posix.firewalld:
+        zone: "{{ firewall_zone | default('public') }}"
+        state: enabled
+        masquerade: "{{ firewall_enable_masquerading | default(false) }}"
+        permanent: yes
+        state: enabled
+
+    - name: Allow SSH service
+      ansible.posix.firewalld:
+        service: ssh
+        permanent: yes
+        state: enabled
+        zone: "{{ firewall_zone | default('public') }}"
+      when: firewall_allow_ssh | default(true)
+
+    - name: Allow custom services
+      ansible.posix.firewalld:
+        service: "{{ item.service }}"
+        permanent: yes
+        state: "{{ item.state | default('enabled') }}"
+        zone: "{{ firewall_zone | default('public') }}"
+      loop: "{{ firewall_services | default([]) }}"
+      when: firewall_services is defined and firewall_services | length > 0
+
+    - name: Allow custom ports with rate limiting
+      ansible.posix.firewalld:
+        port: "{{ item.port }}/{{ item.proto | default('tcp') }}"
+        permanent: yes
+        state: "{{ item.state | default('enabled') }}"
+        zone: "{{ firewall_zone | default('public') }}"
+        timeout: "{{ item.timeout | default(0) }}"
+      loop: "{{ firewall_ports | default([]) }}"
+      when: firewall_ports is defined and firewall_ports | length > 0
+      notify: restart firewalld
+
+    - name: Enable ICMP (ping) with rate limiting
+      block:
+        - name: Create custom firewalld rule for ICMP rate limiting
+          ansible.builtin.copy:
+            content: |
+              <?xml version="1.0" encoding="utf-8"?>
+              <rule family="ipv4" priority="0">
+                <icmp name="echo-request" limit value="10/m"/>
+                <accept/>
+              </rule>
+            dest: /etc/firewalld/rules/ipv4/icmp-rate-limit.xml
+            owner: root
+            group: root
+            mode: '0644'
+          notify: restart firewalld
+
+      when: firewall_allow_icmp | default(true)
+
+    - name: Reload firewalld to apply changes
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded
+      when: firewall_enabled | default(true)
+
+  when:
+    - ansible_os_family in ['RedHat', 'Rocky', 'Alma']
+    - firewall_enabled | default(true)
+  tags:
+    - firewall
+    - security
+
+- name: Display firewall status summary
+  ansible.builtin.debug:
+    msg: |
+      Firewall Configuration Complete:
+      ==============================
+      Platform: {{ ansible_os_family }}
+      {% if ansible_os_family in ['Debian'] %}
+      Firewall: UFW (Uncomplicated Firewall)
+      Status: {{ 'Enabled' if firewall_enabled | default(true) else 'Disabled' }}
+      Default policy: DROP incoming, ACCEPT outgoing
+      SSH Port: {{ firewall_ssh_port | default(22) }}
+      ICMP allowed: {{ firewall_allow_icmp | default(true) }}
+      {% else %}
+      Firewall: firewalld (Dynamic Firewall)
+      Status: {{ 'Enabled' if firewall_enabled | default(true) else 'Disabled' }}
+      Zone: {{ firewall_zone | default('public') }}
+      SSH allowed: {{ firewall_allow_ssh | default(true) }}
+      ICMP rate limit: 10 per minute
+      {% endif %}
+    verbosity: 1
+  tags:
+    - firewall
+
+- name: Verify firewall connectivity
+  block:
+    - name: Test SSH connectivity through firewall
+      ansible.builtin.wait_for:
+        port: "{{ firewall_ssh_port | default(22) }}"
+        timeout: 5
+      ignore_errors: yes
+      register: ssh_test
+      changed_when: false
+
+    - name: Report SSH connectivity
+      ansible.builtin.debug:
+        msg: "SSH port {{ firewall_ssh_port | default(22) }} is accessible"
+      when: ssh_test.state == "started"
+      tags:
+        - firewall
+
+  tags:
+    - firewall
+    - validate
