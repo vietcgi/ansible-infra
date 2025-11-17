@@ -1,0 +1,155 @@
+---
+# Sudo Hardening
+# Implements security best practices for sudo configuration
+# Enforces TTY requirement, logging, and audit trail
+
+- name: Ensure sudo is installed
+  ansible.builtin.package:
+    name: sudo
+    state: present
+  tags:
+    - sudo_hardening
+    - packages
+
+- name: Configure sudo security settings
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    validate: '/usr/sbin/visudo -cf %s'
+    backup: yes
+  loop:
+    - regexp: '^Defaults\s+use_pty'
+      line: 'Defaults use_pty'
+    - regexp: '^Defaults\s+logfile'
+      line: 'Defaults logfile="/var/log/sudo.log"'
+    - regexp: '^Defaults\s+log_input'
+      line: 'Defaults log_input={{ sudo_log_input | default("true") }}'
+    - regexp: '^Defaults\s+log_output'
+      line: 'Defaults log_output={{ sudo_log_output | default("true") }}'
+    - regexp: '^Defaults\s+requiretty'
+      line: 'Defaults requiretty' if sudo_require_tty | default(true) else ''
+    - regexp: '^Defaults\s+use_pty'
+      line: 'Defaults use_pty={{ sudo_use_pty | default("true") }}'
+    - regexp: '^Defaults\s+env_reset'
+      line: 'Defaults env_reset'
+    - regexp: '^Defaults\s+secure_path'
+      line: 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
+    - regexp: '^Defaults\s+lecture'
+      line: 'Defaults lecture="never"'
+  tags:
+    - sudo_hardening
+    - configuration
+
+- name: Create sudo log directory
+  ansible.builtin.file:
+    path: /var/log/sudo
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags:
+    - sudo_hardening
+    - configuration
+
+- name: Enable sudoers audit logging
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/sudoers.rules
+    state: present
+    create: yes
+    line: "-w /etc/sudoers -p wa -k sudoers"
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart auditd
+  tags:
+    - sudo_hardening
+    - audit
+
+- name: Configure sudo session recording (if auditd enabled)
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/sudo.rules
+    state: present
+    create: yes
+    line: |
+      -w /var/log/sudo.log -p wa -k sudo_commands
+      -a exit,always -F arch=b64 -S execve -F uid!=0 -F auid!=-1 -F auid!=4294967295 -k commands
+    owner: root
+    group: root
+    mode: '0640'
+  notify: restart auditd
+  when: common_enable_audit | default(true)
+  tags:
+    - sudo_hardening
+    - audit
+
+- name: Restrict sudo log file permissions
+  ansible.builtin.file:
+    path: /var/log/sudo.log
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  tags:
+    - sudo_hardening
+    - configuration
+
+- name: Configure logrotate for sudo logs
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/sudo
+    content: |
+      /var/log/sudo.log {
+        daily
+        rotate 30
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0600 root root
+      }
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - sudo_hardening
+    - logging
+
+- name: Verify sudoers configuration
+  ansible.builtin.command: /usr/sbin/visudo -c
+  changed_when: false
+  failed_when: false
+  register: sudoers_check
+  tags:
+    - sudo_hardening
+    - validate
+
+- name: Display sudo hardening summary
+  ansible.builtin.debug:
+    msg: |
+      Sudo Hardening Configuration:
+      =============================
+      TTY Requirement: {{ sudo_require_tty | default(true) }}
+      PTY Usage: {{ sudo_use_pty | default(true) }}
+      Log Input: {{ sudo_log_input | default(true) }}
+      Log Output: {{ sudo_log_output | default(true) }}
+      Log File: /var/log/sudo.log
+      Log Retention: 30 days (rotated daily)
+
+      Security Features Enabled:
+      - Secure PATH enforcement
+      - Environment reset on sudo execution
+      - Session recording and audit logging
+      - TTY allocation for interactive shells
+      - Command logging with input/output capture
+
+      Verification:
+      - Sudoers syntax: {{ "✓ Valid" if sudoers_check.rc == 0 else "✗ Invalid" }}
+      - View sudo logs: tail -f /var/log/sudo.log
+      - Verify audit rules: auditctl -l | grep sudo
+      - Check sessions: sudo -i (and review logs)
+    verbosity: 1
+  when: sudo_hardening_enabled | default(true)
+  tags:
+    - sudo_hardening
