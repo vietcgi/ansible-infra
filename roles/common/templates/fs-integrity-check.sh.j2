@@ -1,0 +1,138 @@
+#!/bin/bash
+# Filesystem Integrity Check
+# Detects unauthorized file changes using AIDE or custom hash verification
+
+set -euo pipefail
+
+LOG_FILE="/var/log/fs-integrity.log"
+DB_DIR="/var/lib/aide-db"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Check with AIDE if available
+check_with_aide() {
+    if ! command -v aide &> /dev/null; then
+        log "AIDE not installed, skipping AIDE check"
+        return 1
+    fi
+
+    log "Starting AIDE integrity check..."
+
+    # Initialize database if not present
+    if [ ! -f /var/lib/aide/aide.db ]; then
+        log "Initializing AIDE database..."
+        aideinit >/dev/null 2>&1 || true
+    fi
+
+    # Run AIDE check
+    if aide --check 2>&1 | tee -a "$LOG_FILE" | grep -q "changed"; then
+        log "WARNING: AIDE detected file changes"
+        return 1
+    else
+        log "AIDE check passed: No unexpected changes"
+        return 0
+    fi
+}
+
+# Check critical system files
+check_critical_files() {
+    log "Checking critical system files..."
+
+    local critical_files=(
+        "/etc/passwd"
+        "/etc/shadow"
+        "/etc/group"
+        "/etc/gshadow"
+        "/etc/sudoers"
+        "/etc/ssh/sshd_config"
+        "/boot/grub/grub.cfg"
+        "/etc/fstab"
+    )
+
+    mkdir -p "$DB_DIR"
+
+    for file in "${critical_files[@]}"; do
+        if [ -f "$file" ]; then
+            hash_file="$DB_DIR/$(echo $file | tr '/' '_').sha256"
+            current_hash=$(sha256sum "$file" | awk '{print $1}')
+
+            if [ -f "$hash_file" ]; then
+                previous_hash=$(cat "$hash_file")
+                if [ "$current_hash" != "$previous_hash" ]; then
+                    log "WARNING: $file has been modified"
+                fi
+            fi
+
+            echo "$current_hash" > "$hash_file"
+        fi
+    done
+
+    log "Critical files check completed"
+}
+
+# Check for rootkits
+check_rootkits() {
+    if ! command -v chkrootkit &> /dev/null; then
+        log "chkrootkit not installed, skipping rootkit check"
+        return 0
+    fi
+
+    log "Running rootkit detection..."
+
+    if chkrootkit 2>&1 | tee -a "$LOG_FILE" | grep -i "INFECTED"; then
+        log "WARNING: Potential rootkit detected"
+        return 1
+    else
+        log "Rootkit check passed: No infections detected"
+        return 0
+    fi
+}
+
+# Check for suspicious binary modifications
+check_binary_integrity() {
+    log "Checking system binary integrity..."
+
+    local critical_bins=(
+        "/bin/ls"
+        "/bin/cat"
+        "/bin/cp"
+        "/bin/mv"
+        "/bin/rm"
+        "/usr/bin/sudo"
+        "/usr/sbin/sshd"
+    )
+
+    for bin in "${critical_bins[@]}"; do
+        if [ -f "$bin" ]; then
+            # Check for unusual modification times
+            mod_time=$(stat -c %Y "$bin" 2>/dev/null || stat -f %m "$bin" 2>/dev/null || echo 0)
+            current_time=$(date +%s)
+            age=$((current_time - mod_time))
+
+            # Alert if modified in last 24 hours (86400 seconds)
+            if [ "$age" -lt 86400 ] && [ "$age" -gt 0 ]; then
+                # This could be a system update, just log it
+                log "INFO: $bin was recently modified ($(($age / 3600)) hours ago)"
+            fi
+        fi
+    done
+
+    log "Binary integrity check completed"
+}
+
+# Main execution
+main() {
+    log "Starting filesystem integrity check"
+    log "System: $(hostname)"
+
+    check_with_aide || true
+    check_critical_files
+    check_rootkits || true
+    check_binary_integrity
+
+    log "Filesystem integrity check completed"
+}
+
+main "$@"

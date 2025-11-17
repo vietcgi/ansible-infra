@@ -1,0 +1,109 @@
+#!/bin/bash
+# Disk Usage Monitoring Script
+# Checks disk usage and alerts when thresholds are exceeded
+
+set -euo pipefail
+
+LOG_FILE="/var/log/disk-usage-check.log"
+ALERT_WARNING={{ storage_disk_warning_percent | default(85) }}
+ALERT_HIGH={{ storage_disk_high_percent | default(90) }}
+ALERT_CRITICAL={{ storage_disk_critical_percent | default(95) }}
+MAX_AGE_MINUTES=1440  # 24 hours
+
+# Function to log messages
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
+}
+
+# Function to send alerts
+send_alert() {
+    local severity="$1"
+    local filesystem="$2"
+    local usage="$3"
+    local message="$4"
+
+    log "ALERT [$severity] $filesystem: $usage% - $message"
+
+    # Send to syslog
+    logger -t disk-monitor -p "user.$severity" "$message"
+
+    # Send to monitoring system if configured
+    if [ -n "{{ monitoring_alert_command | default('') }}" ]; then
+        {{ monitoring_alert_command }} --severity "$severity" --metric disk_usage --value "$usage" --device "$filesystem"
+    fi
+}
+
+# Check disk usage
+check_disk_usage() {
+    log "Starting disk usage check..."
+
+    # Get disk usage for all mounted filesystems
+    df -h | awk 'NR>1 {
+        gsub(/%/,"",$5)
+        usage=$5
+        fs=$6
+
+        if (usage ~ /^[0-9]+$/) {
+            print fs","usage
+        }
+    }' | while IFS=',' read -r fs usage; do
+        if [ -n "$usage" ] && [ "$usage" -ge 0 ] 2>/dev/null; then
+            log "Filesystem $fs: ${usage}% used"
+
+            if [ "$usage" -ge "$ALERT_CRITICAL" ]; then
+                send_alert "crit" "$fs" "$usage" "Disk usage CRITICAL: ${usage}% on $fs"
+            elif [ "$usage" -ge "$ALERT_HIGH" ]; then
+                send_alert "err" "$fs" "$usage" "Disk usage HIGH: ${usage}% on $fs"
+            elif [ "$usage" -ge "$ALERT_WARNING" ]; then
+                send_alert "warning" "$fs" "$usage" "Disk usage WARNING: ${usage}% on $fs"
+            fi
+        fi
+    done
+}
+
+# Check inode usage
+check_inode_usage() {
+    log "Starting inode usage check..."
+
+    df -i | awk 'NR>1 {
+        gsub(/%/,"",$5)
+        usage=$5
+        fs=$6
+
+        if (usage ~ /^[0-9]+$/) {
+            if (usage >= 80) {
+                print fs","usage
+            }
+        }
+    }' | while IFS=',' read -r fs usage; do
+        log "WARNING: High inode usage on $fs: ${usage}%"
+        send_alert "warning" "$fs (inodes)" "$usage" "Inode usage HIGH: ${usage}% on $fs"
+    done
+}
+
+# Check for stale filesystem snapshots
+check_snapshots() {
+    if command -v lvs &> /dev/null; then
+        log "Checking for stale snapshots..."
+        lvs --noheadings -o lv_name,lv_size 2>/dev/null | grep snap || true
+    fi
+}
+
+# Cleanup old log entries
+cleanup_logs() {
+    if [ -f "$LOG_FILE" ]; then
+        # Keep only recent entries (default 24 hours)
+        find /var/log -name "disk-*.log" -mtime +1 -delete 2>/dev/null || true
+    fi
+}
+
+# Main execution
+main() {
+    check_disk_usage
+    check_inode_usage
+    check_snapshots
+    cleanup_logs
+    log "Disk usage check completed"
+}
+
+main

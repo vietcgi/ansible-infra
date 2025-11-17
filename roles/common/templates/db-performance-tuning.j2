@@ -1,0 +1,209 @@
+#!/bin/bash
+# Database Performance Tuning Helper
+# Provides guidance and tools for database-specific performance optimization
+
+set -euo pipefail
+
+DB_TUNING_DIR="/opt/db-performance-tuning"
+LOG_FILE="/var/log/db-tuning.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# PostgreSQL optimization
+optimize_postgresql() {
+    if ! command -v psql &> /dev/null; then
+        log "PostgreSQL not installed"
+        return 0
+    fi
+
+    log "Generating PostgreSQL optimization recommendations..."
+
+    cat > "${DB_TUNING_DIR}/postgresql-tuning.sql" << 'EOF'
+-- PostgreSQL Performance Tuning Parameters
+
+-- Memory settings (adjust based on available RAM)
+-- For 8GB RAM: shared_buffers = 2GB, effective_cache_size = 6GB
+-- For 16GB RAM: shared_buffers = 4GB, effective_cache_size = 12GB
+-- For 32GB RAM: shared_buffers = 8GB, effective_cache_size = 24GB
+
+-- Cache and buffer settings
+ALTER SYSTEM SET shared_buffers = '{{ postgres_shared_buffers | default("2GB") }}';
+ALTER SYSTEM SET effective_cache_size = '{{ postgres_cache_size | default("6GB") }}';
+ALTER SYSTEM SET work_mem = '{{ postgres_work_mem | default("256MB") }}';
+ALTER SYSTEM SET maintenance_work_mem = '{{ postgres_maint_work_mem | default("512MB") }}';
+
+-- Checkpoint settings
+ALTER SYSTEM SET checkpoint_completion_target = 0.9;
+ALTER SYSTEM SET wal_buffers = '{{ postgres_wal_buffers | default("16MB") }}';
+ALTER SYSTEM SET min_wal_size = '{{ postgres_min_wal | default("1GB") }}';
+ALTER SYSTEM SET max_wal_size = '{{ postgres_max_wal | default("4GB") }}';
+
+-- Connection settings
+ALTER SYSTEM SET max_connections = {{ postgres_max_conn | default(200) }};
+ALTER SYSTEM SET max_prepared_transactions = {{ postgres_max_prep | default(100) }};
+
+-- Query planning
+ALTER SYSTEM SET random_page_cost = 1.1;  -- For SSD storage
+ALTER SYSTEM SET effective_io_concurrency = 200;
+
+-- Logging and statistics
+ALTER SYSTEM SET log_min_duration_statement = 1000;  -- Log queries slower than 1 second
+ALTER SYSTEM SET log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h ';
+
+-- Reload configuration
+SELECT pg_reload_conf();
+EOF
+
+    log "PostgreSQL tuning template created"
+}
+
+# MySQL/MariaDB optimization
+optimize_mysql() {
+    if ! command -v mysql &> /dev/null && ! command -v mariadb &> /dev/null; then
+        log "MySQL/MariaDB not installed"
+        return 0
+    fi
+
+    log "Generating MySQL/MariaDB optimization recommendations..."
+
+    cat > "${DB_TUNING_DIR}/mysql-my.cnf" << 'EOF'
+# MySQL/MariaDB Performance Tuning Configuration
+
+[mysqld]
+# Memory settings
+max_connections = {{ mysql_max_conn | default(200) }}
+table_open_cache = {{ mysql_table_cache | default(2000) }}
+tmp_table_size = {{ mysql_tmp_table | default("256M") }}
+max_heap_table_size = {{ mysql_heap_table | default("256M") }}
+
+# InnoDB settings (usually default engine)
+default_storage_engine = InnoDB
+innodb_buffer_pool_size = {{ mysql_buffer_pool | default("4GB") }}
+innodb_log_file_size = {{ mysql_log_file_size | default("512M") }}
+innodb_flush_method = {{ mysql_flush_method | default("O_DIRECT") }}
+innodb_flush_log_at_trx_commit = {{ mysql_flush_trx | default(2) }}
+
+# Query cache (disabled in MySQL 8.0+)
+query_cache_type = 0
+query_cache_size = 0
+
+# Logging
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+
+# Replication (if applicable)
+binlog_format = ROW
+binlog_row_image = MINIMAL
+
+# Character set
+character_set_server = utf8mb4
+collation_server = utf8mb4_unicode_ci
+
+[mysqldump]
+quick
+quote-names
+max_allowed_packet = 16M
+EOF
+
+    log "MySQL/MariaDB tuning template created"
+}
+
+# Redis optimization
+optimize_redis() {
+    if ! command -v redis-cli &> /dev/null; then
+        log "Redis not installed"
+        return 0
+    fi
+
+    log "Generating Redis optimization recommendations..."
+
+    cat > "${DB_TUNING_DIR}/redis-tuning.conf" << 'EOF'
+# Redis Performance Tuning
+
+# Memory management
+maxmemory {{ redis_maxmemory | default("2gb") }}
+maxmemory-policy {{ redis_eviction_policy | default("allkeys-lru") }}
+
+# Persistence
+save {{ redis_save_interval | default("900 1") }}
+appendonly yes
+appendfsync {{ redis_appendfsync | default("everysec") }}
+
+# Networking
+tcp-backlog 511
+timeout 0
+tcp-keepalive 300
+
+# Performance tuning
+latency-monitor-threshold 0
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+# Clients
+maxclients {{ redis_maxclients | default(10000) }}
+EOF
+
+    log "Redis tuning template created"
+}
+
+# General recommendations
+print_recommendations() {
+    log "=== Database Performance Tuning Recommendations ==="
+
+    cat >> "$LOG_FILE" << 'EOF'
+
+1. Monitor query performance:
+   - Enable slow query logging
+   - Use EXPLAIN to understand query execution
+   - Monitor query latency and I/O operations
+
+2. Index optimization:
+   - Analyze query patterns
+   - Create indexes on frequently queried columns
+   - Remove unused indexes
+
+3. Connection pooling:
+   - Use connection pooling (pgBouncer, Proxies, etc.)
+   - Limit max connections based on system resources
+   - Reuse connections instead of creating new ones
+
+4. Cache strategy:
+   - Use Redis or Memcached for frequently accessed data
+   - Implement query result caching
+   - Cache application layer results
+
+5. Replication and sharding:
+   - Consider read replicas for read-heavy workloads
+   - Implement sharding for large datasets
+   - Monitor replication lag
+
+6. Backup and recovery:
+   - Regular backup testing
+   - Implement incremental backups
+   - Document recovery procedures
+
+7. Monitoring and alerting:
+   - Monitor CPU, memory, disk I/O
+   - Track query count and duration
+   - Alert on anomalies and slow queries
+EOF
+}
+
+# Main execution
+main() {
+    mkdir -p "$DB_TUNING_DIR"
+    log "Starting database performance tuning"
+
+    optimize_postgresql
+    optimize_mysql
+    optimize_redis
+    print_recommendations
+
+    log "Database tuning guidance generated to $DB_TUNING_DIR"
+    log "Review recommendations and apply as needed for your environment"
+}
+
+main "$@"

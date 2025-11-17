@@ -1,0 +1,135 @@
+#!/bin/bash
+# Audit Log Tamper Detection
+# Detects unauthorized modifications to audit logs
+
+set -euo pipefail
+
+LOG_FILE="/var/log/audit-tamper-check.log"
+HASH_DIR="/var/lib/audit-hashes"
+ALERT_EMAIL="{{ alerting_email_to | default('root') }}"
+
+mkdir -p "$HASH_DIR"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+alert() {
+    local severity="$1"
+    local message="$2"
+
+    log "ALERT [$severity]: $message"
+    echo "$message" | mail -s "Audit Tamper Alert: $severity" "$ALERT_EMAIL" 2>/dev/null || true
+    logger -t audit-monitor -p "security.$severity" "$message"
+}
+
+# Check audit.log integrity
+check_audit_integrity() {
+    local audit_log="/var/log/audit/audit.log"
+
+    if [ ! -f "$audit_log" ]; then
+        log "Audit log not found: $audit_log"
+        return 1
+    fi
+
+    # Calculate current hash
+    current_hash=$(sha256sum "$audit_log" 2>/dev/null | awk '{print $1}')
+    previous_hash_file="$HASH_DIR/audit.log.sha256"
+
+    if [ ! -f "$previous_hash_file" ]; then
+        # First run - establish baseline
+        echo "$current_hash" > "$previous_hash_file"
+        log "Audit log baseline established"
+        return 0
+    fi
+
+    previous_hash=$(cat "$previous_hash_file")
+
+    if [ "$current_hash" != "$previous_hash" ]; then
+        # File has changed - check if it's legitimate
+        recent_lines=$(tail -10 "$audit_log" | grep -c "type=" || echo 0)
+
+        if [ "$recent_lines" -gt 0 ]; then
+            # Legitimate audit entries added
+            log "Audit log updated legitimately (hash changed)"
+            echo "$current_hash" > "$previous_hash_file"
+        else
+            # Suspicious change detected
+            alert "crit" "Audit log tamper detected on $(hostname): file modified without audit entries"
+            return 1
+        fi
+    else
+        log "Audit log integrity verified"
+        return 0
+    fi
+}
+
+# Check for audit daemon running
+check_auditd_running() {
+    if ! systemctl is-active auditd &>/dev/null; then
+        alert "err" "Audit daemon is not running on $(hostname)"
+        return 1
+    fi
+
+    log "Audit daemon is running"
+    return 0
+}
+
+# Check for audit log deletions
+check_log_deletions() {
+    if [ -f /var/log/audit/audit.log ]; then
+        # Look for audit messages about deleted files
+        grep -i "delete\|remove" /var/log/audit/audit.log | tail -5 | while read -r line; do
+            if echo "$line" | grep -q "audit.log"; then
+                alert "crit" "Potential audit log deletion attempt detected: $line"
+            fi
+        done
+    fi
+}
+
+# Check for rule modifications
+check_rule_modifications() {
+    local rules_file="/etc/audit/rules.d/audit.rules"
+    local rules_hash_file="$HASH_DIR/audit.rules.sha256"
+
+    if [ -f "$rules_file" ]; then
+        current_hash=$(sha256sum "$rules_file" | awk '{print $1}')
+
+        if [ -f "$rules_hash_file" ]; then
+            previous_hash=$(cat "$rules_hash_file")
+            if [ "$current_hash" != "$previous_hash" ]; then
+                alert "warn" "Audit rules modified on $(hostname)"
+                echo "$current_hash" > "$rules_hash_file"
+            fi
+        else
+            echo "$current_hash" > "$rules_hash_file"
+        fi
+    fi
+}
+
+# Check for suspicious user access to audit logs
+check_suspicious_access() {
+    if [ -f /var/log/auth.log ] || [ -f /var/log/secure ]; then
+        local auth_log=$([[ -f /var/log/auth.log ]] && echo "/var/log/auth.log" || echo "/var/log/secure")
+
+        # Look for non-root access to audit logs
+        grep -i "audit" "$auth_log" | grep -v "root" | tail -5 | while read -r line; do
+            alert "warn" "Non-root user attempted audit log access: $line"
+        done
+    fi
+}
+
+# Main execution
+main() {
+    log "Starting audit log tamper detection"
+
+    check_auditd_running
+    check_audit_integrity
+    check_log_deletions
+    check_rule_modifications
+    check_suspicious_access
+
+    log "Audit log tamper detection completed"
+}
+
+main "$@"

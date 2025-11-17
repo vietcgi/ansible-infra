@@ -1,0 +1,64 @@
+# Alert Severity Levels Configuration
+# Defines severity levels for monitoring and alerting
+
+severity_levels:
+  critical:
+    level: 1
+    color: '#FF0000'
+    timeout: 300  # 5 minutes before escalation
+    requires_ack: true
+    page_oncall: true
+    slack_channel: '#alerts-critical'
+    description: 'System is down or critical functionality is impaired'
+    response_slo_minutes: 5
+
+  high:
+    level: 2
+    color: '#FF6600'
+    timeout: 600  # 10 minutes before escalation
+    requires_ack: true
+    page_oncall: true
+    slack_channel: '#alerts-high'
+    description: 'Significant degradation or potential failure'
+    response_slo_minutes: 15
+
+  medium:
+    level: 3
+    color: '#FFCC00'
+    timeout: 1800  # 30 minutes before escalation
+    requires_ack: false
+    page_oncall: false
+    slack_channel: '#alerts-medium'
+    description: 'Unusual condition requiring attention'
+    response_slo_minutes: 60
+
+  low:
+    level: 4
+    color: '#00CC00'
+    timeout: 3600  # 1 hour before escalation
+    requires_ack: false
+    page_oncall: false
+    slack_channel: '#alerts-low'
+    description: 'Informational alert for awareness'
+    response_slo_minutes: 240
+
+  info:
+    level: 5
+    color: '#0099FF'
+    timeout: null  # No escalation
+    requires_ack: false
+    page_oncall: false
+    slack_channel: '#alerts-info'
+    description: 'Informational message'
+    response_slo_minutes: null
+
+# Default severity mappings
+default_mappings:
+  system_down: critical
+  high_cpu: high
+  high_memory: high
+  disk_full: critical
+  network_latency: medium
+  package_update_available: low
+  service_restart: medium
+  configuration_change: info

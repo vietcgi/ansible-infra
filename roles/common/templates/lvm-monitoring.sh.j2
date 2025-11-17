@@ -1,0 +1,160 @@
+#!/bin/bash
+# LVM Volume Management Monitoring
+# Monitors LVM logical volumes for health and usage
+
+set -euo pipefail
+
+LOG_FILE="/var/log/lvm-health.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+alert() {
+    local severity="$1"
+    local message="$2"
+
+    log "ALERT [$severity]: $message"
+    logger -t lvm-monitor -p "user.$severity" "$message"
+}
+
+# Check LVM physical volumes
+check_pv() {
+    log "Checking physical volumes..."
+
+    if ! command -v pvs &>/dev/null; then
+        log "LVM tools not installed"
+        return 0
+    fi
+
+    pvs --noheadings 2>/dev/null | while read -r line; do
+        if [ -n "$line" ]; then
+            pv=$(echo "$line" | awk '{print $1}')
+            vg=$(echo "$line" | awk '{print $2}')
+            attr=$(echo "$line" | awk '{print $3}')
+
+            # Check if physical volume is missing
+            if [[ "$attr" == *"m"* ]]; then
+                alert "crit" "Physical volume missing: $pv (VG: $vg)"
+            else
+                log "PV $pv: OK (VG: $vg)"
+            fi
+        fi
+    done
+}
+
+# Check LVM volume groups
+check_vg() {
+    log "Checking volume groups..."
+
+    if ! command -v vgs &>/dev/null; then
+        return 0
+    fi
+
+    vgs --noheadings 2>/dev/null | while read -r line; do
+        if [ -n "$line" ]; then
+            vg=$(echo "$line" | awk '{print $1}')
+            status=$(echo "$line" | awk '{print $2}')
+
+            if [ "$status" != "wz--n-" ]; then
+                alert "warn" "Volume group $vg status abnormal: $status"
+            else
+                log "VG $vg: OK"
+            fi
+        fi
+    done
+}
+
+# Check LVM logical volumes
+check_lv() {
+    log "Checking logical volumes..."
+
+    if ! command -v lvs &>/dev/null; then
+        return 0
+    fi
+
+    lvs --noheadings -o lv_name,vg_name,lv_size,data_percent 2>/dev/null | while read -r line; do
+        if [ -n "$line" ]; then
+            lv=$(echo "$line" | awk '{print $1}')
+            vg=$(echo "$line" | awk '{print $2}')
+            size=$(echo "$line" | awk '{print $3}')
+            usage=$(echo "$line" | awk '{print $4}')
+
+            # Check if logical volume is available
+            if [ -z "$usage" ] || [ "$usage" = "-" ]; then
+                usage="0"
+            fi
+
+            # Remove '%' if present
+            usage=$(echo "$usage" | sed 's/%//')
+
+            if [ -n "$usage" ] && [ "$usage" != "0" ]; then
+                usage_num=$(echo "$usage" | grep -oE '[0-9]+' || echo 0)
+
+                # Alert if usage is high
+                if [ "$usage_num" -gt 90 ]; then
+                    alert "crit" "Logical volume $vg/$lv usage CRITICAL: ${usage}%"
+                elif [ "$usage_num" -gt 80 ]; then
+                    alert "warn" "Logical volume $vg/$lv usage HIGH: ${usage}%"
+                else
+                    log "LV $vg/$lv: OK (${usage}% used)"
+                fi
+            else
+                log "LV $vg/$lv: OK (size: $size)"
+            fi
+        fi
+    done
+}
+
+# Check for thin pool metadata
+check_thin_pools() {
+    log "Checking thin pools..."
+
+    if ! command -v lvs &>/dev/null; then
+        return 0
+    fi
+
+    lvs --noheadings -o lv_name,vg_name,metadata_percent 2>/dev/null | grep -v "^\\s*$" | while read -r line; do
+        if [ -n "$line" ]; then
+            lv=$(echo "$line" | awk '{print $1}')
+            vg=$(echo "$line" | awk '{print $2}')
+            metadata=$(echo "$line" | awk '{print $3}')
+
+            # Check metadata usage
+            if [ -n "$metadata" ] && [ "$metadata" != "-" ]; then
+                metadata_num=$(echo "$metadata" | sed 's/%//' | grep -oE '[0-9]+' || echo 0)
+
+                if [ "$metadata_num" -gt 80 ]; then
+                    alert "warn" "Thin pool $vg/$lv metadata usage HIGH: ${metadata_num}%"
+                fi
+            fi
+        fi
+    done
+}
+
+# Check for snapshots
+check_snapshots() {
+    log "Checking snapshots..."
+
+    if ! command -v lvs &>/dev/null; then
+        return 0
+    fi
+
+    lvs --noheadings -o lv_name,vg_name,copy_percent 2>/dev/null | grep snap || true
+}
+
+# Main execution
+main() {
+    log "Starting LVM health check"
+    log "System: $(hostname)"
+
+    check_pv
+    check_vg
+    check_lv
+    check_thin_pools
+    check_snapshots
+
+    log "LVM health check completed"
+}
+
+main "$@"

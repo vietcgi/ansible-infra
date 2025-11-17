@@ -30,6 +30,18 @@
     - apparmor.yml
     - selinux.yml
 
+    # PHASE 1.A: Critical Security Hardening (Kernel, Password, Storage)
+    - kernel_hardening.yml
+    - password_policy.yml
+    - storage_hardening.yml
+
+    # PHASE 1.B: Operational Excellence (Performance, Monitoring, Compliance)
+    - performance_tuning.yml
+    - monitoring_tuning.yml
+    - compliance_scanning.yml
+    - compliance_automation.yml
+    - backup_recovery_testing.yml
+
     # PHASE 2.A: Advanced Monitoring Stack (Upstream Role Wrappers)
     - monitoring_prometheus_wrapper.yml
     - monitoring_grafana_wrapper.yml

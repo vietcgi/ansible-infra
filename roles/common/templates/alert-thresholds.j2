@@ -1,0 +1,86 @@
+# Alert Thresholds Configuration
+# Defines metric thresholds for triggering alerts
+
+metric_thresholds:
+  cpu:
+    high_usage:
+      threshold: {{ alert_cpu_high | default(85) }}
+      duration: 5m
+      severity: high
+
+    critical_usage:
+      threshold: {{ alert_cpu_critical | default(95) }}
+      duration: 2m
+      severity: critical
+
+  memory:
+    high_usage:
+      threshold: {{ alert_memory_high | default(85) }}
+      duration: 5m
+      severity: high
+
+    critical_usage:
+      threshold: {{ alert_memory_critical | default(95) }}
+      duration: 2m
+      severity: critical
+
+  disk:
+    warning:
+      threshold: {{ alert_disk_warning | default(80) }}
+      duration: 5m
+      severity: medium
+
+    high:
+      threshold: {{ alert_disk_high | default(90) }}
+      duration: 5m
+      severity: high
+
+    critical:
+      threshold: {{ alert_disk_critical | default(95) }}
+      duration: 2m
+      severity: critical
+
+  network:
+    high_latency:
+      threshold_ms: {{ alert_latency_high | default(100) }}
+      severity: medium
+
+    critical_latency:
+      threshold_ms: {{ alert_latency_critical | default(500) }}
+      severity: critical
+
+    packet_loss:
+      threshold_percent: {{ alert_packet_loss | default(1) }}
+      severity: medium
+
+  processes:
+    zombie_processes:
+      threshold: {{ alert_zombie_processes | default(5) }}
+      severity: medium
+
+    zombie_critical:
+      threshold: {{ alert_zombie_critical | default(20) }}
+      severity: critical
+
+  swap:
+    usage:
+      threshold: {{ alert_swap_usage | default(50) }}
+      severity: high
+
+  load:
+    high_1min:
+      threshold: {{ ansible_processor_vcpus | default(4) * 2 }}
+      severity: medium
+
+    high_5min:
+      threshold: {{ ansible_processor_vcpus | default(4) * 1.5 }}
+      severity: high
+
+  authentication:
+    failed_login_attempts:
+      threshold: {{ alert_failed_logins | default(5) }}
+      severity: medium
+
+    sudo_usage_spike:
+      threshold_percent: {{ alert_sudo_spike | default(300) }}
+      severity: medium

@@ -1,0 +1,67 @@
+# Compliance Exception Tracking Template
+# Used to document and track approved exceptions from compliance requirements
+
+exception_id: null  # Auto-generated on submission
+
+metadata:
+  created_date: "{{ ansible_date_time.iso8601 }}"
+  created_by: null  # User submitting the exception
+  approved_by: null # Manager or compliance officer
+  approval_date: null
+  expires_on: null # Date exception expires (null = permanent until revoked)
+  status: pending  # pending, approved, rejected, revoked, expired
+
+exception_details:
+  title: null  # Short title of the exception
+  description: null  # Full description of why exception is needed
+
+  compliance_framework: null  # Which framework does this violate? (FedRAMP, HIPAA, PCI-DSS, SOC2, NIST, CIS)
+  control_id: null  # Specific control being violated (e.g., AC-2, SC-7)
+  requirement: null  # The specific requirement being waived
+
+  # Risk assessment
+  risk_level: null  # low, medium, high, critical
+  risk_description: null
+  mitigation_controls: []  # Compensating controls in place
+
+  # Business justification
+  business_justification: null
+  business_impact_if_enforced: null
+  business_owner: null
+  business_unit: null
+
+affected_scope:
+  systems: []  # Which systems/hosts are affected
+  environments: []  # production, staging, development
+  applications: []  # Which applications
+  data_classifications: []  # Which data types (PII, PHI, financial, etc.)
+
+approval_workflow:
+  technical_owner_approval: false
+  security_team_approval: false
+  compliance_team_approval: false
+  ciso_approval: false  # Required for high/critical risk
+  legal_approval: false  # May be required for certain violations
+
+remediation_plan:
+  target_remediation_date: null
+  planned_remediation_steps: []
+  responsible_team: null
+  progress: 0  # Percentage complete (0-100)
+
+audit_trail:
+  - event: "Exception created"
+    timestamp: "{{ ansible_date_time.iso8601 }}"
+    user: null
+    action: "Initial submission"
+
+monitoring:
+  monitor_for_violations: true
+  alert_on_detection: true
+  review_frequency: quarterly  # quarterly, semi-annual, annual
+  next_review_date: null
+
+documentation:
+  evidence_files: []  # Attachments supporting the exception
+  related_tickets: []  # Change requests, incident tickets
+  references: []  # External documentation

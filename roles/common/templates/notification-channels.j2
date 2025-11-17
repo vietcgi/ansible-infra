@@ -1,0 +1,121 @@
+# Notification Channels Configuration
+# Defines how alerts are delivered to teams and individuals
+
+channels:
+  slack:
+    enabled: {{ monitoring_slack_enabled | default(false) }}
+    webhook_url: '{{ monitoring_slack_webhook_url | default("") }}'
+    channel: '#alerts'
+    username: 'AlertBot'
+    icon_emoji: ':warning:'
+    rate_limit: 10  # Messages per minute
+    retry_max_attempts: 3
+    retry_backoff_seconds: 5
+
+  email:
+    enabled: {{ monitoring_email_enabled | default(false) }}
+    smtp_server: '{{ monitoring_smtp_server | default("localhost") }}'
+    smtp_port: {{ monitoring_smtp_port | default(587) }}
+    smtp_user: '{{ monitoring_smtp_user | default("") }}'
+    smtp_password: '{{ monitoring_smtp_password | default("") }}'
+    from_address: '{{ monitoring_email_from | default("alerts@example.com") }}'
+    use_tls: {{ monitoring_smtp_tls | default(true) }}
+    batch_emails: true
+    batch_interval_minutes: 5
+
+  pagerduty:
+    enabled: {{ monitoring_pagerduty_enabled | default(false) }}
+    api_key: '{{ monitoring_pagerduty_token | default("") }}'
+    integration_url: 'https://events.pagerduty.com/v2/enqueue'
+    event_action: 'trigger'  # trigger, acknowledge, resolve
+    escalation_policy: '{{ monitoring_pagerduty_escalation_policy | default("") }}'
+
+  webhook:
+    enabled: {{ monitoring_webhook_enabled | default(false) }}
+    url: '{{ monitoring_webhook_url | default("") }}'
+    method: POST
+    timeout_seconds: 10
+    retry_max_attempts: 3
+
+  sms:
+    enabled: {{ monitoring_sms_enabled | default(false) }}
+    provider: twilio  # twilio, sns, custom
+    account_sid: '{{ monitoring_sms_account_id | default("") }}'
+    auth_token: '{{ monitoring_sms_auth_token | default("") }}'
+    from_number: '{{ monitoring_sms_from_number | default("") }}'
+
+  opsgenie:
+    enabled: {{ monitoring_opsgenie_enabled | default(false) }}
+    api_key: '{{ monitoring_opsgenie_api_key | default("") }}'
+    api_url: 'https://api.opsgenie.com'
+
+# Recipients and team mappings
+recipients:
+  ops_on_call:
+    slack_handle: '@ops-oncall'
+    email: 'ops-oncall@example.com'
+    phone: '{{ monitoring_ops_phone | default("") }}'
+    pagerduty_schedule: 'ops-schedule'
+
+  ops_manager:
+    slack_handle: '@ops-manager'
+    email: 'ops-manager@example.com'
+    phone: '{{ monitoring_manager_phone | default("") }}'
+
+  infrastructure_team:
+    slack_channel: '#infrastructure'
+    email: 'infrastructure@example.com'
+
+  security_team:
+    slack_channel: '#security'
+    email: 'security@example.com'
+    pagerduty_schedule: 'security-schedule'
+
+  incident_commander:
+    slack_handle: '@incident-commander'
+    pagerduty_oncall: true
+
+# Channel preferences by severity
+severity_channels:
+  critical:
+    - pagerduty
+    - sms
+    - slack
+    - email
+
+  high:
+    - pagerduty
+    - slack
+    - email
+
+  medium:
+    - slack
+    - email
+    - webhook
+
+  low:
+    - slack
+    - webhook
+
+  info:
+    - slack
+
+# Alert enrichment
+enrichment:
+  include_runbook_link: true
+  include_dashboard_link: true
+  include_metrics: true
+  include_context: true
+  include_related_alerts: true
+  include_suggested_actions: true
+
+# Rate limiting and throttling
+rate_limiting:
+  enabled: {{ monitoring_rate_limiting_enabled | default(true) }}
+  global_rate_limit: 100  # Alerts per minute
+  per_channel_rate_limit:
+    slack: 50
+    email: 30
+    sms: 10
+    pagerduty: 20
+  alert_dedup_window_seconds: 300

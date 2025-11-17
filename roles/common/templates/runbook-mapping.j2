@@ -1,0 +1,124 @@
+# Runbook Mapping Configuration
+# Maps alerts and incidents to appropriate runbooks for automated response
+
+runbooks:
+  system:
+    high_cpu_usage:
+      runbook: https://wiki.example.com/runbooks/high-cpu-usage
+      auto_remediate: false
+      steps:
+        - Check top processes
+        - Review recent deployments
+        - Consider scaling or optimization
+      estimated_duration_minutes: 15
+
+    high_memory_usage:
+      runbook: https://wiki.example.com/runbooks/high-memory-usage
+      auto_remediate: false
+      steps:
+        - Check memory consuming processes
+        - Check for memory leaks
+        - Consider service restart
+      estimated_duration_minutes: 20
+
+    disk_full:
+      runbook: https://wiki.example.com/runbooks/disk-full
+      auto_remediate: false
+      priority: critical
+      steps:
+        - Identify large files
+        - Clean old logs
+        - Clean temporary files
+        - Consider disk expansion
+      estimated_duration_minutes: 30
+
+    high_load:
+      runbook: https://wiki.example.com/runbooks/high-load
+      auto_remediate: false
+      steps:
+        - Check for CPU contention
+        - Check for I/O wait
+        - Consider load balancing
+      estimated_duration_minutes: 25
+
+  application:
+    service_down:
+      runbook: https://wiki.example.com/runbooks/service-recovery
+      auto_remediate: true
+      remediation_script: /usr/local/bin/recover-service.sh
+      steps:
+        - Check service status
+        - Review logs
+        - Restart service
+        - Verify connectivity
+      estimated_duration_minutes: 10
+
+    high_response_time:
+      runbook: https://wiki.example.com/runbooks/response-time
+      auto_remediate: false
+      steps:
+        - Check database performance
+        - Check network latency
+        - Check application logs
+      estimated_duration_minutes: 20
+
+    authentication_failures:
+      runbook: https://wiki.example.com/runbooks/auth-failures
+      auto_remediate: false
+      critical: true
+      steps:
+        - Check authentication service
+        - Review security logs
+        - Check for attacks
+      estimated_duration_minutes: 15
+
+  network:
+    network_latency:
+      runbook: https://wiki.example.com/runbooks/network-latency
+      auto_remediate: false
+      steps:
+        - Check network interfaces
+        - Check for packet loss
+        - Review routing
+      estimated_duration_minutes: 20
+
+    packet_loss:
+      runbook: https://wiki.example.com/runbooks/packet-loss
+      auto_remediate: false
+      priority: high
+      steps:
+        - Check physical link
+        - Check for congestion
+        - Check routing
+      estimated_duration_minutes: 25
+
+  compliance:
+    compliance_violation:
+      runbook: https://wiki.example.com/runbooks/compliance-violation
+      auto_remediate: false
+      critical: true
+      steps:
+        - Review violation details
+        - Create remediation ticket
+        - Apply fixes
+        - Verify remediation
+      estimated_duration_minutes: 60
+
+    audit_tampering:
+      runbook: https://wiki.example.com/runbooks/audit-tampering
+      auto_remediate: false
+      critical: true
+      notify_security: true
+      steps:
+        - Isolate system
+        - Preserve evidence
+        - Notify security team
+        - Investigate
+      estimated_duration_minutes: 120
+
+# Quick response templates
+quick_responses:
+  system_restart: 'systemctl restart {{ service_name }}'
+  service_check: 'systemctl status {{ service_name }}'
+  log_review: 'tail -100 {{ log_file }}'
+  disk_cleanup: '/usr/local/bin/cleanup-disk.sh'

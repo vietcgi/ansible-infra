@@ -1,0 +1,109 @@
+# Alert Deduplication Configuration
+# Prevents alert storms by grouping and deduplicating related alerts
+
+deduplication:
+  enabled: {{ alert_deduplication_enabled | default(true) }}
+  window_seconds: {{ alert_dedup_window | default(300) }}  # 5 minutes
+
+  # Group related alerts together
+  groups:
+    system_health:
+      alerts:
+        - high_cpu_usage
+        - high_memory_usage
+        - high_disk_usage
+        - high_load
+      dedup_keys:
+        - alertname
+        - instance
+      max_alerts_per_group: 5
+      collapse: true
+
+    network:
+      alerts:
+        - network_latency
+        - packet_loss
+        - connection_timeout
+      dedup_keys:
+        - alertname
+        - instance
+      max_alerts_per_group: 3
+      collapse: true
+
+    application:
+      alerts:
+        - service_down
+        - high_response_time
+        - connection_errors
+      dedup_keys:
+        - alertname
+        - service
+      max_alerts_per_group: 5
+      collapse: true
+
+    security:
+      alerts:
+        - failed_login_attempts
+        - unauthorized_access
+        - privilege_escalation
+      dedup_keys:
+        - alertname
+        - source_ip
+      max_alerts_per_group: 10
+      collapse: false  # Don't collapse security alerts
+
+  # Silencing rules (temporary muting)
+  silence_rules:
+    - name: Maintenance window
+      matchers:
+        - environment: 'maintenance'
+      duration: 1h
+      comment: 'Temporary maintenance'
+
+    - name: Known issue
+      matchers:
+        - alertname: 'flaky_network_test'
+      duration: 24h
+      comment: 'Waiting for fix'
+
+  # Inhibition rules (prevent alerts when other conditions are met)
+  inhibit_rules:
+    # Don't alert on high memory if system is in shutdown
+    - source_match:
+        severity: critical
+        alertname: system_shutdown
+      target_match:
+        alertname: high_memory_usage
+      equal: [instance]
+
+    # Don't alert on service down if instance is down
+    - source_match:
+        alertname: instance_down
+      target_match:
+        severity: critical
+      equal: [instance]
+
+    # Don't alert on connection errors if network is down
+    - source_match:
+        alertname: network_unreachable
+      target_match:
+        alertname: connection_timeout
+      equal: [instance]
+
+# Notification batching
+notification_batching:
+  enabled: true
+  batch_interval: 5m
+  max_alerts_per_batch: 50
+
+# Alert correlation
+correlation:
+  enabled: true
+  correlation_window: 10m
+  correlation_rules:
+    - condition: 'high_cpu AND high_memory'
+      action: 'escalate_to_critical'
+    - condition: 'disk_full AND high_io'
+      action: 'notify_storage_team'
+    - condition: 'network_latency AND packet_loss'
+      action: 'notify_network_team'

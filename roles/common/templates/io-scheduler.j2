@@ -1,0 +1,32 @@
+# I/O Scheduler Configuration
+# Optimizes I/O scheduling for SSD and NVMe workloads
+
+# For systems with SSD/NVMe drives, use 'none' or 'mq-deadline'
+# For traditional spinning disks, 'bfq' is optimal
+{% if ansible_devices | length > 0 %}
+{% for device in ansible_devices.keys() %}
+# Device: {{ device }}
+ACTION=="add|change", KERNEL=="{{ device }}", ATTR{queue/scheduler}="{{ storage_io_scheduler | default('mq-deadline') }}"
+{% endfor %}
+{% else %}
+# Default I/O scheduler configuration
+ACTION=="add|change", KERNEL=="nvme*", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="sd*", ATTR{queue/scheduler}="{{ storage_io_scheduler | default('mq-deadline') }}"
+ACTION=="add|change", KERNEL=="vd*", ATTR{queue/scheduler}="{{ storage_io_scheduler | default('mq-deadline') }}"
+{% endif %}
+
+# Queue depth settings
+ACTION=="add|change", KERNEL=="nvme*", ATTR{queue/nr_requests}="{{ storage_queue_depth | default(256) }}"
+ACTION=="add|change", KERNEL=="sd*", ATTR{queue/nr_requests}="{{ storage_queue_depth | default(128) }}"
+
+# Read-ahead buffer (in KB)
+ACTION=="add|change", KERNEL=="nvme*", ATTR{queue/read_ahead_kb}="{{ storage_readahead | default(4096) }}"
+ACTION=="add|change", KERNEL=="sd*", ATTR{queue/read_ahead_kb}="{{ storage_readahead | default(2048) }}"
+
+# Rotational attribute (important for SSD detection)
+ACTION=="add|change", KERNEL=="nvme*", ATTR{queue/rotational}="0"
+ACTION=="add|change", KERNEL=="sd*", ATTR{queue/rotational}="0"
+
+# Request timeout (in milliseconds)
+ACTION=="add|change", KERNEL=="nvme*", ATTR{device/timeout}="30"
+ACTION=="add|change", KERNEL=="sd*", ATTR{device/timeout}="30"

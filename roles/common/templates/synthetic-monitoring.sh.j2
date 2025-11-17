@@ -1,0 +1,107 @@
+#!/bin/bash
+# Synthetic Monitoring Script
+# Performs uptime and health checks every 5 minutes
+
+set -euo pipefail
+
+LOG_FILE="/var/log/synthetic-monitoring.log"
+METRICS_DIR="/var/lib/monitoring/metrics"
+TIMEOUT=10
+
+mkdir -p "$METRICS_DIR"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+}
+
+# Check localhost HTTP
+check_localhost_http() {
+    if curl -s -f -m "$TIMEOUT" http://localhost:80 >/dev/null 2>&1; then
+        echo "1" > "$METRICS_DIR/localhost_http.metric"
+        return 0
+    else
+        echo "0" > "$METRICS_DIR/localhost_http.metric"
+        return 1
+    fi
+}
+
+# Check DNS resolution
+check_dns() {
+    if nslookup localhost >/dev/null 2>&1; then
+        echo "1" > "$METRICS_DIR/dns_resolution.metric"
+        return 0
+    else
+        echo "0" > "$METRICS_DIR/dns_resolution.metric"
+        return 1
+    fi
+}
+
+# Check system uptime
+check_uptime() {
+    uptime_seconds=$(cut -d. -f1 /proc/uptime 2>/dev/null || echo 0)
+    echo "$uptime_seconds" > "$METRICS_DIR/system_uptime.metric"
+
+    # Alert if uptime is less than 5 minutes (system just rebooted)
+    if [ "$uptime_seconds" -lt 300 ]; then
+        log "WARNING: System rebooted recently ($(($uptime_seconds / 60)) minutes)"
+    fi
+}
+
+# Check process count
+check_process_count() {
+    proc_count=$(ps aux | wc -l)
+    echo "$proc_count" > "$METRICS_DIR/process_count.metric"
+}
+
+# Check system load
+check_system_load() {
+    load=$(cat /proc/loadavg | awk '{print $1}')
+    echo "$load" > "$METRICS_DIR/system_load.metric"
+}
+
+# Check available memory
+check_available_memory() {
+    free_mem=$(free -b | grep Mem | awk '{print $7}')
+    echo "$free_mem" > "$METRICS_DIR/available_memory.metric"
+}
+
+# Check SSH connectivity (if configured)
+check_ssh() {
+    {% if monitoring_synthetic_ssh_enabled | default(false) %}
+    if timeout "$TIMEOUT" bash -c "echo '' | nc localhost 22" 2>/dev/null; then
+        echo "1" > "$METRICS_DIR/ssh_port.metric"
+    else
+        echo "0" > "$METRICS_DIR/ssh_port.metric"
+    fi
+    {% endif %}
+}
+
+# Check custom endpoints
+check_custom_endpoints() {
+    {% for endpoint in monitoring_synthetic_endpoints | default([]) %}
+    if curl -s -f -m "$TIMEOUT" "{{ endpoint.url }}" >/dev/null 2>&1; then
+        echo "1" > "$METRICS_DIR/endpoint_{{ endpoint.name }}.metric"
+    else
+        echo "0" > "$METRICS_DIR/endpoint_{{ endpoint.name }}.metric"
+        log "WARN: Endpoint {{ endpoint.name }} ({{ endpoint.url }}) is DOWN"
+    fi
+    {% endfor %}
+}
+
+# Main execution
+main() {
+    log "Starting synthetic monitoring checks"
+
+    check_localhost_http
+    check_dns
+    check_uptime
+    check_process_count
+    check_system_load
+    check_available_memory
+    check_ssh
+    check_custom_endpoints
+
+    log "Synthetic monitoring checks completed"
+}
+
+main

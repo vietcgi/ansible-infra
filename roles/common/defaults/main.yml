@@ -1094,4 +1094,166 @@ monitoring_metrics_retention_days: 30
 ## Service Level Objectives (SLOs)
 monitoring_slo_availability_target: 0.99
 monitoring_slo_latency_p99_ms: 1000
+
+## ===== PHASE 1.A: Kernel Hardening =====
+kernel_hardening_enabled: true
+kernel_aslr_enabled: true
+kernel_ptrace_scope: 2  # Restrict ptrace to parent/child
+kernel_modules_disabled: false  # Keep enabled for most systems
+kernel_bpf_disabled: false
+kernel_core_dump_enabled: false
+kernel_magic_sysrq_enabled: false
+kernel_restrict_module_loading: false
+kernel_dmesg_restrict: true
+kernel_panic_on_oops: true
+kernel_panic_timeout: 10
+
+## ===== PHASE 1.A: Password Policy =====
+password_policy_enabled: true
+password_min_length: 14
+password_min_uppercase: 1
+password_min_lowercase: 1
+password_min_digits: 1
+password_min_special_chars: 1
+password_max_age_days: 90
+password_min_age_days: 1
+password_warn_days: 7
+password_deny_attempts: 5
+password_lockout_time: 900  # 15 minutes
+password_reuse_history: 5
+sudo_require_tty: true
+sudo_log_enabled: true
+
+## ===== PHASE 1.A: Storage Hardening =====
+storage_hardening_enabled: true
+storage_tmp_size: "2G"
+storage_enable_quotas: true
+quota_user_soft_limit: 5242880  # 5GB
+quota_user_hard_limit: 10485760  # 10GB
+storage_disk_warning_percent: 85
+storage_disk_high_percent: 90
+storage_disk_critical_percent: 95
+storage_io_scheduler: "mq-deadline"
+storage_queue_depth: 128
+storage_readahead: 2048
+storage_allow_usb: false
+storage_enable_encryption: false
+
+## ===== PHASE 1.B: Performance Tuning =====
+performance_tuning_enabled: true
+performance_enable_cpu_affinity: false
+performance_cpu_scheduler_tuning: true
+postgres_shared_buffers: "2GB"
+postgres_cache_size: "6GB"
+postgres_work_mem: "256MB"
+postgres_maint_work_mem: "512MB"
+postgres_wal_buffers: "16MB"
+postgres_min_wal: "1GB"
+postgres_max_wal: "4GB"
+postgres_max_conn: 200
+postgres_max_prep: 100
+mysql_max_conn: 200
+mysql_table_cache: 2000
+mysql_tmp_table: "256M"
+mysql_buffer_pool: "4GB"
+mysql_log_file_size: "512M"
+mysql_flush_method: "O_DIRECT"
+mysql_flush_trx: 2
+redis_maxmemory: "2gb"
+redis_eviction_policy: "allkeys-lru"
+redis_save_interval: "900 1"
+redis_appendfsync: "everysec"
+redis_maxclients: 10000
+
+## ===== PHASE 1.B: Monitoring & Alerting Tuning =====
+monitoring_enable_anomaly_detection: false
+monitoring_enable_oncall_scheduling: false
+monitoring_synthetic_ssh_enabled: false
+monitoring_synthetic_endpoints: []
+alert_escalation_enabled: true
+alert_escalation_minutes: 5
+alert_escalation_l2_minutes: 5
+alert_escalation_l3_minutes: 15
+alert_escalation_l4_minutes: 30
+alert_cpu_high: 85
+alert_cpu_critical: 95
+alert_memory_high: 85
+alert_memory_critical: 95
+alert_disk_warning: 80
+alert_disk_high: 90
+alert_disk_critical: 95
+alert_latency_high: 100
+alert_latency_critical: 500
+alert_packet_loss: 1
+alert_zombie_processes: 5
+alert_zombie_critical: 20
+alert_swap_usage: 50
+alert_failed_logins: 5
+alert_sudo_spike: 300
+alert_deduplication_enabled: true
+alert_dedup_window: 300
+alert_severity_levels: ["critical", "high", "medium", "low", "info"]
+alert_routing_enabled: true
+monitoring_rate_limiting_enabled: true
+monitoring_slack_enabled: false
+monitoring_email_enabled: false
+monitoring_pagerduty_enabled: false
+monitoring_webhook_enabled: false
+monitoring_sms_enabled: false
+monitoring_opsgenie_enabled: false
+monitoring_slack_webhook_url: ""
+monitoring_pagerduty_token: ""
+monitoring_pagerduty_escalation_policy: ""
+monitoring_email_from: "alerts@example.com"
+monitoring_email_to: "ops@example.com"
+monitoring_smtp_server: "localhost"
+monitoring_smtp_port: 587
+monitoring_smtp_user: ""
+monitoring_smtp_password: ""
+monitoring_smtp_tls: true
+monitoring_webhook_url: ""
+monitoring_sms_account_id: ""
+monitoring_sms_auth_token: ""
+monitoring_sms_from_number: ""
+monitoring_opsgenie_api_key: ""
+monitoring_ops_phone: ""
+monitoring_manager_phone: ""
+
+## ===== PHASE 1.B: Compliance Scanning =====
+compliance_scanning_enabled: true
+compliance_tools_enabled: true
+compliance_aide_enabled: true
+compliance_aide_scan_time: "03:00"  # Daily at 3 AM
+compliance_weekly_scan_time: "01:00"  # Weekly Sunday at 1 AM
+compliance_cis_enabled: true
+compliance_nist_enabled: true
+compliance_openscap_enabled: true
+compliance_chkrootkit_enabled: true
+compliance_reporting_enabled: true
+compliance_report_location: "/var/log/compliance"
+
+## ===== PHASE 1.B: Compliance Automation =====
+compliance_automation_enabled: true
+compliance_fedramp_enabled: true
+compliance_hipaa_enabled: false
+compliance_pci_dss_enabled: false
+compliance_soc2_enabled: false
+compliance_nist_sp800_53_enabled: true
+compliance_exception_enabled: true
+compliance_remediation_enabled: false
+compliance_audit_tamper_detection: true
+compliance_audit_check_interval: "hourly"
+compliance_audit_correlation_enabled: true
+compliance_dashboard_enabled: false
+compliance_log_rotation_days: 30
+
+## ===== PHASE 1.B: Backup Recovery Testing =====
+backup_recovery_testing_enabled: true
+backup_test_schedule: "02:00"  # Weekly Sunday at 2 AM
+backup_test_retention_days: 7
+backup_integrity_check_enabled: true
+backup_failure_alert_enabled: true
+backup_restore_validation_enabled: true
+backup_rto_target_minutes: 60
+backup_rpo_target_minutes: 15
 monitoring_slo_error_rate_target: 0.01

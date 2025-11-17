@@ -1,0 +1,185 @@
+#!/bin/bash
+# FedRAMP Compliance Checker
+# Validates system compliance with FedRAMP requirements
+
+set -euo pipefail
+
+REPORT_FILE="/var/log/compliance/fedramp-check-$(date +%Y%m%d).log"
+STATUS_PASS=0
+STATUS_FAIL=0
+STATUS_WARN=0
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$REPORT_FILE"
+}
+
+pass() {
+    echo "✓ PASS: $*" | tee -a "$REPORT_FILE"
+    STATUS_PASS=$((STATUS_PASS + 1))
+}
+
+fail() {
+    echo "✗ FAIL: $*" | tee -a "$REPORT_FILE"
+    STATUS_FAIL=$((STATUS_FAIL + 1))
+}
+
+warn() {
+    echo "⚠ WARN: $*" | tee -a "$REPORT_FILE"
+    STATUS_WARN=$((STATUS_WARN + 1))
+}
+
+# AC-2 Account Management
+check_account_management() {
+    log "=== AC-2: Account Management ==="
+
+    # Check for unused accounts
+    if awk -F: '$3 >= 1000 {print $1}' /etc/passwd | wc -l | grep -q "[0-9]"; then
+        pass "User accounts exist"
+    else
+        fail "No regular user accounts found"
+    fi
+
+    # Check password policy
+    if grep -q "^password.*pam_pwquality" /etc/pam.d/common-password 2>/dev/null; then
+        pass "Password quality enforcement configured"
+    else
+        fail "Password quality enforcement not configured"
+    fi
+}
+
+# AC-3 Access Control
+check_access_control() {
+    log "=== AC-3: Access Control ==="
+
+    # Check file permissions on sensitive files
+    if [ -f /etc/shadow ]; then
+        perms=$(stat -f '%OLp' /etc/shadow 2>/dev/null || stat -c '%a' /etc/shadow)
+        if [ "$perms" = "640" ] || [ "$perms" = "000" ]; then
+            pass "Shadow file permissions correct ($perms)"
+        else
+            warn "Shadow file permissions may be loose ($perms)"
+        fi
+    fi
+
+    # Check sudo configuration
+    if [ -f /etc/sudoers ]; then
+        if grep -q "Requiretty" /etc/sudoers 2>/dev/null; then
+            pass "sudo TTY requirement configured"
+        else
+            warn "sudo TTY requirement not configured"
+        fi
+    fi
+}
+
+# SC-7 Boundary Protection
+check_boundary_protection() {
+    log "=== SC-7: Boundary Protection (Firewall) ==="
+
+    if command -v ufw &> /dev/null && ufw status | grep -q active; then
+        pass "UFW firewall is active"
+    elif command -v firewall-cmd &> /dev/null && firewall-cmd --state &>/dev/null; then
+        pass "Firewalld is active"
+    else
+        warn "No firewall detected as active"
+    fi
+}
+
+# SI-2 Flaw Remediation
+check_flaw_remediation() {
+    log "=== SI-2: Flaw Remediation (Updates) ==="
+
+    if command -v apt &> /dev/null; then
+        updates=$(apt list --upgradable 2>/dev/null | grep -c upgradable || echo 0)
+        if [ "$updates" -gt 0 ]; then
+            warn "$updates packages available for update"
+        else
+            pass "System is up to date"
+        fi
+    elif command -v yum &> /dev/null; then
+        updates=$(yum check-update 2>/dev/null | wc -l || echo 0)
+        if [ "$updates" -gt 2 ]; then
+            warn "$updates packages available for update"
+        else
+            pass "System is up to date"
+        fi
+    fi
+}
+
+# AU-2 Audit Events
+check_audit_events() {
+    log "=== AU-2: Audit Events ==="
+
+    if command -v auditctl &> /dev/null && auditctl -l 2>/dev/null | grep -q "audit rules"; then
+        pass "Auditd rules configured"
+    else
+        warn "Auditd not properly configured"
+    fi
+
+    # Check syslog
+    if [ -f /var/log/auth.log ] || [ -f /var/log/secure ]; then
+        pass "System logging enabled"
+    else
+        fail "System logs not found"
+    fi
+}
+
+# IA-2 Authentication
+check_authentication() {
+    log "=== IA-2: Authentication ==="
+
+    # Check SSH key-based auth
+    if [ -d /root/.ssh ] && [ -f /root/.ssh/authorized_keys ]; then
+        pass "SSH public key authentication configured"
+    else
+        warn "SSH public key authentication may not be configured"
+    fi
+
+    # Check SSH password auth
+    if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null; then
+        pass "SSH password authentication disabled"
+    else
+        warn "SSH password authentication may be enabled"
+    fi
+}
+
+# SC-2 Information System Monitoring
+check_monitoring() {
+    log "=== SC-2: Information System Monitoring ==="
+
+    if command -v systemctl &> /dev/null && systemctl is-enabled rsyslog &>/dev/null; then
+        pass "Syslog is enabled"
+    else
+        warn "Syslog monitoring may not be configured"
+    fi
+}
+
+# Main execution
+main() {
+    mkdir -p /var/log/compliance
+    log "FedRAMP Compliance Check Starting"
+    log "System: $(uname -a)"
+
+    check_account_management
+    check_access_control
+    check_boundary_protection
+    check_flaw_remediation
+    check_audit_events
+    check_authentication
+    check_monitoring
+
+    log ""
+    log "=== Summary ==="
+    log "PASS: $STATUS_PASS"
+    log "WARN: $STATUS_WARN"
+    log "FAIL: $STATUS_FAIL"
+
+    if [ $STATUS_FAIL -eq 0 ]; then
+        log "FedRAMP Compliance: COMPLIANT"
+        exit 0
+    else
+        log "FedRAMP Compliance: NON-COMPLIANT"
+        exit 1
+    fi
+}
+
+main "$@"

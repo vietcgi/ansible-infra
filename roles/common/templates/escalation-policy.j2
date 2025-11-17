@@ -1,0 +1,110 @@
+# Alert Escalation Policy
+# Defines escalation procedures for unacknowledged alerts
+
+global_escalation:
+  enabled: {{ alert_escalation_enabled | default(true) }}
+  escalation_window: {{ alert_escalation_minutes | default(5) }}  # Minutes before escalation
+  max_escalation_levels: 3
+
+escalation_levels:
+  # Level 1: Initial notification
+  level_1:
+    delay_minutes: 0
+    recipients:
+      - team: ops-on-call
+        channels:
+          - slack
+          - email
+    action: "Send to primary on-call"
+
+  # Level 2: Escalation to manager
+  level_2:
+    delay_minutes: {{ alert_escalation_l2_minutes | default(5) }}
+    recipients:
+      - team: ops-manager
+        channels:
+          - slack
+          - email
+          - sms
+      - individual: incident-commander
+        channels:
+          - slack
+          - phone
+    action: "Page ops manager and incident commander"
+
+  # Level 3: Escalation to director
+  level_3:
+    delay_minutes: {{ alert_escalation_l3_minutes | default(15) }}
+    recipients:
+      - team: infrastructure-director
+        channels:
+          - slack
+          - email
+          - phone
+      - team: ciso
+        channels:
+          - slack
+          - email
+    action: "Page director and CISO if security related"
+
+  # Level 4: Executive escalation (critical only)
+  level_4:
+    delay_minutes: {{ alert_escalation_l4_minutes | default(30) }}
+    recipients:
+      - team: executive-on-call
+        channels:
+          - phone
+          - sms
+    action: "Executive escalation - critical incidents only"
+    requires_severity: critical
+
+# Severity-based escalation overrides
+severity_overrides:
+  critical:
+    escalate_immediately: true
+    max_wait_time_minutes: 2
+    page_executive: true
+
+  high:
+    escalate_immediately: true
+    max_wait_time_minutes: 5
+    page_executive: false
+
+  medium:
+    escalate_immediately: false
+    max_wait_time_minutes: 30
+    page_executive: false
+
+  low:
+    escalate_immediately: false
+    max_wait_time_minutes: 120
+    page_executive: false
+
+# Escalation bypass conditions
+bypass_conditions:
+  - condition: "alert_acknowledged"
+    action: "stop escalation"
+
+  - condition: "incident_created"
+    action: "update to incident escalation policy"
+
+  - condition: "maintenance_window_active"
+    action: "suppress escalation"
+
+  - condition: "alert_resolved"
+    action: "cancel escalation"
+
+# Escalation restrictions
+restrictions:
+  # Don't escalate between certain hours
+  - name: "quiet hours"
+    start_hour: 22
+    end_hour: 7
+    days: [saturday, sunday]
+    action: "queue_instead_of_escalate"
+
+  # Don't multi-page same person
+  max_pages_per_person_per_hour: 3
+
+  # Prevent alert fatigue
+  min_interval_between_escalations: 5  # minutes
