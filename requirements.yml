@@ -4,12 +4,17 @@
 
 collections:
   # Grafana - Official collection for Grafana automation
+  # Collection: grafana.grafana (grafana-ansible-collection)
+  # Provides: grafana role for installation and dashboards
   - name: grafana.grafana
     version: ">=6.0.6"
     source: https://galaxy.ansible.com
 
-  # Prometheus - Official Prometheus collection
-  - name: prometheus.prometheus
+  # Prometheus - Prometheus Community Collection
+  # Collection: prometheus-community.prometheus
+  # Provides: prometheus, alertmanager, node_exporter, and 25+ other roles
+  # Roles used: prometheus, alertmanager, node_exporter
+  - name: prometheus_community.prometheus
     version: ">=0.14.0"
     source: https://galaxy.ansible.com
 

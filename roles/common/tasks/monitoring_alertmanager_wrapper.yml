@@ -1,0 +1,327 @@
+---
+# PHASE 2.A: AlertManager - Upstream Role Wrapper
+# Wrapper task that integrates prometheus-community.prometheus.alertmanager role
+# with organization-specific notification routing and receiver configuration
+#
+# This task file provides:
+# - Installation and configuration of AlertManager via upstream role
+# - Notification channel configuration (email, Slack, PagerDuty, etc.)
+# - Alert routing rules
+# - Grouping and deduplication configuration
+# - Health checks and validation
+#
+# Collection: prometheus-community.prometheus
+# Role: alertmanager
+# Reference: https://github.com/prometheus-community/ansible
+
+- name: "PHASE 2.A: AlertManager (Upstream Role Wrapper)"
+  block:
+    # ========================================================================
+    # Task: Validate AlertManager is enabled
+    # ========================================================================
+    - name: "Validate AlertManager enablement"
+      ansible.builtin.assert:
+        that:
+          - monitoring_alertmanager_enabled | bool
+        fail_msg: "AlertManager is disabled. Set monitoring_alertmanager_enabled=true"
+        quiet: true
+      tags:
+        - monitoring
+        - alertmanager
+        - validation
+
+    # ========================================================================
+    # Task: Set up upstream role variables
+    # ========================================================================
+    - name: "Configure upstream AlertManager role variables"
+      ansible.builtin.set_fact:
+        # Upstream role variable mapping
+        alertmanager_version: "{{ monitoring_alertmanager_version }}"
+        alertmanager_config_dir: "{{ monitoring_alertmanager_config_dir | default('/etc/alertmanager') }}"
+        alertmanager_db_dir: "{{ monitoring_alertmanager_data_dir | default('/var/lib/alertmanager') }}"
+        alertmanager_skip_install: false
+        alertmanager_binary_install_dir: "{{ monitoring_alertmanager_install_dir | default('/usr/local/bin') }}"
+
+        # Service configuration
+        alertmanager_service_state: "started"
+        alertmanager_service_enabled: true
+
+        # Network configuration
+        alertmanager_listen_address: "0.0.0.0"
+        alertmanager_listen_port: "{{ monitoring_alertmanager_port | default(9093) }}"
+
+        # Data retention
+        alertmanager_data_retention: "{{ monitoring_alertmanager_retention | default('120h') }}"
+      tags:
+        - monitoring
+        - alertmanager
+        - configuration
+
+    # ========================================================================
+    # Task: Create AlertManager configuration directory
+    # ========================================================================
+    - name: "Create AlertManager configuration directory"
+      ansible.builtin.file:
+        path: "{{ monitoring_alertmanager_config_dir }}"
+        state: directory
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0750"
+      tags:
+        - monitoring
+        - alertmanager
+        - configuration
+
+    # ========================================================================
+    # Task: Create AlertManager data directory
+    # ========================================================================
+    - name: "Create AlertManager data directory"
+      ansible.builtin.file:
+        path: "{{ monitoring_alertmanager_data_dir | default('/var/lib/alertmanager') }}"
+        state: directory
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0750"
+      tags:
+        - monitoring
+        - alertmanager
+        - configuration
+
+    # ========================================================================
+    # Task: Include upstream AlertManager role
+    # ========================================================================
+    - name: "Include upstream AlertManager role"
+      ansible.builtin.include_role:
+        name: prometheus_community.prometheus.alertmanager
+      vars:
+        # Pass through our mapped variables
+        alertmanager_version: "{{ alertmanager_version }}"
+        alertmanager_config_dir: "{{ alertmanager_config_dir }}"
+        alertmanager_db_dir: "{{ alertmanager_db_dir }}"
+        alertmanager_service_state: "{{ alertmanager_service_state }}"
+        alertmanager_service_enabled: "{{ alertmanager_service_enabled }}"
+      tags:
+        - monitoring
+        - alertmanager
+        - install
+
+    # ========================================================================
+    # Task: Deploy basic AlertManager configuration
+    # ========================================================================
+    - name: "Deploy AlertManager configuration"
+      ansible.builtin.template:
+        src: "alertmanager_config.j2"
+        dest: "{{ monitoring_alertmanager_config_dir }}/alertmanager.yml"
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0640"
+        backup: true
+      notify: "reload alertmanager"
+      tags:
+        - monitoring
+        - alertmanager
+        - configuration
+        - templates
+
+    # ========================================================================
+    # Task: Deploy custom notification templates
+    # ========================================================================
+    - name: "Create custom notification templates directory"
+      ansible.builtin.file:
+        path: "{{ monitoring_alertmanager_config_dir }}/templates"
+        state: directory
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0750"
+      tags:
+        - monitoring
+        - alertmanager
+        - templates
+
+    # ========================================================================
+    # Task: Deploy custom alert templates
+    # ========================================================================
+    - name: "Deploy custom AlertManager notification templates"
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "{{ monitoring_alertmanager_config_dir }}/templates/{{ item | regex_replace('\\.j2', '') }}"
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0640"
+        backup: true
+      loop: "{{ monitoring_alertmanager_custom_templates | default([]) }}"
+      notify: "reload alertmanager"
+      when:
+        - monitoring_alertmanager_custom_templates is defined
+        - monitoring_alertmanager_custom_templates | length > 0
+      tags:
+        - monitoring
+        - alertmanager
+        - templates
+
+    # ========================================================================
+    # Task: Deploy alert routing rules
+    # ========================================================================
+    - name: "Deploy custom alert routing rules"
+      ansible.builtin.template:
+        src: "alertmanager_routing.j2"
+        dest: "{{ monitoring_alertmanager_config_dir }}/routing.yml"
+        owner: "alertmanager"
+        group: "alertmanager"
+        mode: "0640"
+        backup: true
+      notify: "reload alertmanager"
+      when:
+        - monitoring_alertmanager_custom_routes is defined
+        - monitoring_alertmanager_custom_routes | length > 0
+      tags:
+        - monitoring
+        - alertmanager
+        - configuration
+        - templates
+
+    # ========================================================================
+    # Task: Configure Slack notifications (if enabled)
+    # ========================================================================
+    - name: "Configure Slack receiver"
+      ansible.builtin.blockinfile:
+        path: "{{ monitoring_alertmanager_config_dir }}/alertmanager.yml"
+        block: |
+          # Slack Notification Receiver
+          - name: slack_notifications
+            slack_configs:
+              - api_url: "{{ monitoring_alertmanager_slack_webhook }}"
+                channel: "{{ monitoring_alertmanager_slack_channel | default('#alerts') }}"
+                title: "{{ monitoring_alertmanager_slack_title | default('Prometheus Alert') }}"
+                text: "{{ monitoring_alertmanager_slack_text | default('{{ .CommonAnnotations.description }}') }}"
+                send_resolved: {{ monitoring_alertmanager_slack_send_resolved | default('true') | lower }}
+        marker: "# {mark} ANSIBLE SLACK RECEIVER CONFIGURATION"
+        state: present
+        backup: true
+      notify: "reload alertmanager"
+      when:
+        - monitoring_alertmanager_slack_webhook is defined
+        - monitoring_alertmanager_slack_webhook | length > 0
+      tags:
+        - monitoring
+        - alertmanager
+        - notifications
+        - slack
+
+    # ========================================================================
+    # Task: Configure email notifications (if enabled)
+    # ========================================================================
+    - name: "Configure email receiver"
+      ansible.builtin.blockinfile:
+        path: "{{ monitoring_alertmanager_config_dir }}/alertmanager.yml"
+        block: |
+          # Email Notification Receiver
+          - name: email_notifications
+            email_configs:
+              - to: "{{ monitoring_alertmanager_email_to }}"
+                from: "{{ monitoring_alertmanager_email_from | default('alertmanager@localhost') }}"
+                smarthost: "{{ monitoring_alertmanager_email_smarthost }}"
+                auth_username: "{{ monitoring_alertmanager_email_auth_username | default('') }}"
+                auth_password: "{{ monitoring_alertmanager_email_auth_password | default('') }}"
+                headers:
+                  Subject: "Alert: {{ .GroupLabels.alertname }}"
+                html: true
+        marker: "# {mark} ANSIBLE EMAIL RECEIVER CONFIGURATION"
+        state: present
+        backup: true
+      notify: "reload alertmanager"
+      when:
+        - monitoring_alertmanager_email_to is defined
+        - monitoring_alertmanager_email_smarthost is defined
+      tags:
+        - monitoring
+        - alertmanager
+        - notifications
+        - email
+
+    # ========================================================================
+    # Task: Health check - AlertManager port listening
+    # ========================================================================
+    - name: "Wait for AlertManager to be ready"
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ monitoring_alertmanager_port | default(9093) }}"
+        delay: 2
+        timeout: 30
+        state: "started"
+      tags:
+        - monitoring
+        - alertmanager
+        - health_check
+
+    # ========================================================================
+    # Task: Verify AlertManager API availability
+    # ========================================================================
+    - name: "Verify AlertManager API is responding"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ monitoring_alertmanager_port | default(9093) }}/api/v1/status"
+        method: "GET"
+        status_code: 200
+        timeout: 10
+      register: alertmanager_api_check
+      retries: 3
+      delay: 5
+      until: alertmanager_api_check.status == 200
+      tags:
+        - monitoring
+        - alertmanager
+        - health_check
+
+    # ========================================================================
+    # Task: Enable and start AlertManager service
+    # ========================================================================
+    - name: "Enable and start AlertManager service"
+      ansible.builtin.systemd_service:
+        name: "alertmanager"
+        state: "started"
+        enabled: true
+        daemon_reload: true
+      tags:
+        - monitoring
+        - alertmanager
+        - service
+
+    # ========================================================================
+    # Task: Log AlertManager completion
+    # ========================================================================
+    - name: "Log AlertManager setup completion"
+      ansible.builtin.debug:
+        msg: |
+          ✓ AlertManager installed and configured
+          - Version: {{ monitoring_alertmanager_version }}
+          - Listen: http://127.0.0.1:{{ monitoring_alertmanager_port | default(9093) }}
+          - Config: {{ monitoring_alertmanager_config_dir }}/alertmanager.yml
+          - Data Retention: {{ monitoring_alertmanager_retention | default('120h') }}
+          - Receivers configured: {{ monitoring_alertmanager_receivers | default(['default']) | join(', ') }}
+      tags:
+        - monitoring
+        - alertmanager
+        - summary
+
+  rescue:
+    - name: "Handle AlertManager installation failure"
+      ansible.builtin.debug:
+        msg: "AlertManager installation failed. Check logs for details."
+      tags:
+        - monitoring
+        - alertmanager
+        - error_handling
+
+    - name: "Fail with error message"
+      ansible.builtin.fail:
+        msg: "AlertManager setup failed. Refer to logs above."
+      tags:
+        - monitoring
+        - alertmanager
+        - error_handling
+
+  when: monitoring_alertmanager_enabled | default(true) | bool
+  tags:
+    - monitoring
+    - alertmanager
+    - phase_2_a

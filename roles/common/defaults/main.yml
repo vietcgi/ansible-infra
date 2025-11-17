@@ -282,3 +282,101 @@ apparmor_update_profiles: true
 selinux_enabled: false                    # RHEL/CentOS
 selinux_policy: "targeted"                # targeted, mls, strict
 selinux_mode: "enforcing"                 # enforcing, permissive, disabled
+
+################################################################################
+# PHASE 2.A: ADVANCED MONITORING STACK
+################################################################################
+
+## Prometheus Configuration
+monitoring_prometheus_enabled: true
+monitoring_prometheus_version: "2.48.1"
+monitoring_prometheus_port: 9090
+monitoring_prometheus_install_dir: "/usr/local/bin"
+monitoring_prometheus_config_dir: "/etc/prometheus"
+monitoring_prometheus_data_dir: "/var/lib/prometheus"
+
+# Scrape configuration
+monitoring_prometheus_scrape_interval: "15s"
+monitoring_prometheus_evaluation_interval: "15s"
+monitoring_prometheus_scrape_timeout: "10s"
+
+# Data retention
+monitoring_prometheus_retention: "30d"
+monitoring_prometheus_retention_size: "50GB"
+
+# Custom scrape configurations (optional)
+monitoring_prometheus_custom_scrapes: []
+
+# Custom alert rules (optional)
+monitoring_prometheus_custom_rules: []
+
+# TLS/SSL configuration (optional)
+monitoring_prometheus_tls_config: {}
+
+## Grafana Configuration
+monitoring_grafana_enabled: true
+monitoring_grafana_version: "10.2.2"
+monitoring_grafana_port: 3000
+monitoring_grafana_domain: "localhost"
+monitoring_grafana_root_url: "http://localhost:3000"
+monitoring_grafana_admin_user: "admin"
+monitoring_grafana_admin_password: "changeme"
+monitoring_grafana_secret_key: ""
+
+# Custom dashboards (list of template files to deploy)
+monitoring_grafana_custom_dashboards: []
+
+# Grafana authentication type
+monitoring_grafana_auth_type: "basic"  # Options: basic, oauth2, ldap
+
+## AlertManager Configuration
+monitoring_alertmanager_enabled: true
+monitoring_alertmanager_version: "0.26.0"
+monitoring_alertmanager_port: 9093
+monitoring_alertmanager_install_dir: "/usr/local/bin"
+monitoring_alertmanager_config_dir: "/etc/alertmanager"
+monitoring_alertmanager_data_dir: "/var/lib/alertmanager"
+
+# Data retention
+monitoring_alertmanager_retention: "120h"
+monitoring_alertmanager_notification_timeout: "10s"
+
+# Receivers configuration
+monitoring_alertmanager_receivers:
+  - "default"
+
+# Custom alert routing rules (optional)
+monitoring_alertmanager_custom_routes: []
+
+# Custom notification templates (optional)
+monitoring_alertmanager_custom_templates: []
+
+# Slack notifications (optional)
+monitoring_alertmanager_slack_webhook: ""
+monitoring_alertmanager_slack_channel: "#alerts"
+monitoring_alertmanager_slack_title: "Prometheus Alert"
+monitoring_alertmanager_slack_text: "{{ .CommonAnnotations.description }}"
+monitoring_alertmanager_slack_send_resolved: true
+
+# Email notifications (optional)
+monitoring_alertmanager_email_to: ""
+monitoring_alertmanager_email_from: "alertmanager@localhost"
+monitoring_alertmanager_email_smarthost: ""
+monitoring_alertmanager_email_auth_username: ""
+monitoring_alertmanager_email_auth_password: ""
+
+## Node Exporter Integration
+monitoring_node_exporter_enabled: true
+monitoring_node_exporter_port: 9100
+monitoring_node_exporter_version: "1.8.1"
+
+## Service Discovery (optional)
+monitoring_consul_enabled: false
+monitoring_consul_datacenter: "dc1"
+
+## Remote Storage (optional)
+monitoring_remote_storage_enabled: false
+monitoring_remote_write_url: ""
+monitoring_remote_write_max_shards: 200
+monitoring_remote_write_min_shards: 1
+monitoring_remote_write_max_samples: 500

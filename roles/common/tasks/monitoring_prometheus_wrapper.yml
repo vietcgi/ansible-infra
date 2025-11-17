@@ -1,0 +1,299 @@
+---
+# PHASE 2.A: Prometheus Monitoring - Upstream Role Wrapper
+# Wrapper task that integrates prometheus-community.prometheus.prometheus role
+# with organization-specific configuration and customization
+#
+# This task file provides:
+# - Installation and configuration of Prometheus via upstream role
+# - Organization-specific variable mapping and overrides
+# - Custom scrape configurations
+# - Alert rules integration
+# - Health checks and validation
+#
+# Collection: prometheus-community.prometheus
+# Role: prometheus
+# Reference: https://github.com/prometheus-community/ansible
+
+- name: "PHASE 2.A: Prometheus Monitoring (Upstream Role Wrapper)"
+  block:
+    # ========================================================================
+    # Task: Validate Prometheus is enabled
+    # ========================================================================
+    - name: "Validate Prometheus enablement"
+      ansible.builtin.assert:
+        that:
+          - monitoring_prometheus_enabled | bool
+        fail_msg: "Prometheus monitoring is disabled. Set monitoring_prometheus_enabled=true"
+        quiet: true
+      tags:
+        - monitoring
+        - prometheus
+        - validation
+
+    # ========================================================================
+    # Task: Set up upstream role variables
+    # ========================================================================
+    - name: "Configure upstream Prometheus role variables"
+      ansible.builtin.set_fact:
+        # Upstream role variable mapping
+        prometheus_version: "{{ monitoring_prometheus_version }}"
+        prometheus_binary_install_dir: "{{ monitoring_prometheus_install_dir | default('/usr/local/bin') }}"
+        prometheus_config_dir: "{{ monitoring_prometheus_config_dir | default('/etc/prometheus') }}"
+        prometheus_db_dir: "{{ monitoring_prometheus_data_dir | default('/var/lib/prometheus') }}"
+        prometheus_read_only_root_filesystem: false
+        prometheus_skip_install: false
+
+        # Scrape configuration
+        prometheus_global_scrape_interval: "{{ monitoring_prometheus_scrape_interval }}"
+        prometheus_global_evaluation_interval: "{{ monitoring_prometheus_evaluation_interval }}"
+        prometheus_global_scrape_timeout: "{{ monitoring_prometheus_scrape_timeout }}"
+
+        # Data retention
+        prometheus_storage_retention: "{{ monitoring_prometheus_retention }}"
+        prometheus_storage_retention_size: "{{ monitoring_prometheus_retention_size }}"
+
+        # Service configuration
+        prometheus_service_state: "started"
+        prometheus_service_enabled: true
+
+        # TLS configuration (if enabled)
+        prometheus_tls_server_config: "{{ monitoring_prometheus_tls_config | default({}) }}"
+      tags:
+        - monitoring
+        - prometheus
+        - configuration
+
+    # ========================================================================
+    # Task: Create custom scrape configs directory
+    # ========================================================================
+    - name: "Create custom scrape configurations directory"
+      ansible.builtin.file:
+        path: "{{ monitoring_prometheus_config_dir }}/scrape_configs.d"
+        state: directory
+        owner: "prometheus"
+        group: "prometheus"
+        mode: "0750"
+      tags:
+        - monitoring
+        - prometheus
+        - configuration
+
+    # ========================================================================
+    # Task: Create custom alert rules directory
+    # ========================================================================
+    - name: "Create alert rules directory"
+      ansible.builtin.file:
+        path: "{{ monitoring_prometheus_config_dir }}/rules.d"
+        state: directory
+        owner: "prometheus"
+        group: "prometheus"
+        mode: "0750"
+      tags:
+        - monitoring
+        - prometheus
+        - configuration
+
+    # ========================================================================
+    # Task: Include upstream Prometheus role
+    # ========================================================================
+    - name: "Include upstream Prometheus role"
+      ansible.builtin.include_role:
+        name: prometheus_community.prometheus.prometheus
+      vars:
+        # Pass through our mapped variables
+        prometheus_version: "{{ prometheus_version }}"
+        prometheus_config_dir: "{{ prometheus_config_dir }}"
+        prometheus_db_dir: "{{ prometheus_db_dir }}"
+        prometheus_global_scrape_interval: "{{ prometheus_global_scrape_interval }}"
+        prometheus_global_evaluation_interval: "{{ prometheus_global_evaluation_interval }}"
+        prometheus_global_scrape_timeout: "{{ prometheus_global_scrape_timeout }}"
+        prometheus_storage_retention: "{{ prometheus_storage_retention }}"
+        prometheus_service_state: "{{ prometheus_service_state }}"
+        prometheus_service_enabled: "{{ prometheus_service_enabled }}"
+      tags:
+        - monitoring
+        - prometheus
+        - install
+
+    # ========================================================================
+    # Task: Deploy custom scrape configurations
+    # ========================================================================
+    - name: "Deploy custom Prometheus scrape configurations"
+      ansible.builtin.template:
+        src: "prometheus_custom_scrapes.j2"
+        dest: "{{ monitoring_prometheus_config_dir }}/scrape_configs.d/custom.yml"
+        owner: "prometheus"
+        group: "prometheus"
+        mode: "0640"
+        backup: true
+      notify: "reload prometheus"
+      when:
+        - monitoring_prometheus_custom_scrapes is defined
+        - monitoring_prometheus_custom_scrapes | length > 0
+      tags:
+        - monitoring
+        - prometheus
+        - configuration
+        - templates
+
+    # ========================================================================
+    # Task: Deploy custom alert rules
+    # ========================================================================
+    - name: "Deploy custom Prometheus alert rules"
+      ansible.builtin.template:
+        src: "prometheus_custom_rules.j2"
+        dest: "{{ monitoring_prometheus_config_dir }}/rules.d/custom.yml"
+        owner: "prometheus"
+        group: "prometheus"
+        mode: "0640"
+        backup: true
+      notify: "reload prometheus"
+      when:
+        - monitoring_prometheus_custom_rules is defined
+        - monitoring_prometheus_custom_rules | length > 0
+      tags:
+        - monitoring
+        - prometheus
+        - configuration
+        - templates
+
+    # ========================================================================
+    # Task: Configure AlertManager integration
+    # ========================================================================
+    - name: "Configure AlertManager integration"
+      ansible.builtin.blockinfile:
+        path: "{{ monitoring_prometheus_config_dir }}/prometheus.yml"
+        block: |
+          # AlertManager configuration
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets:
+                      - "localhost:{{ monitoring_alertmanager_port | default(9093) }}"
+                relabel_configs:
+                  - source_labels: [__address__]
+                    target_label: instance
+                  - source_labels: [__scheme__]
+                    target_label: scheme
+        marker: "# {mark} ANSIBLE ALERTMANAGER INTEGRATION"
+        state: present
+        backup: true
+      notify: "reload prometheus"
+      when: monitoring_alertmanager_enabled | default(true)
+      tags:
+        - monitoring
+        - prometheus
+        - alertmanager
+        - configuration
+
+    # ========================================================================
+    # Task: Configure node_exporter integration
+    # ========================================================================
+    - name: "Configure node_exporter scrape job"
+      ansible.builtin.blockinfile:
+        path: "{{ monitoring_prometheus_config_dir }}/prometheus.yml"
+        block: |
+          # Node Exporter metrics collection
+          scrape_configs:
+            - job_name: 'node-exporter'
+              static_configs:
+                - targets: ['localhost:{{ monitoring_node_exporter_port | default(9100) }}']
+              scrape_interval: {{ monitoring_prometheus_scrape_interval }}
+              scrape_timeout: {{ monitoring_prometheus_scrape_timeout }}
+        marker: "# {mark} ANSIBLE NODE_EXPORTER SCRAPE"
+        state: present
+        backup: true
+      notify: "reload prometheus"
+      tags:
+        - monitoring
+        - prometheus
+        - node_exporter
+        - configuration
+
+    # ========================================================================
+    # Task: Health check - Prometheus port listening
+    # ========================================================================
+    - name: "Wait for Prometheus to be ready"
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ monitoring_prometheus_port | default(9090) }}"
+        delay: 2
+        timeout: 30
+        state: "started"
+      tags:
+        - monitoring
+        - prometheus
+        - health_check
+
+    # ========================================================================
+    # Task: Verify Prometheus API availability
+    # ========================================================================
+    - name: "Verify Prometheus API is responding"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ monitoring_prometheus_port | default(9090) }}/api/v1/status/runtimeinfo"
+        method: "GET"
+        status_code: 200
+        timeout: 10
+      register: prometheus_api_check
+      retries: 3
+      delay: 5
+      until: prometheus_api_check.status == 200
+      tags:
+        - monitoring
+        - prometheus
+        - health_check
+
+    # ========================================================================
+    # Task: Enable and start Prometheus service
+    # ========================================================================
+    - name: "Enable and start Prometheus service"
+      ansible.builtin.systemd_service:
+        name: "prometheus"
+        state: "started"
+        enabled: true
+        daemon_reload: true
+      tags:
+        - monitoring
+        - prometheus
+        - service
+
+    # ========================================================================
+    # Task: Log Prometheus completion
+    # ========================================================================
+    - name: "Log Prometheus monitoring setup completion"
+      ansible.builtin.debug:
+        msg: |
+          ✓ Prometheus monitoring installed and configured
+          - Version: {{ monitoring_prometheus_version }}
+          - Listen: http://127.0.0.1:{{ monitoring_prometheus_port | default(9090) }}
+          - Config: {{ monitoring_prometheus_config_dir }}/prometheus.yml
+          - Data: {{ monitoring_prometheus_data_dir | default('/var/lib/prometheus') }}
+          - Retention: {{ monitoring_prometheus_retention }}
+          - Scrape Interval: {{ monitoring_prometheus_scrape_interval }}
+      tags:
+        - monitoring
+        - prometheus
+        - summary
+
+  rescue:
+    - name: "Handle Prometheus installation failure"
+      ansible.builtin.debug:
+        msg: "Prometheus installation failed. Check logs for details."
+      tags:
+        - monitoring
+        - prometheus
+        - error_handling
+
+    - name: "Fail with error message"
+      ansible.builtin.fail:
+        msg: "Prometheus monitoring setup failed. Refer to logs above."
+      tags:
+        - monitoring
+        - prometheus
+        - error_handling
+
+  when: monitoring_prometheus_enabled | default(true) | bool
+  tags:
+    - monitoring
+    - prometheus
+    - phase_2_a

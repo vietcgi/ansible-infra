@@ -1,0 +1,282 @@
+---
+# PHASE 2.A: Grafana Dashboards - Upstream Role Wrapper
+# Wrapper task that integrates grafana.grafana.grafana role
+# with organization-specific dashboards and data source configuration
+#
+# This task file provides:
+# - Installation and configuration of Grafana via upstream role
+# - Prometheus datasource provisioning
+# - Custom dashboard provisioning
+# - Authentication and user management
+# - Health checks and validation
+#
+# Collection: grafana.grafana
+# Role: grafana
+# Reference: https://github.com/grafana/grafana-ansible-collection
+
+- name: "PHASE 2.A: Grafana Dashboards (Upstream Role Wrapper)"
+  block:
+    # ========================================================================
+    # Task: Validate Grafana is enabled
+    # ========================================================================
+    - name: "Validate Grafana enablement"
+      ansible.builtin.assert:
+        that:
+          - monitoring_grafana_enabled | bool
+        fail_msg: "Grafana is disabled. Set monitoring_grafana_enabled=true"
+        quiet: true
+      tags:
+        - monitoring
+        - grafana
+        - validation
+
+    # ========================================================================
+    # Task: Set up upstream role variables
+    # ========================================================================
+    - name: "Configure upstream Grafana role variables"
+      ansible.builtin.set_fact:
+        # Upstream role variable mapping
+        grafana_version: "{{ monitoring_grafana_version }}"
+        grafana_install_method: "package"
+        grafana_service_state: "started"
+        grafana_service_enabled: true
+
+        # Server configuration
+        grafana_server_http_port: "{{ monitoring_grafana_port | default(3000) }}"
+        grafana_server_domain: "{{ monitoring_grafana_domain | default('localhost') }}"
+        grafana_server_root_url: "{{ monitoring_grafana_root_url | default('http://localhost:3000') }}"
+
+        # Security configuration
+        grafana_security_admin_user: "{{ monitoring_grafana_admin_user }}"
+        grafana_security_admin_password: "{{ monitoring_grafana_admin_password }}"
+        grafana_security_secret_key: "{{ monitoring_grafana_secret_key | default(ansible_date_time.iso8601) }}"
+
+        # Session configuration
+        grafana_session_provider: "memory"
+        grafana_session_cookie_name: "grafana_session"
+
+        # Data sources list (will be populated below)
+        grafana_datasources: []
+
+        # Dashboards list (will be populated below)
+        grafana_dashboards: []
+      tags:
+        - monitoring
+        - grafana
+        - configuration
+
+    # ========================================================================
+    # Task: Configure Prometheus datasource
+    # ========================================================================
+    - name: "Configure Prometheus datasource"
+      ansible.builtin.set_fact:
+        grafana_datasources: |
+          [
+            {
+              "name": "Prometheus",
+              "type": "prometheus",
+              "access": "proxy",
+              "url": "http://127.0.0.1:{{ monitoring_prometheus_port | default(9090) }}",
+              "isDefault": true,
+              "editable": true,
+              "jsonData": {
+                "timeInterval": "{{ monitoring_prometheus_scrape_interval }}"
+              }
+            }
+          ] | from_json
+      tags:
+        - monitoring
+        - grafana
+        - datasources
+
+    # ========================================================================
+    # Task: Create provisioning directories
+    # ========================================================================
+    - name: "Create Grafana provisioning directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "grafana"
+        group: "grafana"
+        mode: "0755"
+      loop:
+        - "/etc/grafana/provisioning/datasources"
+        - "/etc/grafana/provisioning/dashboards"
+        - "/var/lib/grafana/dashboards"
+      tags:
+        - monitoring
+        - grafana
+        - configuration
+
+    # ========================================================================
+    # Task: Include upstream Grafana role
+    # ========================================================================
+    - name: "Include upstream Grafana role"
+      ansible.builtin.include_role:
+        name: grafana.grafana.grafana
+      vars:
+        # Pass through our mapped variables
+        grafana_version: "{{ grafana_version }}"
+        grafana_service_state: "{{ grafana_service_state }}"
+        grafana_service_enabled: "{{ grafana_service_enabled }}"
+        grafana_server_http_port: "{{ grafana_server_http_port }}"
+        grafana_server_domain: "{{ grafana_server_domain }}"
+        grafana_security_admin_user: "{{ grafana_security_admin_user }}"
+        grafana_security_admin_password: "{{ grafana_security_admin_password }}"
+      tags:
+        - monitoring
+        - grafana
+        - install
+
+    # ========================================================================
+    # Task: Deploy Prometheus datasource provisioning
+    # ========================================================================
+    - name: "Deploy Prometheus datasource configuration"
+      ansible.builtin.template:
+        src: "grafana_datasource_prometheus.j2"
+        dest: "/etc/grafana/provisioning/datasources/prometheus.yml"
+        owner: "grafana"
+        group: "grafana"
+        mode: "0640"
+        backup: true
+      notify: "restart grafana"
+      tags:
+        - monitoring
+        - grafana
+        - datasources
+        - templates
+
+    # ========================================================================
+    # Task: Deploy custom dashboards provisioning
+    # ========================================================================
+    - name: "Deploy custom Grafana dashboards"
+      ansible.builtin.template:
+        src: "{{ item }}"
+        dest: "/var/lib/grafana/dashboards/{{ item | regex_replace('\\.j2', '.json') }}"
+        owner: "grafana"
+        group: "grafana"
+        mode: "0640"
+      loop: "{{ monitoring_grafana_custom_dashboards | default([]) }}"
+      notify: "restart grafana"
+      when:
+        - monitoring_grafana_custom_dashboards is defined
+        - monitoring_grafana_custom_dashboards | length > 0
+      tags:
+        - monitoring
+        - grafana
+        - dashboards
+        - templates
+
+    # ========================================================================
+    # Task: Configure dashboard provisioning
+    # ========================================================================
+    - name: "Configure dashboard provider"
+      ansible.builtin.copy:
+        content: |
+          apiVersion: 1
+          providers:
+            - name: 'Default'
+              orgId: 1
+              folder: ''
+              type: file
+              disableDeletion: false
+              editable: true
+              options:
+                path: /var/lib/grafana/dashboards
+        dest: "/etc/grafana/provisioning/dashboards/dashboards.yml"
+        owner: "grafana"
+        group: "grafana"
+        mode: "0640"
+        backup: true
+      notify: "restart grafana"
+      tags:
+        - monitoring
+        - grafana
+        - dashboards
+        - configuration
+
+    # ========================================================================
+    # Task: Health check - Grafana port listening
+    # ========================================================================
+    - name: "Wait for Grafana to be ready"
+      ansible.builtin.wait_for:
+        host: "127.0.0.1"
+        port: "{{ monitoring_grafana_port | default(3000) }}"
+        delay: 2
+        timeout: 30
+        state: "started"
+      tags:
+        - monitoring
+        - grafana
+        - health_check
+
+    # ========================================================================
+    # Task: Verify Grafana API availability
+    # ========================================================================
+    - name: "Verify Grafana API is responding"
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ monitoring_grafana_port | default(3000) }}/api/health"
+        method: "GET"
+        status_code: 200
+        timeout: 10
+      register: grafana_api_check
+      retries: 3
+      delay: 5
+      until: grafana_api_check.status == 200
+      tags:
+        - monitoring
+        - grafana
+        - health_check
+
+    # ========================================================================
+    # Task: Enable and start Grafana service
+    # ========================================================================
+    - name: "Enable and start Grafana service"
+      ansible.builtin.systemd_service:
+        name: "grafana-server"
+        state: "started"
+        enabled: true
+        daemon_reload: true
+      tags:
+        - monitoring
+        - grafana
+        - service
+
+    # ========================================================================
+    # Task: Log Grafana completion
+    # ========================================================================
+    - name: "Log Grafana setup completion"
+      ansible.builtin.debug:
+        msg: |
+          ✓ Grafana dashboards installed and configured
+          - Version: {{ monitoring_grafana_version }}
+          - URL: http://{{ monitoring_grafana_domain | default('localhost') }}:{{ monitoring_grafana_port | default(3000) }}
+          - Admin User: {{ monitoring_grafana_admin_user }}
+          - Datasources: Prometheus (http://127.0.0.1:{{ monitoring_prometheus_port | default(9090) }})
+      tags:
+        - monitoring
+        - grafana
+        - summary
+
+  rescue:
+    - name: "Handle Grafana installation failure"
+      ansible.builtin.debug:
+        msg: "Grafana installation failed. Check logs for details."
+      tags:
+        - monitoring
+        - grafana
+        - error_handling
+
+    - name: "Fail with error message"
+      ansible.builtin.fail:
+        msg: "Grafana setup failed. Refer to logs above."
+      tags:
+        - monitoring
+        - grafana
+        - error_handling
+
+  when: monitoring_grafana_enabled | default(true) | bool
+  tags:
+    - monitoring
+    - grafana
+    - phase_2_a

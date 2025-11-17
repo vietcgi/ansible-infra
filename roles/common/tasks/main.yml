@@ -30,7 +30,25 @@
     - apparmor.yml
     - selinux.yml
 
+    # PHASE 2.A: Advanced Monitoring Stack (Upstream Role Wrappers)
+    - monitoring_prometheus_wrapper.yml
+    - monitoring_grafana_wrapper.yml
+    - monitoring_alertmanager_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"
+  when: not ansible_check_mode
+
+- name: Display PHASE 2.A status
+  debug:
+    msg: |
+      ✓ PHASE 2.A Monitoring Stack Status:
+      - Prometheus: {{ 'Enabled' if monitoring_prometheus_enabled | default(true) else 'Disabled' }}
+      - Grafana: {{ 'Enabled' if monitoring_grafana_enabled | default(true) else 'Disabled' }}
+      - AlertManager: {{ 'Enabled' if monitoring_alertmanager_enabled | default(true) else 'Disabled' }}
+  tags:
+    - monitoring
+    - phase_2_a
+    - summary
   when: not ansible_check_mode
