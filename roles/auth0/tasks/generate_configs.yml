@@ -1,0 +1,44 @@
+---
+# Generate configuration files for applications
+
+- name: Create app config directory
+  file:
+    path: "{{ playbook_dir }}/{{ client_name }}_auth0_configs"
+    state: directory
+  delegate_to: localhost
+  become: no
+  tags:
+    - auth0
+    - configuration
+
+- name: Generate environment variables file
+  copy:
+    content: |
+      # Auth0 Configuration for {{ client_name }}
+      # Generated: {{ ansible_date_time.iso8601 }}
+
+      # Tenant
+      AUTH0_DOMAIN={{ auth0_domain }}
+      AUTH0_AUDIENCE=https://{{ auth0_domain }}/api/v2/
+
+      {% for app in created_auth0_apps %}
+      # {{ app.name }}
+      AUTH0_CLIENT_ID_{{ loop.index }}={{ app.client_id }}
+      {% if app.get('client_secret') %}
+      AUTH0_CLIENT_SECRET_{{ loop.index }}={{ app.client_secret }}
+      {% endif %}
+
+      {% endfor %}
+    dest: "{{ playbook_dir }}/{{ client_name }}_auth0_configs/.env"
+  delegate_to: localhost
+  become: no
+  tags:
+    - auth0
+    - configuration
+
+- name: Display generated configs
+  debug:
+    msg: "Configuration files generated in: {{ playbook_dir }}/{{ client_name }}_auth0_configs/"
+  tags:
+    - auth0
+    - configuration

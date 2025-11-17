@@ -1,0 +1,120 @@
+---
+# Auth0 Role - Default Variables
+# Configurable settings for Auth0 integration
+
+## Auth0 Credentials (Override via inventory or vault)
+auth0_domain: ""                          # e.g., acme-corp.auth0.com
+auth0_client_id: ""                       # Machine-to-Machine app client ID
+auth0_client_secret: ""                   # Machine-to-Machine app client secret
+
+## Client Configuration
+client_name: "default"                    # Client/tenant name (for naming apps)
+client_domain: "localhost:3000"           # Application callback domain
+client_description: "Client infrastructure"
+
+## Auth0 Applications to Create
+auth0_applications: []
+# Example:
+# auth0_applications:
+#   - name: "{{ client_name }}-webapp"
+#     type: "regular_web"
+#     redirect_uris:
+#       - "http://{{ client_domain }}/callback"
+#   - name: "{{ client_name }}-api"
+#     type: "non_interactive"
+
+## Auth0 Users to Create
+auth0_users: []
+# Example:
+# auth0_users:
+#   - email: "john@example.com"
+#     given_name: "John"
+#     family_name: "Doe"
+#     password: "{{ vault_user_password }}"
+#   - email: "jane@example.com"
+#     given_name: "Jane"
+#     family_name: "Smith"
+
+## Auth0 Roles and Permissions (RBAC)
+auth0_roles: []
+# Example:
+# auth0_roles:
+#   - name: "admin"
+#     description: "Administrator role"
+#     permissions:
+#       - resource: "api://{{ client_name }}"
+#         permission: "write:users"
+#       - resource: "api://{{ client_name }}"
+#         permission: "read:users"
+#   - name: "user"
+#     description: "Regular user role"
+#     permissions:
+#       - resource: "api://{{ client_name }}"
+#         permission: "read:profile"
+
+## Auth0 Connections (Social/External Login)
+auth0_connections:
+  - name: "google-oauth2"
+    enabled: false                        # Set to true to enable
+    strategy: "google-oauth2"
+    options:
+      client_id: "{{ vault_google_oauth_client_id | default('') }}"
+      client_secret: "{{ vault_google_oauth_secret | default('') }}"
+
+  - name: "microsoft"
+    enabled: false                        # Set to true to enable
+    strategy: "windowslive"
+    options:
+      client_id: "{{ vault_microsoft_client_id | default('') }}"
+      client_secret: "{{ vault_microsoft_secret | default('') }}"
+
+## Auth0 Custom Rules (Advanced)
+auth0_rules: []
+# Example:
+# auth0_rules:
+#   - name: "Add custom claims"
+#     script: "{{ lookup('template', 'auth0_rule.js.j2') }}"
+#     enabled: true
+
+## Auth0 Branding and Settings
+auth0_branding:
+  logo_url: ""
+  primary_color: "#007bff"
+  page_background_color: "#ffffff"
+
+auth0_email_settings:
+  from: "noreply@{{ client_domain }}"
+  name: "{{ client_name }}"
+
+## MFA Configuration
+auth0_mfa_enabled: true
+auth0_mfa_methods:
+  - "sms"
+  - "totp"
+
+## Password Policy
+auth0_password_policy: "good"             # Options: none, fair, good, excellent
+
+## Rate Limiting
+auth0_rate_limits:
+  enabled: true
+  login_attempts: 5                       # Max login attempts
+  lockout_time: 300                       # Seconds (5 minutes)
+
+## API Settings
+auth0_api:
+  name: "{{ client_name }}-api"
+  identifier: "https://api.{{ client_domain }}"
+  scopes:
+    - name: "read:users"
+      description: "Read user data"
+    - name: "write:users"
+      description: "Write user data"
+
+## Logging and Monitoring
+auth0_logging_enabled: true
+auth0_log_retention_days: 30
+
+## Other Defaults
+auth0_api_rate_limit: 1000                # API calls per minute
+auth0_token_expiration: 86400             # 24 hours in seconds

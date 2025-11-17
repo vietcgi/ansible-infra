@@ -1,0 +1,175 @@
+---
+# Create Auth0 applications (OIDC/OAuth apps)
+
+- name: Create temporary Python script for app management
+  copy:
+    content: |
+      #!/usr/bin/env python3
+      import sys
+      import json
+      from auth0.authentication import GetToken
+      from auth0.management import Auth0
+
+      try:
+          domain = "{{ auth0_domain }}"
+          client_id = "{{ auth0_client_id }}"
+          client_secret = "{{ auth0_client_secret }}"
+
+          # Get management API token
+          get_token = GetToken(domain)
+          token = get_token.client_credentials(
+              client_id=client_id,
+              client_secret=client_secret,
+              audience=f'https://{domain}/api/v2/'
+          )
+
+          # Initialize management API
+          mgmt = Auth0(domain, token)
+
+          # Parse applications from JSON
+          apps = json.loads("""{{ auth0_applications | to_json }}""")
+
+          created_apps = []
+          for app in apps:
+              try:
+                  # Check if app already exists
+                  existing = mgmt.clients.all(fields=['name', 'client_id'])
+                  app_exists = any(c['name'] == app['name'] for c in existing['clients'])
+
+                  if app_exists:
+                      print(f"INFO: Application '{app['name']}' already exists, skipping")
+                      # Get existing app details
+                      existing_app = next(c for c in existing['clients'] if c['name'] == app['name'])
+                      created_apps.append({
+                          'name': app['name'],
+                          'client_id': existing_app['client_id'],
+                          'status': 'existing'
+                      })
+                  else:
+                      # Create new application
+                      app_data = {
+                          'name': app['name'],
+                          'app_type': app.get('type', 'regular_web'),
+                          'description': app.get('description', ''),
+                          'is_first_party': True,
+                          'oidc_conformant': True,
+                      }
+
+                      # Add allowed redirect URIs
+                      if 'redirect_uris' in app:
+                          app_data['callbacks'] = app['redirect_uris']
+
+                      # Add allowed logout URLs
+                      if 'allowed_logout_urls' in app:
+                          app_data['allowed_logout_urls'] = app['allowed_logout_urls']
+
+                      # Add web origins (CORS)
+                      if 'web_origins' in app:
+                          app_data['web_origins'] = app['web_origins']
+
+                      result = mgmt.clients.create(app_data)
+                      print(f"SUCCESS: Created application '{app['name']}'")
+                      print(f"  Client ID: {result['client_id']}")
+                      print(f"  Client Secret: {result['client_secret']}")
+
+                      created_apps.append({
+                          'name': app['name'],
+                          'client_id': result['client_id'],
+                          'client_secret': result['client_secret'],
+                          'status': 'created'
+                      })
+
+              except Exception as e:
+                  print(f"ERROR: Failed to create application '{app['name']}': {str(e)}")
+                  sys.exit(1)
+
+          # Output created apps as JSON
+          print("\n=== CREATED_APPS_JSON_START ===")
+          print(json.dumps(created_apps, indent=2))
+          print("=== CREATED_APPS_JSON_END ===")
+          sys.exit(0)
+
+      except Exception as e:
+          print(f"ERROR: {str(e)}")
+          sys.exit(1)
+    dest: /tmp/auth0_create_apps.py
+    mode: '0755'
+  tags:
+    - auth0
+    - applications
+
+- name: Execute app creation script
+  shell: python3 /tmp/auth0_create_apps.py
+  register: auth0_app_creation
+  failed_when: auth0_app_creation.rc != 0
+  changed_when: "'created' in auth0_app_creation.stdout.lower()"
+  tags:
+    - auth0
+    - applications
+
+- name: Extract created apps from output
+  set_fact:
+    created_auth0_apps: "{{ auth0_app_creation.stdout | regex_search('=== CREATED_APPS_JSON_START ===(.*)=== CREATED_APPS_JSON_END ===', '\\1') | first | from_json }}"
+  tags:
+    - auth0
+    - applications
+
+- name: Display created applications
+  debug:
+    msg: |
+      ========================================
+      Auth0 Applications Created/Verified
+      ========================================
+      {% for app in created_auth0_apps %}
+
+      Application: {{ app.name }}
+      Client ID: {{ app.client_id }}
+      Status: {{ app.status }}
+      {% if app.get('client_secret') %}
+      Client Secret: {{ app.client_secret }}
+      {% endif %}
+      {% endfor %}
+
+      Save these credentials securely!
+      Client secrets are only shown once.
+  tags:
+    - auth0
+    - applications
+
+- name: Save application credentials to file
+  copy:
+    content: |
+      # Auth0 Application Credentials
+      # Generated: {{ ansible_date_time.iso8601 }}
+      # Client: {{ client_name }}
+
+      {% for app in created_auth0_apps %}
+      ## {{ app.name }}
+      CLIENT_ID={{ app.client_id }}
+      {% if app.get('client_secret') %}
+      CLIENT_SECRET={{ app.client_secret }}
+      {% endif %}
+
+      {% endfor %}
+    dest: "{{ playbook_dir }}/{{ client_name }}_auth0_credentials.txt"
+    mode: '0600'
+  delegate_to: localhost
+  become: no
+  tags:
+    - auth0
+    - applications
+
+- name: Clean up script
+  file:
+    path: /tmp/auth0_create_apps.py
+    state: absent
+  tags:
+    - auth0
+    - applications
+
+- name: Display credential file location
+  debug:
+    msg: "Auth0 application credentials saved to: {{ playbook_dir }}/{{ client_name }}_auth0_credentials.txt"
+  tags:
+    - auth0
+    - applications

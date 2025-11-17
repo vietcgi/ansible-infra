@@ -1,0 +1,20 @@
+---
+# Configure Auth0 roles and permissions (RBAC)
+
+- name: Display roles to be configured
+  debug:
+    msg: |
+      Configuring {{ auth0_roles | length }} roles in Auth0:
+      {% for role in auth0_roles %}
+      - {{ role.name }}: {{ role.permissions | length }} permissions
+      {% endfor %}
+  when: auth0_roles | length > 0
+  tags:
+    - auth0
+    - rbac
+
+# TODO: Implement role creation via Auth0 API
+# This will:
+# 1. Create roles with name/description
+# 2. Add permissions to roles
+# 3. Link permissions to API resources

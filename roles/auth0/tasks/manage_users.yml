@@ -1,0 +1,27 @@
+---
+# Manage Auth0 users (create, update, delete)
+
+- name: Create users in Auth0
+  debug:
+    msg: "Managing {{ auth0_users | length }} users in Auth0"
+  tags:
+    - auth0
+    - users
+
+- name: Display users to be created
+  debug:
+    msg: |
+      {% for user in auth0_users %}
+      - {{ user.email }} ({{ user.given_name }} {{ user.family_name }})
+      {% endfor %}
+  when: auth0_users | length > 0
+  tags:
+    - auth0
+    - users
+
+# TODO: Implement actual user creation via Auth0 API
+# This will use auth0-python SDK to:
+# 1. Create user with email/password
+# 2. Set user metadata
+# 3. Assign to roles
+# 4. Send password reset email if needed

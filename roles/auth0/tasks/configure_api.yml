@@ -1,0 +1,19 @@
+---
+# Configure Auth0 API resource
+
+- name: Display API configuration
+  debug:
+    msg: |
+      Configuring API: {{ auth0_api.name }}
+      Identifier: {{ auth0_api.identifier }}
+      Scopes: {{ auth0_api.scopes | length }}
+  when: auth0_api.name is defined
+  tags:
+    - auth0
+    - api
+
+# TODO: Implement API configuration via Auth0 API
+# This will:
+# 1. Create API resource
+# 2. Define scopes
+# 3. Set token expiration

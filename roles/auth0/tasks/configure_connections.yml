@@ -1,0 +1,19 @@
+---
+# Configure Auth0 connections (social/enterprise login)
+
+- name: Display connections to be configured
+  debug:
+    msg: |
+      Configuring {{ auth0_connections | length }} connections:
+      {% for conn in auth0_connections %}
+      - {{ conn.name }} ({{ conn.strategy }}): {% if conn.enabled %}enabled{% else %}disabled{% endif %}
+      {% endfor %}
+  tags:
+    - auth0
+    - connections
+
+# TODO: Implement connection configuration via Auth0 API
+# This will:
+# 1. Enable/disable social connections (Google, Microsoft, GitHub)
+# 2. Set OAuth credentials for each connection
+# 3. Configure connection options/settings
