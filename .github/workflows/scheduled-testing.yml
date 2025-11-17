@@ -138,10 +138,12 @@ jobs:
           cat benchmark-results.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: benchmark-results.txt
+          retention-days: 7
+          compression-level: 9
 
   # Compliance scanning
   compliance-nightly:
@@ -173,10 +175,12 @@ jobs:
           yamllint -f parseable roles/ playbooks/ inventories/ >> compliance-report.md 2>&1 || true
 
       - name: Upload compliance report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: compliance-report
           path: compliance-report.md
+          retention-days: 7
+          compression-level: 9
 
   # Dependency audit
   dependency-audit:
@@ -208,10 +212,12 @@ jobs:
           fi
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dependency-audit
           path: audit-report.md
+          retention-days: 7
+          compression-level: 9
 
   # Generate nightly report
   nightly-report:
@@ -257,7 +263,9 @@ jobs:
           cat nightly-summary.md
 
       - name: Upload nightly report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nightly-report
           path: nightly-summary.md
+          retention-days: 7
+          compression-level: 9

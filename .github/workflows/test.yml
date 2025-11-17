@@ -24,6 +24,10 @@ on:
       - 'requirements.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PYTHON_VERSION: '3.10'
   ANSIBLE_VERSION: '2.15'
@@ -102,10 +106,12 @@ jobs:
 
       - name: Upload pytest results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-results
           path: junit.xml
+          retention-days: 7
+          compression-level: 9
 
       - name: Comment PR with test results
         if: github.event_name == 'pull_request'
@@ -142,6 +148,9 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -169,10 +178,12 @@ jobs:
 
       - name: Upload Molecule artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: molecule-logs-${{ matrix.scenario }}
           path: roles/system_hardening_macos/.molecule/
+          retention-days: 7
+          compression-level: 9
 
   # Job 4: Security Scanning (2-3 minutes)
   security-scan:
@@ -213,10 +224,12 @@ jobs:
 
       - name: Upload security scan results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-scan-results
           path: secrets-scan.log
+          retention-days: 7
+          compression-level: 9
 
   # Job 5: Documentation Validation (1-2 minutes)
   documentation:

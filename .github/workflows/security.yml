@@ -68,10 +68,12 @@ jobs:
 
       - name: Upload secrets report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: secrets-scan-report
           path: secrets-report.txt
+          retention-days: 7
+          compression-level: 9
 
   # Hardcoded credential detection
   credential-check:
@@ -126,10 +128,12 @@ jobs:
 
       - name: Upload YAML security report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: yaml-security-report
           path: yaml-security.log
+          retention-days: 7
+          compression-level: 9
 
   # Ansible-specific security checks
   ansible-security:
@@ -262,10 +266,12 @@ jobs:
           cat security-summary.md
 
       - name: Upload security report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: security-summary.md
+          retention-days: 7
+          compression-level: 9
 
       - name: Comment PR with security results
         if: github.event_name == 'pull_request'
