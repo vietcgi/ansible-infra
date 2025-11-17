@@ -1,0 +1,60 @@
+---
+# Auth0 Integration Test Configuration
+# Tests against mock Auth0 API running on localhost:19080
+
+client_name: "auth0-test"
+client_domain: "test.example.com"
+client_env: "test"
+
+# Auth0 Credentials (for mock API)
+auth0_domain: "127.0.0.1:19080"
+auth0_client_id: "test_client_id_12345"
+auth0_client_secret: "test_client_secret_67890"
+
+# Test Applications
+auth0_applications:
+  - name: "test-web-app"
+    type: "regular_web"
+    description: "Test web application"
+    redirect_uris:
+      - "https://test.example.com/callback"
+      - "http://localhost:3000/callback"
+    allowed_logout_urls:
+      - "https://test.example.com/logout"
+      - "http://localhost:3000/logout"
+    web_origins:
+      - "https://test.example.com"
+      - "http://localhost:3000"
+
+  - name: "test-api"
+    type: "non_interactive"
+    description: "Test API application"
+
+# Test Users
+auth0_users:
+  - email: "test.user@example.com"
+    given_name: "Test"
+    family_name: "User"
+    password: "TestPassword123!"
+    email_verified: true
+
+  - email: "admin.test@example.com"
+    given_name: "Admin"
+    family_name: "Test"
+    password: "AdminPassword123!"
+    email_verified: true
+
+# Test Roles
+auth0_roles:
+  - name: "admin"
+    description: "Administrator role"
+
+  - name: "user"
+    description: "User role"
+
+  - name: "viewer"
+    description: "Viewer role"
+
+# Ansible Configuration
+ansible_connection: "local"
+ansible_python_interpreter: "/usr/bin/python3"
