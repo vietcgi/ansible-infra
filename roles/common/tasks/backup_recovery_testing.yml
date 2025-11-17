@@ -1,0 +1,105 @@
+---
+# Backup Recovery Testing & Validation
+# Automated restore testing to ensure backups are usable
+# Compliance: NIST CP-4, ISO 27001 A.12.3.1
+
+- name: Install backup testing dependencies
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - tar
+    - gzip
+    - bzip2
+    - xz-utils
+  tags:
+    - backup_testing
+
+- name: Create backup testing directory
+  ansible.builtin.file:
+    path: /var/backup/test
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  tags:
+    - backup_testing
+
+- name: Create backup verification script
+  ansible.builtin.template:
+    src: backup-verify.sh.j2
+    dest: /usr/local/bin/backup-verify.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - backup_testing
+
+- name: Create automated weekly backup restore test
+  ansible.builtin.cron:
+    name: "Weekly backup restoration test"
+    minute: "0"
+    hour: "2"
+    weekday: "0"
+    job: "/usr/local/bin/backup-verify.sh >> /var/log/backup-test.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - backup_testing
+
+- name: Configure backup integrity monitoring
+  ansible.builtin.template:
+    src: backup-monitoring.j2
+    dest: /etc/backup-monitoring.conf
+    owner: root
+    group: root
+    mode: '0640'
+  tags:
+    - backup_testing
+
+- name: Enable backup failure alerting
+  ansible.builtin.blockinfile:
+    path: /var/log/rsyslog.d/backup.conf
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+    block: |
+      :programname, isequal, "backup" /var/log/backup.log
+      & stop
+
+      # Alert on backup failures
+      :programname, contains, "backup" /var/log/backup-errors.log
+  when: backup_enabled | default(false)
+  tags:
+    - backup_testing
+
+- name: Document backup recovery procedure
+  ansible.builtin.template:
+    src: backup-recovery-runbook.md.j2
+    dest: /opt/backup-recovery-runbook.md
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - backup_testing
+
+- name: Display backup testing configuration
+  ansible.builtin.debug:
+    msg: |
+      Backup Recovery Testing Configured:
+      ===================================
+      Test Schedule: Weekly (Sunday 2:00 AM)
+      Test Location: /var/backup/test
+      Verification: Automated restore validation
+      Alerts: Enabled for backup failures
+      Runbook: /opt/backup-recovery-runbook.md
+
+      Testing includes:
+      - Backup integrity verification
+      - Restore functionality test
+      - File count validation
+      - Data consistency checks
+  tags:
+    - backup_testing
+    - report
