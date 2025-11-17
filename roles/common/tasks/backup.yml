@@ -1,0 +1,439 @@
+---
+# Automated Backup Configuration
+# Supports Bacula, Veeam, Restic, and other backup clients
+# Enables scheduled backups with retention policies
+
+- name: Ensure backup configuration is defined
+  ansible.builtin.assert:
+    that:
+      - backup_client is defined
+      - backup_client | length > 0
+      - backup_schedule is defined
+    fail_msg: "backup_client and backup_schedule must be defined"
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - always
+
+- name: Install Bacula backup client
+  block:
+    - name: Install Bacula package (Debian/Ubuntu)
+      ansible.builtin.package:
+        name: bacula-client
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Bacula package (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: bacula-client
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Create Bacula backup directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: bacula
+        group: bacula
+        mode: '0750'
+        state: directory
+      loop:
+        - /var/spool/bacula
+        - /var/log/bacula
+
+    - name: Configure Bacula FD (client)
+      ansible.builtin.template:
+        src: bacula_fd.j2
+        dest: /etc/bacula/bacula-fd.conf
+        owner: root
+        group: root
+        mode: '0640'
+        backup: yes
+      notify: restart bacula-fd
+
+    - name: Enable and start Bacula FD service
+      ansible.builtin.systemd:
+        name: bacula-fd
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+  when:
+    - backup_enabled | bool
+    - backup_client == "bacula"
+  tags:
+    - backup
+    - bacula
+    - packages
+
+- name: Install Restic backup client
+  block:
+    - name: Download and install Restic
+      ansible.builtin.get_url:
+        url: "https://github.com/restic/restic/releases/download/v{{ restic_version | default('0.16.4') }}/restic_{{ restic_version | default('0.16.4') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.bz2"
+        dest: /tmp/restic.bz2
+        timeout: 30
+      when: backup_client == "restic"
+
+    - name: Extract and install Restic
+      ansible.builtin.shell: |
+        bzip2 -d /tmp/restic.bz2
+        chmod +x /tmp/restic
+        mv /tmp/restic /usr/local/bin/
+      when: backup_client == "restic"
+      changed_when: false
+
+    - name: Create Restic backup directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: root
+        mode: '0700'
+        state: directory
+      loop:
+        - /var/lib/restic
+        - /var/log/restic
+        - /etc/restic
+
+    - name: Configure Restic environment
+      ansible.builtin.template:
+        src: restic_env.j2
+        dest: /etc/restic/.env
+        owner: root
+        group: root
+        mode: '0600'
+        backup: yes
+      no_log: yes
+
+    - name: Initialize Restic repository
+      ansible.builtin.command:
+        cmd: "restic init --repo {{ backup_restic_repo_path | default('/var/lib/restic') }}"
+        creates: "{{ backup_restic_repo_path | default('/var/lib/restic') }}/config"
+      environment:
+        RESTIC_PASSWORD: "{{ backup_restic_password }}"
+        RESTIC_REPOSITORY: "{{ backup_restic_repo_path | default('/var/lib/restic') }}"
+      when: backup_client == "restic" and backup_restic_password is defined
+      no_log: yes
+
+  when:
+    - backup_enabled | bool
+    - backup_client == "restic"
+  tags:
+    - backup
+    - restic
+    - packages
+
+- name: Configure backup scheduling
+  block:
+    - name: Create backup script directory
+      ansible.builtin.file:
+        path: /usr/local/bin/backup
+        owner: root
+        group: root
+        mode: '0755'
+        state: directory
+
+    - name: Create Bacula backup script
+      ansible.builtin.template:
+        src: backup_script_bacula.j2
+        dest: /usr/local/bin/backup/bacula-backup.sh
+        owner: root
+        group: root
+        mode: '0755'
+      when: backup_client == "bacula"
+
+    - name: Create Restic backup script
+      ansible.builtin.template:
+        src: backup_script_restic.j2
+        dest: /usr/local/bin/backup/restic-backup.sh
+        owner: root
+        group: root
+        mode: '0755'
+      when: backup_client == "restic"
+
+    - name: Create backup cron job
+      ansible.builtin.cron:
+        name: "Automated {{ backup_client }} backup"
+        job: "/usr/local/bin/backup/{{ backup_client }}-backup.sh"
+        special_time: daily
+        minute: "{{ backup_schedule_minute | default('0') }}"
+        hour: "{{ backup_schedule_hour | default('2') }}"
+        user: root
+      when: backup_client in ["bacula", "restic"]
+
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - scheduling
+    - configuration
+
+- name: Configure backup retention policy
+  block:
+    - name: Set Bacula retention
+      ansible.builtin.lineinfile:
+        path: /etc/bacula/bacula-fd.conf
+        insertafter: "# Retention"
+        line: |
+          JobDefs {
+            Name = "DefaultBackup"
+            Type = Backup
+            Level = Incremental
+            Client = "{{ ansible_hostname }}-fd"
+            FileSet = "Full Set"
+            Schedule = "WeeklyCycle"
+            Storage = File
+            Messages = Standard
+            Pool = Default
+            Priority = 10
+            Write Bootstrap = "/var/spool/bacula/%c.bsr"
+            Full Backup Pool = Full
+            Differential Backup Pool = Differential
+            Incremental Backup Pool = Incremental
+            Retention = {{ backup_retention_days }} days
+          }
+        state: present
+      when: backup_client == "bacula"
+      notify: restart bacula-fd
+
+    - name: Configure Restic retention
+      ansible.builtin.copy:
+        dest: /etc/restic/retention.conf
+        content: |
+          # Restic Retention Policy
+          # Generated by Ansible - DO NOT EDIT MANUALLY
+
+          # Number of daily backups to keep
+          KEEP_DAILY={{ backup_retention_days }}
+
+          # Number of weekly backups to keep
+          KEEP_WEEKLY={{ (backup_retention_days / 7) | int }}
+
+          # Number of monthly backups to keep
+          KEEP_MONTHLY={{ (backup_retention_days / 30) | int }}
+
+          # Number of yearly backups to keep
+          KEEP_YEARLY=1
+
+          # Forget policy for old snapshots
+          FORGET_POLICY="--keep-daily {{ backup_retention_days }} --keep-weekly {{ (backup_retention_days / 7) | int }} --keep-monthly {{ (backup_retention_days / 30) | int }} --keep-yearly 1"
+        owner: root
+        group: root
+        mode: '0600'
+      when: backup_client == "restic"
+
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - retention
+    - configuration
+
+- name: Configure backup verification
+  block:
+    - name: Create backup verification script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/backup/verify-backup.sh
+        content: |
+          #!/bin/bash
+          # Backup Verification Script
+          # Verifies the integrity of recent backups
+
+          set -e
+
+          BACKUP_CLIENT="{{ backup_client }}"
+          LOG_FILE="/var/log/backup/verify.log"
+
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting backup verification..." >> "$LOG_FILE"
+
+          case "$BACKUP_CLIENT" in
+            bacula)
+              # Verify Bacula backups
+              bconsole -c /etc/bacula/bconsole.conf <<EOF
+              verify level=Volume jobname=backup_job
+              yes
+              EOF
+              ;;
+            restic)
+              # Verify Restic backup
+              export RESTIC_REPOSITORY={{ backup_restic_repo_path | default('/var/lib/restic') }}
+              restic check >> "$LOG_FILE" 2>&1
+              ;;
+            *)
+              echo "Unknown backup client: $BACKUP_CLIENT" >> "$LOG_FILE"
+              exit 1
+              ;;
+          esac
+
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')] Backup verification completed" >> "$LOG_FILE"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Schedule backup verification
+      ansible.builtin.cron:
+        name: "Verify {{ backup_client }} backups"
+        job: "/usr/local/bin/backup/verify-backup.sh"
+        special_time: "{{ backup_verify_schedule | default('weekly') }}"
+        user: root
+      when: backup_verify_after_backup | bool
+
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - verification
+    - configuration
+
+- name: Configure backup monitoring and alerts
+  block:
+    - name: Create backup status check script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/backup/check-backup-status.sh
+        content: |
+          #!/bin/bash
+          # Backup Status Check Script
+          # Monitors backup success and alerts on failures
+
+          BACKUP_CLIENT="{{ backup_client }}"
+          LOG_FILE="/var/log/backup/backup.log"
+          MAX_AGE_HOURS=26
+
+          case "$BACKUP_CLIENT" in
+            bacula)
+              LAST_BACKUP=$(stat -c %Y /var/spool/bacula/*.bsr 2>/dev/null | sort -n | tail -1)
+              ;;
+            restic)
+              LAST_BACKUP=$(ls -t {{ backup_restic_repo_path | default('/var/lib/restic') }} 2>/dev/null | head -1)
+              ;;
+          esac
+
+          CURRENT_TIME=$(date +%s)
+          LAST_BACKUP_TIME=$(stat -c %Y "$LAST_BACKUP" 2>/dev/null || echo 0)
+          AGE_HOURS=$(( ($CURRENT_TIME - $LAST_BACKUP_TIME) / 3600 ))
+
+          if [ $AGE_HOURS -gt $MAX_AGE_HOURS ]; then
+            echo "WARNING: Last backup is $AGE_HOURS hours old" >&2
+            exit 1
+          fi
+
+          echo "OK: Last backup is $AGE_HOURS hours old"
+          exit 0
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create backup monitoring cron
+      ansible.builtin.cron:
+        name: "Monitor {{ backup_client }} backup status"
+        job: "/usr/local/bin/backup/check-backup-status.sh"
+        hour: "*"
+        minute: "0"
+        user: root
+
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - monitoring
+    - alerting
+
+- name: Set up backup logging
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/backup
+    content: |
+      /var/log/backup/*.log {
+        daily
+        rotate {{ backup_retention_days }}
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0600 root root
+      }
+      /var/log/bacula/*.log {
+        daily
+        rotate {{ backup_retention_days }}
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0640 bacula bacula
+      }
+      /var/log/restic/*.log {
+        daily
+        rotate {{ backup_retention_days }}
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0600 root root
+      }
+    owner: root
+    group: root
+    mode: '0644'
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - logging
+
+- name: Verify backup configuration
+  block:
+    - name: Check Bacula FD status
+      ansible.builtin.systemd:
+        name: bacula-fd
+        state: started
+      when: backup_client == "bacula"
+      changed_when: false
+
+    - name: Test Restic repository
+      ansible.builtin.shell: |
+        export RESTIC_REPOSITORY={{ backup_restic_repo_path | default('/var/lib/restic') }}
+        restic snapshots --latest 1
+      environment:
+        RESTIC_PASSWORD: "{{ backup_restic_password }}"
+      when:
+        - backup_client == "restic"
+        - backup_restic_password is defined
+      changed_when: false
+      failed_when: false
+      no_log: yes
+
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - validate
+
+- name: Display backup configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Backup Configuration:
+      ====================
+      Status: {{ 'Enabled' if backup_enabled | bool else 'Disabled' }}
+      Client: {{ backup_client }}
+      Schedule: Daily at {{ backup_schedule_hour | default('02') }}:{{ backup_schedule_minute | default('00') }}
+      Retention: {{ backup_retention_days }} days
+      Verification: {{ 'Enabled' if backup_verify_after_backup | bool else 'Disabled' }}
+
+      Configuration Files:
+      - Bacula: /etc/bacula/bacula-fd.conf
+      - Restic: /etc/restic/.env
+      - Retention: /etc/restic/retention.conf
+
+      Backup Scripts:
+      - Main: /usr/local/bin/backup/{{ backup_client }}-backup.sh
+      - Verify: /usr/local/bin/backup/verify-backup.sh
+      - Status: /usr/local/bin/backup/check-backup-status.sh
+
+      Log Files:
+      - Backup logs: /var/log/backup/
+      - Bacula logs: /var/log/bacula/
+      - Restic logs: /var/log/restic/
+
+      Verification Commands:
+      - Status: systemctl status {{ 'bacula-fd' if backup_client == 'bacula' else 'restic' }}
+      - Logs: tail -f /var/log/backup/backup.log
+      - Check status: /usr/local/bin/backup/check-backup-status.sh
+    verbosity: 1
+  when: backup_enabled | bool
+  tags:
+    - backup
+

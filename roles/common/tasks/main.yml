@@ -26,6 +26,7 @@
     - log_shipping.yml
     - sudo_hardening.yml
     - vault.yml
+    - backup.yml
 
 - name: Display role completion summary
   debug:
