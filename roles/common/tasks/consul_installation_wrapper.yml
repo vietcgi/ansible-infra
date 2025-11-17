@@ -1,0 +1,301 @@
+---
+# Consul Service Discovery Installation Wrapper Task
+# Implements distributed service discovery and KV store
+# Purpose: Install and configure HashiCorp Consul for service registration and discovery
+
+# Pre-flight checks
+- name: Validate Consul installation is enabled
+  ansible.builtin.assert:
+    that:
+      - service_discovery_consul_enabled | default(false) | bool
+    fail_msg: "Consul installation is disabled (service_discovery_consul_enabled=false)"
+    quiet: true
+  tags:
+    - consul
+    - service_discovery
+    - validation
+
+# Create consul user for service isolation
+- name: Create consul system user
+  ansible.builtin.user:
+    name: consul
+    group: bin
+    home: /var/lib/consul
+    shell: /bin/false
+    system: true
+    state: present
+  become: true
+  tags:
+    - consul
+    - users
+
+# Create necessary directories for Consul
+- name: Create Consul directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: consul
+    group: consul
+    mode: '0750'
+  become: true
+  loop:
+    - /etc/consul.d
+    - /var/lib/consul
+    - /var/run/consul
+    - /var/log/consul
+  tags:
+    - consul
+    - directories
+
+# Download and install Consul binary
+- name: Download Consul binary
+  ansible.builtin.get_url:
+    url: "{{ service_discovery_consul_download_url | default('https://releases.hashicorp.com/consul/' + service_discovery_consul_version + '/consul_' + service_discovery_consul_version + '_' + ansible_system | lower + '_' + consul_arch + '.zip') }}"
+    dest: /tmp/consul.zip
+    checksum: "{{ service_discovery_consul_checksum | default(omit) }}"
+    mode: '0644'
+  become: true
+  register: consul_download
+  tags:
+    - consul
+    - installation
+    - download
+
+# Extract Consul binary
+- name: Extract Consul binary
+  ansible.builtin.unarchive:
+    src: /tmp/consul.zip
+    dest: /usr/local/bin/
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: consul_download.changed
+  notify: restart consul
+  tags:
+    - consul
+    - installation
+
+# Set capabilities for Consul to bind to privileged ports
+- name: Set Consul binary capabilities
+  community.general.capabilities:
+    path: /usr/local/bin/consul
+    capability: cap_ipc_lock,cap_net_bind_service=+ep
+    state: present
+  become: true
+  tags:
+    - consul
+    - security
+    - capabilities
+
+# Deploy Consul server configuration
+- name: Deploy Consul server configuration
+  ansible.builtin.template:
+    src: consul_server_config.j2
+    dest: /etc/consul.d/server.json
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  become: true
+  register: consul_server_config
+  tags:
+    - consul
+    - config
+    - server
+
+# Deploy Consul client configuration (if client mode)
+- name: Deploy Consul client configuration
+  ansible.builtin.template:
+    src: consul_client_config.j2
+    dest: /etc/consul.d/client.json
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  become: true
+  when: service_discovery_consul_node_type | default('server') == 'client'
+  register: consul_client_config
+  tags:
+    - consul
+    - config
+    - client
+
+# Deploy Consul DNS configuration
+- name: Deploy Consul DNS configuration
+  ansible.builtin.copy:
+    content: |
+      {
+        "ports": {
+          "dns": {{ service_discovery_consul_dns_port | default(8600) }}
+        },
+        "services": []
+      }
+    dest: /etc/consul.d/dns.json
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+  become: true
+  when: service_discovery_consul_dns_enabled | default(true) | bool
+  tags:
+    - consul
+    - dns
+    - config
+
+# Deploy custom Consul configuration if provided
+- name: Deploy custom Consul configuration
+  ansible.builtin.template:
+    src: consul_custom_config.j2
+    dest: /etc/consul.d/custom.json
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  become: true
+  when: service_discovery_consul_custom_config | default({}) | length > 0
+  tags:
+    - consul
+    - config
+    - custom
+
+# Create systemd service unit for Consul
+- name: Create Consul systemd service unit
+  ansible.builtin.template:
+    src: consul_systemd_service.j2
+    dest: /etc/systemd/system/consul.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  register: consul_systemd
+  notify: reload systemd
+  tags:
+    - consul
+    - systemd
+    - service
+
+# Enable and start Consul service
+- name: Enable and start Consul service
+  ansible.builtin.systemd:
+    name: consul
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: consul_systemd.changed or consul_server_config.changed | default(false)
+  tags:
+    - consul
+    - service
+
+# Wait for Consul to become available
+- name: Wait for Consul to be available
+  ansible.builtin.wait_for:
+    host: "{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}"
+    port: "{{ service_discovery_consul_http_port | default(8500) }}"
+    timeout: 30
+    state: started
+  become: true
+  tags:
+    - consul
+    - health
+
+# Verify Consul is running and responding
+- name: Verify Consul health
+  ansible.builtin.uri:
+    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500) }}/v1/status/leader"
+    method: GET
+    status_code: 200
+  register: consul_health_check
+  retries: 5
+  delay: 2
+  tags:
+    - consul
+    - health
+    - validation
+
+# Configure Consul to work with systemd-resolved for DNS forwarding
+- name: Configure systemd-resolved for Consul DNS
+  ansible.builtin.template:
+    src: consul_dns_stub.j2
+    dest: /etc/systemd/resolved.conf.d/consul.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: service_discovery_consul_dns_integration | default(true) | bool and ansible_service_mgr == 'systemd'
+  notify: restart systemd-resolved
+  tags:
+    - consul
+    - dns
+    - systemd
+
+# Set up log rotation for Consul
+- name: Configure log rotation for Consul
+  ansible.builtin.template:
+    src: consul_logrotate.j2
+    dest: /etc/logrotate.d/consul
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  tags:
+    - consul
+    - logging
+    - logrotate
+
+# Log Consul installation completion
+- name: Consul installation health check
+  block:
+    - name: Retrieve Consul status
+      ansible.builtin.command:
+        cmd: /usr/local/bin/consul info
+      register: consul_info
+      changed_when: false
+      tags:
+        - consul
+        - health
+
+    - name: Display Consul installation completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ Consul Installation Complete:
+          - Version: {{ service_discovery_consul_version }}
+          - Node Type: {{ service_discovery_consul_node_type | default('server') }}
+          - HTTP Port: {{ service_discovery_consul_http_port | default(8500) }}
+          - DNS Port: {{ service_discovery_consul_dns_port | default(8600) }}
+          - Data Dir: /var/lib/consul
+          - Status: Ready for service registration
+      tags:
+        - consul
+        - health
+        - summary
+
+  rescue:
+    - name: Handle Consul installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Consul health check incomplete:
+          - Service may still be initializing
+          - Check status: systemctl status consul
+          - View logs: journalctl -u consul -n 50
+      tags:
+        - consul
+        - health
+        - error
+
+# Final status message
+- name: Consul installation task completion
+  ansible.builtin.debug:
+    msg: "Consul installation wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - consul
+    - summary
