@@ -714,3 +714,45 @@ security_vault_log_format: "json"
 security_vault_health_check_enabled: true
 security_vault_health_check_interval: 30
 security_vault_health_check_timeout: 5
+
+################################################################################
+## PHASE 2.E: Database Replication & High Availability
+################################################################################
+
+## PostgreSQL Replication Configuration
+database_postgresql_enabled: false
+database_postgresql_version: "15"
+database_postgresql_replication_user: "replication"
+database_postgresql_replication_password: ""
+database_postgresql_wal_level: "replica"
+database_postgresql_max_wal_senders: 5
+database_postgresql_max_replication_slots: 5
+database_postgresql_sync_commit: "on"
+database_postgresql_archive_command: "test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f"
+database_postgresql_archive_timeout: 300
+
+## MySQL/MariaDB Galera Configuration
+database_mysql_enabled: false
+database_mysql_version: "10.6"
+database_mysql_cluster_name: "mysql-cluster"
+database_mysql_sst_method: "mariabackup"
+database_mysql_sst_user: "sstuser"
+database_mysql_sst_password: ""
+database_mysql_wsrep_threads: 4
+
+## Database Failover Configuration
+database_failover_enabled: false
+database_failover_manager: "patroni"
+database_failover_timeout: 30
+
+## Database Backup Configuration
+database_backup_enabled: false
+database_backup_path: "/var/backups/database"
+database_backup_retention_days: 30
+database_backup_frequency: "daily"
+
+## Database Monitoring Configuration
+database_monitoring_enabled: false
+database_monitoring_exporter_port: 9187
+database_monitoring_slow_query_enabled: true
+database_monitoring_slow_query_threshold: 1000

@@ -1,0 +1,68 @@
+# MySQL Galera Cluster Configuration (my.cnf)
+# Optimized for multi-master synchronous replication
+
+[mysqld]
+# InnoDB Configuration (Galera requirement)
+default-storage-engine = InnoDB
+innodb_autoinc_lock_mode = 2
+innodb_flush_log_at_trx_commit = 1
+innodb_doublewrite = 1
+innodb_file_per_table = 1
+innodb_buffer_pool_size = {{ database_mysql_innodb_buffer_pool | default('512M') }}
+innodb_log_file_size = {{ database_mysql_innodb_log_size | default('256M') }}
+
+# Network Configuration
+bind-address = {{ hostvars[inventory_hostname].ansible_default_ipv4.address }}
+port = 3306
+max_connections = {{ database_mysql_max_connections | default(1000) }}
+
+# Replication Configuration (Row-based for Galera)
+binlog_format = ROW
+log_bin = mysql-bin
+server-id = {{ 100 + groups['database_mysql_cluster'].index(inventory_hostname) }}
+relay-log = mysql-relay-bin
+relay-log-index = mysql-relay-bin.index
+relay-log-info-repository = TABLE
+master-info-repository = TABLE
+
+# Galera Provider Configuration
+wsrep_on = ON
+wsrep_provider = /usr/lib/galera/libgalera_smm.so
+
+# Galera Provider Options
+wsrep_provider_options = "gmcast.listen_addr=tcp://{{ hostvars[inventory_hostname].ansible_default_ipv4.address }}:4567;gmcast.peer_address=tcp://{% for node in groups['database_mysql_cluster'] %}{{ hostvars[node].ansible_default_ipv4.address }}:4567{{ ',' if not loop.last }}{% endfor %};gcache.size=1G;gcache.dir=/var/lib/mysql/gcache"
+
+# Galera Cluster Addressing
+wsrep_cluster_name = "{{ database_mysql_cluster_name }}"
+wsrep_cluster_address = "gcomm://{% for node in groups['database_mysql_cluster'] %}{{ hostvars[node].ansible_default_ipv4.address }}{{ ',' if not loop.last }}{% endfor %}"
+wsrep_node_name = "{{ inventory_hostname }}"
+wsrep_node_address = "{{ hostvars[inventory_hostname].ansible_default_ipv4.address }}:4567"
+
+# Galera State Snapshot Transfer (SST)
+wsrep_sst_method = "{{ database_mysql_sst_method | default('mariabackup') }}"
+wsrep_sst_auth = "{{ database_mysql_sst_user | default('sstuser') }}:{{ database_mysql_sst_password }}"
+wsrep_sst_receive_address = "{{ hostvars[inventory_hostname].ansible_default_ipv4.address }}:4444"
+
+# Galera Replication Configuration
+wsrep_slave_threads = {{ database_mysql_wsrep_threads | default(4) }}
+wsrep_sync_wait = 1
+wsrep_auto_increment_control = 1
+auto_increment_increment = {{ groups['database_mysql_cluster'] | length }}
+auto_increment_offset = {{ 1 + groups['database_mysql_cluster'].index(inventory_hostname) }}
+
+# Galera Performance Tuning
+wsrep_retry_autocommit = 3
+wsrep_abort_on_client_timeout = 0
+transaction-isolation = READ-COMMITTED
+
+# Database Logging
+log_error = /var/log/mysql/error.log
+log_queries_not_using_indexes = 1
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow-query.log
+long_query_time = {{ database_mysql_slow_query_threshold | default(2) }}
+log_slow_admin_statements = 1
+
+# Charset
+character_set_server = utf8mb4
+collation_server = utf8mb4_unicode_ci

@@ -50,6 +50,10 @@
     - vault_pki_wrapper.yml
     - vault_secrets_rotation_wrapper.yml
 
+    # PHASE 2.E: Database Replication & High Availability
+    - postgresql_replication_wrapper.yml
+    - mysql_galera_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"

@@ -1,0 +1,23 @@
+#!/bin/bash
+# Database Backup Script
+
+BACKUP_DIR="{{ database_backup_path | default('/var/backups/database') }}"
+RETENTION_DAYS="{{ database_backup_retention_days | default(30) }}"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "$BACKUP_DIR"
+
+# PostgreSQL backup
+if command -v pg_basebackup &> /dev/null; then
+    pg_basebackup -D "$BACKUP_DIR/postgres_$TIMESTAMP" -Ft -z -P
+fi
+
+# MySQL backup
+if command -v mysqldump &> /dev/null; then
+    mysqldump --all-databases > "$BACKUP_DIR/mysql_$TIMESTAMP.sql"
+fi
+
+# Cleanup old backups
+find "$BACKUP_DIR" -type f -mtime +$RETENTION_DAYS -delete
+
+echo "Backup completed: $TIMESTAMP"

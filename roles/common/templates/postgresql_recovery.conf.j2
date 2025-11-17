@@ -1,0 +1,10 @@
+# PostgreSQL Replica Recovery Configuration
+# Configures standby server for streaming replication
+
+standby_mode = on
+primary_conninfo = 'host={{ hostvars[groups["database_primary"][0]].ansible_default_ipv4.address }} port=5432 user={{ database_postgresql_replication_user | default("replication") }} password={{ database_postgresql_replication_password }}'
+restore_command = '{{ database_postgresql_archive_command | default("cp /var/lib/postgresql/wal_archive/%f %p") }}'
+recovery_target_timeline = 'latest'
+recovery_min_apply_delay = 0
+wal_receiver_status_interval = 10s
+wal_retrieve_retry_interval = 5s

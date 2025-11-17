@@ -1,0 +1,68 @@
+#!/bin/bash
+# MySQL Galera Cluster Health Check Script
+# Returns 0 if node is healthy and can receive traffic, 1 otherwise
+
+MYSQL_USER="{{ database_mysql_root_user | default('root') }}"
+MYSQL_SOCKET="/var/run/mysqld/mysqld.sock"
+LOG_FILE="/var/log/mysql_health_check.log"
+TIMEOUT=5
+
+# Logging function
+log_status() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+# Check 1: Is MySQL daemon running?
+if ! pgrep -x "mysqld" > /dev/null; then
+    log_status "UNHEALTHY: MySQL daemon not running"
+    exit 1
+fi
+
+# Check 2: Can we connect to MySQL?
+if ! timeout $TIMEOUT mysql -u "$MYSQL_USER" -S "$MYSQL_SOCKET" -e "SELECT 1" &>/dev/null; then
+    log_status "UNHEALTHY: Cannot connect to MySQL"
+    exit 1
+fi
+
+# Check 3: Get Galera cluster state (wsrep_local_state)
+# 1 = Joining, 2 = Donor/Desynced, 3 = Joined, 4 = Synced
+STATE=$(timeout $TIMEOUT mysql -u "$MYSQL_USER" -S "$MYSQL_SOCKET" -se "SHOW STATUS LIKE 'wsrep_local_state';" 2>/dev/null | awk '{print $NF}')
+
+if [ -z "$STATE" ]; then
+    log_status "UNHEALTHY: Cannot query wsrep_local_state"
+    exit 1
+fi
+
+# Check 4: Verify cluster is synchronized
+if [ "$STATE" != "4" ]; then
+    log_status "UNHEALTHY: Node not in Synced state (state=$STATE)"
+    exit 1
+fi
+
+# Check 5: Verify cluster readiness (wsrep_ready)
+READY=$(timeout $TIMEOUT mysql -u "$MYSQL_USER" -S "$MYSQL_SOCKET" -se "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | awk '{print $NF}')
+
+if [ "$READY" != "ON" ]; then
+    log_status "UNHEALTHY: Cluster not ready (wsrep_ready=$READY)"
+    exit 1
+fi
+
+# Check 6: Verify cluster is connected (wsrep_connected)
+CONNECTED=$(timeout $TIMEOUT mysql -u "$MYSQL_USER" -S "$MYSQL_SOCKET" -se "SHOW STATUS LIKE 'wsrep_connected';" 2>/dev/null | awk '{print $NF}')
+
+if [ "$CONNECTED" != "ON" ]; then
+    log_status "UNHEALTHY: Cluster connection failed (wsrep_connected=$CONNECTED)"
+    exit 1
+fi
+
+# Check 7: Verify cluster size (optional - ensure not in single-node cluster)
+CLUSTER_SIZE=$(timeout $TIMEOUT mysql -u "$MYSQL_USER" -S "$MYSQL_SOCKET" -se "SHOW STATUS LIKE 'wsrep_cluster_size';" 2>/dev/null | awk '{print $NF}')
+
+if [ "$CLUSTER_SIZE" -lt 1 ]; then
+    log_status "UNHEALTHY: Invalid cluster size ($CLUSTER_SIZE)"
+    exit 1
+fi
+
+# Node is healthy
+log_status "HEALTHY: Node is Synced and connected (state=$STATE, size=$CLUSTER_SIZE)"
+exit 0

@@ -1,0 +1,86 @@
+#!/bin/bash
+# PostgreSQL Replication Health Check Script
+# Returns 0 if healthy, 1 if unhealthy
+# Performs comprehensive health checks for primary/replica servers
+
+PGBIN="/usr/lib/postgresql/{{ database_postgresql_version | default('15') }}/bin"
+PGDATA="/var/lib/postgresql/{{ database_postgresql_version | default('15') }}/main"
+PGUSER="postgres"
+LOG_FILE="/var/log/postgresql_health_check.log"
+TIMEOUT=10
+
+# Logging function
+log_status() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+# Check 1: Is PostgreSQL daemon running?
+if ! pgrep -u $PGUSER postgres > /dev/null; then
+    log_status "UNHEALTHY: PostgreSQL daemon not running"
+    exit 1
+fi
+
+# Check 2: Can we connect to PostgreSQL?
+if ! timeout $TIMEOUT $PGBIN/psql -U $PGUSER -d postgres -c "SELECT 1" > /dev/null 2>&1; then
+    log_status "UNHEALTHY: Cannot connect to PostgreSQL"
+    exit 1
+fi
+
+# Check 3: Is the database accepting connections?
+if ! timeout $TIMEOUT $PGBIN/psql -U $PGUSER -d postgres -c "SELECT datname FROM pg_database LIMIT 1" > /dev/null 2>&1; then
+    log_status "UNHEALTHY: Database not accepting connections"
+    exit 1
+fi
+
+# Check 4: Check for recovery mode (is this a replica?)
+IS_REPLICA=0
+if [ -f "$PGDATA/recovery.conf" ] || [ -f "$PGDATA/recovery.signal" ]; then
+    IS_REPLICA=1
+fi
+
+# Check 5: If replica, check replication lag
+if [ $IS_REPLICA -eq 1 ]; then
+    LAG=$(timeout $TIMEOUT $PGBIN/psql -U $PGUSER -d postgres -t -c "SELECT COALESCE(EXTRACT(EPOCH FROM (NOW() - pg_last_xact_replay_timestamp())), 0)::int" 2>/dev/null)
+
+    if [ -z "$LAG" ]; then
+        log_status "UNHEALTHY: Cannot determine replication lag"
+        exit 1
+    fi
+
+    # Alert if lag > 60 seconds
+    LAG_THRESHOLD={{ database_postgresql_replication_lag_threshold | default(60) }}
+    if [ "$LAG" -gt "$LAG_THRESHOLD" ]; then
+        log_status "UNHEALTHY: Replication lag too high ($LAG seconds, threshold: $LAG_THRESHOLD)"
+        exit 1
+    fi
+
+    log_status "HEALTHY REPLICA: Replication lag $LAG seconds"
+else
+    # Check 6: If primary, verify replication is active
+    REPLICAS=$(timeout $TIMEOUT $PGBIN/psql -U $PGUSER -d postgres -t -c "SELECT COUNT(*) FROM pg_stat_replication" 2>/dev/null)
+
+    if [ -z "$REPLICAS" ]; then
+        log_status "HEALTHY PRIMARY: Replication status unknown"
+    else
+        log_status "HEALTHY PRIMARY: $REPLICAS replica(s) connected"
+    fi
+fi
+
+# Check 7: Verify WAL archiving (if enabled)
+ARCHIVE_MODE=$(timeout $TIMEOUT $PGBIN/psql -U $PGUSER -d postgres -t -c "SHOW archive_mode" 2>/dev/null)
+if [ "$ARCHIVE_MODE" == "on" ]; then
+    # Check if there are failed WAL files
+    FAILED_WALS=$(find /var/lib/postgresql/wal_archive -name "*.ready" 2>/dev/null | wc -l)
+    if [ "$FAILED_WALS" -gt 10 ]; then
+        log_status "WARNING: $FAILED_WALS failed WAL archival attempts"
+    fi
+fi
+
+# Check 8: Verify disk space
+PGDATA_USAGE=$(du -s "$PGDATA" 2>/dev/null | awk '{print $1}')
+if [ "$PGDATA_USAGE" -gt 0 ]; then
+    log_status "HEALTHY: PostgreSQL data directory usage: ${PGDATA_USAGE}KB"
+fi
+
+# Node is healthy
+exit 0
