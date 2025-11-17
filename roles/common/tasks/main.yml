@@ -54,6 +54,10 @@
     - postgresql_replication_wrapper.yml
     - mysql_galera_wrapper.yml
 
+    # PHASE 3: Final Integration & Orchestration
+    - kubernetes_orchestration_wrapper.yml
+    - application_deployment_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"

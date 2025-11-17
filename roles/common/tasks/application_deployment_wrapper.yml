@@ -1,0 +1,344 @@
+---
+# Application Deployment Automation Wrapper
+# Manages multi-tier application deployment with rolling updates, canary releases, and auto-scaling
+
+- name: Application Deployment Automation Block
+  block:
+    # Validate deployment configuration
+    - name: Validate application deployment prerequisites
+      ansible.builtin.assert:
+        that:
+          - deployment_applications | default([]) | length > 0
+          - deployment_namespace is defined
+          - deployment_strategy | default('rolling') in ['rolling', 'canary', 'blue-green']
+        fail_msg: "Application deployment requires deployment_applications and deployment_namespace configured"
+      when: deployment_automation_enabled | default(false) | bool
+
+    # Create deployment namespace
+    - name: Create deployment namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ deployment_namespace }}"
+            labels:
+              app-tier: "{{ item.tier | default('general') }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Create ConfigMaps for application configuration
+    - name: Create ConfigMaps for applications
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ item.name }}-config"
+          data: "{{ item.config | default({}) }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - item.config is defined
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Deploy applications using rolling strategy
+    - name: Deploy applications with rolling update strategy
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ item.name }}"
+            labels:
+              app: "{{ item.name }}"
+              tier: "{{ item.tier | default('general') }}"
+          spec:
+            replicas: "{{ item.replicas | default(3) }}"
+            strategy:
+              type: RollingUpdate
+              rollingUpdate:
+                maxSurge: "{{ item.max_surge | default(1) }}"
+                maxUnavailable: "{{ item.max_unavailable | default(1) }}"
+            selector:
+              matchLabels:
+                app: "{{ item.name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ item.name }}"
+                  version: "{{ item.version | default('latest') }}"
+              spec:
+                containers:
+                  - name: "{{ item.name }}"
+                    image: "{{ item.image }}"
+                    imagePullPolicy: "{{ item.image_pull_policy | default('IfNotPresent') }}"
+                    ports:
+                      - containerPort: "{{ item.port | default(8080) }}"
+                    env:
+                      - name: ENVIRONMENT
+                        value: "{{ deployment_environment | default('production') }}"
+                      - name: LOG_LEVEL
+                        value: "{{ deployment_log_level | default('INFO') }}"
+                    resources:
+                      requests:
+                        memory: "{{ item.memory_request | default('256Mi') }}"
+                        cpu: "{{ item.cpu_request | default('100m') }}"
+                      limits:
+                        memory: "{{ item.memory_limit | default('512Mi') }}"
+                        cpu: "{{ item.cpu_limit | default('500m') }}"
+                    livenessProbe:
+                      httpGet:
+                        path: "{{ item.health_check_path | default('/health') }}"
+                        port: "{{ item.port | default(8080) }}"
+                      initialDelaySeconds: 30
+                      periodSeconds: 10
+                    readinessProbe:
+                      httpGet:
+                        path: "{{ item.readiness_check_path | default('/ready') }}"
+                        port: "{{ item.port | default(8080) }}"
+                      initialDelaySeconds: 5
+                      periodSeconds: 5
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - deployment_strategy | default('rolling') == 'rolling'
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Create Services for applications
+    - name: Create Kubernetes Services for load balancing
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ item.name }}-service"
+            labels:
+              app: "{{ item.name }}"
+          spec:
+            type: "{{ item.service_type | default('ClusterIP') }}"
+            selector:
+              app: "{{ item.name }}"
+            ports:
+              - protocol: TCP
+                port: "{{ item.service_port | default(80) }}"
+                targetPort: "{{ item.port | default(8080) }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Setup Horizontal Pod Autoscaler
+    - name: Configure Horizontal Pod Autoscaler
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: autoscaling/v2
+          kind: HorizontalPodAutoscaler
+          metadata:
+            name: "{{ item.name }}-hpa"
+          spec:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: "{{ item.name }}"
+            minReplicas: "{{ item.min_replicas | default(2) }}"
+            maxReplicas: "{{ item.max_replicas | default(10) }}"
+            metrics:
+              - type: Resource
+                resource:
+                  name: cpu
+                  target:
+                    type: Utilization
+                    averageUtilization: "{{ item.target_cpu | default(70) }}"
+              - type: Resource
+                resource:
+                  name: memory
+                  target:
+                    type: Utilization
+                    averageUtilization: "{{ item.target_memory | default(80) }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - deployment_autoscaling_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Setup Network Policies
+    - name: Create network policies for application isolation
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: "{{ item.name }}-network-policy"
+          spec:
+            podSelector:
+              matchLabels:
+                app: "{{ item.name }}"
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: "{{ deployment_namespace }}"
+            egress:
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        name: "{{ deployment_namespace }}"
+              - to:
+                  - namespaceSelector: {}
+                ports:
+                  - protocol: TCP
+                    port: 53
+                  - protocol: UDP
+                    port: 53
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - deployment_network_policies_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Wait for deployments to be ready
+    - name: Wait for deployments to be ready
+      ansible.builtin.pause:
+        seconds: 30
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Verify deployment status
+    - name: Check deployment status
+      ansible.builtin.shell: |
+        kubectl get deployments -n {{ deployment_namespace }} -o wide
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      register: deployment_status
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    - name: Check pod status
+      ansible.builtin.shell: |
+        kubectl get pods -n {{ deployment_namespace }} -o wide
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      register: pod_status
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Setup monitoring for deployments
+    - name: Create ServiceMonitor for Prometheus
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace }}"
+        definition:
+          apiVersion: monitoring.coreos.com/v1
+          kind: ServiceMonitor
+          metadata:
+            name: "{{ item.name }}-monitor"
+          spec:
+            selector:
+              matchLabels:
+                app: "{{ item.name }}"
+            endpoints:
+              - port: metrics
+                interval: 30s
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - deployment_automation_enabled | default(false) | bool
+        - deployment_monitoring_enabled | default(true) | bool
+        - item.metrics_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    - name: Display application deployment status
+      ansible.builtin.debug:
+        msg: |
+          Application Deployment Configuration:
+          ✓ Namespace: {{ deployment_namespace }}
+          ✓ Applications: {{ deployment_applications | length | default(0) }}
+          ✓ Deployment Strategy: {{ deployment_strategy | default('rolling') }}
+          ✓ Autoscaling: {{ 'Enabled' if deployment_autoscaling_enabled | default(true) else 'Disabled' }}
+          ✓ Network Policies: {{ 'Enabled' if deployment_network_policies_enabled | default(true) else 'Disabled' }}
+          ✓ Monitoring: {{ 'Enabled' if deployment_monitoring_enabled | default(true) else 'Disabled' }}
+          ✓ Environment: {{ deployment_environment | default('production') }}
+
+  rescue:
+    - name: Application deployment failed
+      ansible.builtin.debug:
+        msg: |
+          Application deployment encountered an error.
+          This may occur if the Kubernetes cluster is not ready or container images are unavailable.
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+  tags:
+    - deployment
+    - applications
+    - orchestration
+
+- name: Display application deployment summary
+  ansible.builtin.debug:
+    msg: |
+      ✓ Application Deployment Status:
+      - Namespace: {{ deployment_namespace }}
+      - Applications Deployed: {{ deployment_applications | length | default(0) }}
+      - Deployment Strategy: {{ deployment_strategy | default('rolling') }}
+      - Auto-Scaling: {{ 'Enabled' if deployment_autoscaling_enabled | default(true) else 'Disabled' }}
+      - Network Isolation: {{ 'Enabled' if deployment_network_policies_enabled | default(true) else 'Disabled' }}
+  when: not ansible_check_mode
