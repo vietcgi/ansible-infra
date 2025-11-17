@@ -1,0 +1,228 @@
+---
+# Log Shipping & Centralization
+# Forwards system logs to centralized Elasticsearch/Logstash cluster
+# Supports both Filebeat (modern) and rsyslog (fallback) backends
+
+- name: Ensure log shipping is configured
+  ansible.builtin.assert:
+    that:
+      - log_shipping_elasticsearch_host is defined
+      - log_shipping_elasticsearch_port | int > 0
+    fail_msg: "log_shipping_elasticsearch_host and port must be defined"
+  when: log_shipping_enabled | bool
+  tags:
+    - log_shipping
+    - always
+
+- name: Install Filebeat for log shipping (modern approach)
+  block:
+    - name: Add Elasticsearch GPG key
+      ansible.builtin.apt_key:
+        url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Add Elasticsearch repository (Debian/Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb https://artifacts.elastic.co/packages/8.x/apt stable main"
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Filebeat package (Debian/Ubuntu)
+      ansible.builtin.package:
+        name: "filebeat={{ log_shipping_filebeat_version }}*"
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Filebeat package (RHEL/CentOS)
+      ansible.builtin.yum:
+        name: "filebeat-{{ log_shipping_filebeat_version }}"
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - packages
+
+- name: Configure Filebeat for log forwarding
+  ansible.builtin.template:
+    src: filebeat_config.j2
+    dest: /etc/filebeat/filebeat.yml
+    owner: root
+    group: root
+    mode: '0600'
+    backup: yes
+  notify: restart filebeat
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - configuration
+
+- name: Enable and start Filebeat service
+  ansible.builtin.systemd:
+    name: filebeat
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - services
+
+- name: Configure rsyslog forwarding (fallback)
+  ansible.builtin.template:
+    src: rsyslog_forward.j2
+    dest: /etc/rsyslog.d/99-forward.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: restart rsyslog
+  when:
+    - log_shipping_enabled | bool
+    - not (log_shipping_use_filebeat | default(true))
+  tags:
+    - log_shipping
+    - configuration
+
+- name: Restart rsyslog service
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: restarted
+    daemon_reload: yes
+  when:
+    - log_shipping_enabled | bool
+    - not (log_shipping_use_filebeat | default(true))
+  tags:
+    - log_shipping
+    - services
+
+- name: Configure log parsing rules for Filebeat
+  ansible.builtin.copy:
+    dest: "/etc/filebeat/modules.d/{{ item }}.yml"
+    content: |
+      - module: system
+        syslog:
+          enabled: true
+        auth:
+          enabled: true
+      - module: auditd
+        log:
+          enabled: true
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - system
+    - auditd
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  notify: restart filebeat
+  tags:
+    - log_shipping
+    - configuration
+
+- name: Verify Elasticsearch connectivity
+  block:
+    - name: Check Elasticsearch endpoint
+      ansible.builtin.uri:
+        url: "http://{{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}"
+        method: GET
+        return_content: yes
+        timeout: 5
+      register: elasticsearch_check
+      changed_when: false
+      failed_when: false
+
+    - name: Report Elasticsearch status
+      ansible.builtin.debug:
+        msg: "✓ Elasticsearch endpoint reachable: {{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}"
+      when: elasticsearch_check.status | default(0) == 200
+
+    - name: Warn if Elasticsearch unreachable
+      ansible.builtin.debug:
+        msg: "⚠ Elasticsearch endpoint unreachable - logs may buffer locally"
+      when: elasticsearch_check.status | default(0) != 200
+
+  when: log_shipping_enabled | bool
+  tags:
+    - log_shipping
+    - validate
+
+- name: Set up log parsing filter for security events
+  ansible.builtin.lineinfile:
+    path: /etc/filebeat/filebeat.yml
+    insertafter: "processors:"
+    line: "  - add_fields:\n      target: event\n      fields:\n        environment: {{ log_shipping_environment | default('production') }}"
+    state: present
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  notify: restart filebeat
+  tags:
+    - log_shipping
+    - configuration
+
+- name: Create log index template for Elasticsearch
+  ansible.builtin.template:
+    src: elasticsearch_index_template.j2
+    dest: /tmp/filebeat-index-template.json
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - configuration
+
+- name: Test Filebeat configuration
+  ansible.builtin.command: filebeat test config
+  changed_when: false
+  failed_when: false
+  register: filebeat_config_test
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - validate
+
+- name: Display log shipping configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Log Shipping Configuration:
+      ==========================
+      Service: {{ 'Filebeat 8.x' if log_shipping_use_filebeat | default(true) else 'rsyslog' }}
+      Status: {{ 'Enabled' if log_shipping_enabled | bool else 'Disabled' }}
+      Elasticsearch Host: {{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}
+      Logstash Host: {{ log_shipping_logstash_host | default('N/A') }}:{{ log_shipping_logstash_port | default('N/A') }}
+
+      Logs Shipped:
+      - System logs (syslog)
+      - Authentication logs (auth)
+      - Audit logs (auditd)
+      - Journal logs (systemd)
+
+      Index Pattern: filebeat-{{ ansible_date_time.year }}.{{ ansible_date_time.month }}.{{ ansible_date_time.day }}
+      Buffer Size: {{ log_shipping_buffer_size | default('4096') }} bytes
+      Environment: {{ log_shipping_environment | default('production') }}
+
+      Verification:
+      - Check status: systemctl status filebeat
+      - View logs: journalctl -u filebeat -f
+      - Test config: filebeat test config
+      - Elasticsearch: curl http://{{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}
+    verbosity: 1
+  when: log_shipping_enabled | bool
+  tags:
+    - log_shipping
