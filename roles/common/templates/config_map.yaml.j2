@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ app_name }}-config
+  namespace: {{ deployment_namespace | default('default') }}
+  labels:
+    app: {{ app_name }}
+data:
+  ENVIRONMENT: "{{ deployment_environment | default('production') }}"
+  LOG_LEVEL: "{{ deployment_log_level | default('INFO') }}"
+  {% if app_config_data %}
+  {% for key, value in app_config_data.items() %}
+  {{ key }}: "{{ value }}"
+  {% endfor %}
+  {% endif %}

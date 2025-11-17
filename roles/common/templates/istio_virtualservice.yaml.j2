@@ -1,0 +1,45 @@
+---
+# Istio VirtualService Configuration Template
+# Manages traffic routing policies for applications
+
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ app_name }}-vs
+  namespace: {{ deployment_namespace | default('default') }}
+  labels:
+    app: {{ app_name }}
+spec:
+  hosts:
+    - {{ app_name }}
+    - {{ app_name }}.{{ deployment_namespace | default('default') }}
+    - "{{ app_name }}.{{ deployment_namespace | default('default') }}.svc.cluster.local"
+  http:
+    - match:
+        - uri:
+            prefix: {{ service_prefix | default('/') }}
+      route:
+        - destination:
+            host: "{{ app_name }}-service"
+            port:
+              number: {{ service_port | default(80) }}
+            subset: {{ service_subset | default('v1') }}
+          weight: {{ traffic_weight_primary | default(100) }}
+        - destination:
+            host: "{{ app_name }}-service"
+            port:
+              number: {{ service_port | default(80) }}
+            subset: {{ service_subset_secondary | default('v2') }}
+          weight: {{ traffic_weight_secondary | default(0) }}
+      timeout: {{ request_timeout | default('30s') }}
+      retries:
+        attempts: {{ retry_attempts | default(3) }}
+        perTryTimeout: {{ retry_timeout | default('10s') }}
+    - match:
+        - uri:
+            prefix: /health
+      route:
+        - destination:
+            host: "{{ app_name }}-service"
+            port:
+              number: {{ service_port | default(80) }}

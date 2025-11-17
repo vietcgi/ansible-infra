@@ -1,0 +1,63 @@
+---
+# Kubernetes Deployment Template
+# Defines how to deploy and manage application containers
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ app_name }}
+  namespace: {{ deployment_namespace | default('default') }}
+  labels:
+    app: {{ app_name }}
+    version: {{ app_version | default('1.0.0') }}
+spec:
+  replicas: {{ app_replicas | default(3) }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ max_surge | default(1) }}
+      maxUnavailable: {{ max_unavailable | default(0) }}
+  selector:
+    matchLabels:
+      app: {{ app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ app_name }}
+        version: {{ app_version | default('1.0.0') }}
+    spec:
+      serviceAccountName: {{ app_name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: {{ app_name }}
+        image: "{{ app_image }}:{{ app_image_tag | default('latest') }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ app_port | default(8080) }}
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: {{ deployment_environment | default('production') }}
+        - name: LOG_LEVEL
+          value: {{ deployment_log_level | default('INFO') }}
+        resources:
+          requests:
+            cpu: {{ app_cpu_request | default('100m') }}
+            memory: {{ app_memory_request | default('256Mi') }}
+          limits:
+            cpu: {{ app_cpu_limit | default('500m') }}
+            memory: {{ app_memory_limit | default('512Mi') }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ app_port | default(8080) }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: {{ app_port | default(8080) }}
+          initialDelaySeconds: 5
+          periodSeconds: 5

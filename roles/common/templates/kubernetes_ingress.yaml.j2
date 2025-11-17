@@ -1,0 +1,39 @@
+---
+# Kubernetes Ingress Configuration Template
+# Provides HTTP/HTTPS routing to services in the cluster
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ ingress_name | default('main-ingress') }}
+  namespace: {{ deployment_namespace | default('default') }}
+  labels:
+    app: ingress-controller
+    environment: {{ deployment_environment | default('production') }}
+  annotations:
+    cert-manager.io/cluster-issuer: "{{ ingress_cert_issuer | default('letsencrypt-prod') }}"
+    nginx.ingress.kubernetes.io/ssl-redirect: "{{ ingress_force_ssl | default('true') }}"
+    nginx.ingress.kubernetes.io/rate-limit: "{{ ingress_rate_limit | default('100') }}"
+spec:
+  ingressClassName: {{ ingress_class | default('nginx') }}
+  tls:
+    - hosts:
+        {% for host in ingress_tls_hosts | default(['example.com']) %}
+        - {{ host }}
+        {% endfor %}
+      secretName: {{ ingress_tls_secret | default('tls-secret') }}
+  rules:
+    {% for rule in ingress_rules | default([]) %}
+    - host: {{ rule.host | default('example.com') }}
+      http:
+        paths:
+          {% for path in rule.paths | default([]) %}
+          - path: {{ path.path | default('/') }}
+            pathType: {{ path.pathType | default('Prefix') }}
+            backend:
+              service:
+                name: {{ path.service_name }}
+                port:
+                  number: {{ path.service_port | default(80) }}
+          {% endfor %}
+    {% endfor %}

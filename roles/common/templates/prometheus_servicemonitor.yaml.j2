@@ -1,0 +1,14 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ app_name }}-monitor
+  namespace: {{ deployment_namespace | default('default') }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ app_name }}
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
