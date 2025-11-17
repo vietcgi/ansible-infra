@@ -1,0 +1,33 @@
+{
+  "ssl_tls_configuration": {
+    "mode": "{{ cloudflare_ssl_tls_mode | default('full_strict') }}",
+    "minimum_version": "{{ cloudflare_ssl_tls_minimum_version | default('1.2') }}",
+    "ciphers": "{{ cloudflare_ssl_tls_ciphers | default('modern') }}"
+  },
+  "universal_ssl": {
+    "enabled": {{ cloudflare_universal_ssl_enabled | default(true) | lower }},
+    "auto_renewal": {{ cloudflare_universal_ssl_auto_renewal | default(true) | lower }}
+  },
+  "custom_certificates": {
+    "enabled": {{ cloudflare_custom_ssl_enabled | default(false) | lower }},
+    "certificate_path": "{{ cloudflare_custom_ssl_certificate_path | default('') }}",
+    "key_path": "{{ cloudflare_custom_ssl_key_path | default('') }}"
+  },
+  "hsts": {
+    "enabled": {{ cloudflare_hsts_enabled | default(true) | lower }},
+    "max_age_seconds": {{ cloudflare_hsts_max_age | default(31536000) }},
+    "include_subdomains": {{ cloudflare_hsts_include_subdomains | default(true) | lower }},
+    "preload": {{ cloudflare_hsts_preload | default(true) | lower }}
+  },
+  "certificate_transparency": {
+    "monitoring_enabled": {{ cloudflare_ct_monitoring_enabled | default(true) | lower }},
+    "check_hour": "{{ cloudflare_cert_check_hour | default('2') }}",
+    "enable_monitoring": {{ cloudflare_cert_enable_monitoring | default(true) | lower }}
+  },
+  "security_headers": {
+    "strict_transport_security": {{ cloudflare_strict_transport_security | default(true) | lower }},
+    "x_frame_options": "{{ cloudflare_x_frame_options | default('SAMEORIGIN') }}",
+    "x_content_type_options": "{{ cloudflare_x_content_type_options | default('nosniff') }}",
+    "referrer_policy": "{{ cloudflare_referrer_policy | default('strict-origin-when-cross-origin') }}"
+  }
+}

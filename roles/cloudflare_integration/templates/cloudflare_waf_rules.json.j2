@@ -1,0 +1,47 @@
+{
+  "waf_configuration": {
+    "enabled": true,
+    "sensitivity_level": "{{ cloudflare_waf_sensitivity_level | default('medium') }}",
+    "paranoia_level": {{ cloudflare_waf_paranoia_level | default(2) }}
+  },
+  "managed_rules": {
+    "owasp_crs_enabled": {{ cloudflare_waf_enable_owasp_crs | default(true) | lower }},
+    "dos_protection_enabled": {{ cloudflare_waf_enable_dos_protection | default(true) | lower }},
+    "bot_management_enabled": {{ cloudflare_waf_enable_bot_management | default(false) | lower }},
+    "api_protection_enabled": {{ cloudflare_waf_enable_api_protection | default(false) | lower }}
+  },
+  "geo_blocking": {
+    "block_countries": [
+{% for country in cloudflare_waf_block_countries %}
+      "{{ country }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+    ],
+    "allow_countries": [
+{% for country in cloudflare_waf_allow_countries %}
+      "{{ country }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+    ]
+  },
+  "ip_filtering": {
+    "block_ranges": [
+{% for range in cloudflare_waf_block_ip_ranges %}
+      "{{ range }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+    ],
+    "allow_ranges": [
+{% for range in cloudflare_waf_allow_ip_ranges %}
+      "{{ range }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+    ]
+  },
+  "rate_limiting": {
+    "enabled": {{ cloudflare_waf_rate_limit_enabled | default(true) | lower }},
+    "threshold": {{ cloudflare_waf_rate_limit_threshold | default(100) }},
+    "period_seconds": {{ cloudflare_waf_rate_limit_period | default(10) }},
+    "action": "{{ cloudflare_waf_rate_limit_action | default('challenge') }}"
+  },
+  "monitoring": {
+    "enabled": {{ cloudflare_waf_enable_monitoring | default(true) | lower }},
+    "log_all_requests": {{ cloudflare_waf_log_all_requests | default(false) | lower }}
+  }
+}

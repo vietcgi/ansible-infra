@@ -1,0 +1,29 @@
+{
+  "edge_cache_configuration": {
+    "default_ttl_minutes": {{ cloudflare_cache_default_ttl | default(30) }},
+    "browser_ttl_minutes": {{ cloudflare_cache_browser_ttl | default(30) }},
+    "cache_on_cookie": {{ cloudflare_cache_on_cookie | default(false) | lower }},
+    "respect_origin_headers": {{ cloudflare_cache_respect_origin_headers | default(true) | lower }}
+  },
+  "cache_rules": {
+    "cache_everything": {{ cloudflare_cache_everything | default(false) | lower }},
+    "cache_key_hostname": {{ cloudflare_cache_key_hostname | default(true) | lower }},
+    "cache_key_user_agent": {{ cloudflare_cache_key_user_agent | default(false) | lower }},
+    "cache_key_query_string": {{ cloudflare_cache_key_query_string | default(false) | lower }}
+  },
+  "cache_purge": {
+    "enabled": {{ cloudflare_cache_enable_purge | default(true) | lower }},
+    "purge_on_upload": {{ cloudflare_cache_purge_on_upload | default(false) | lower }},
+    "preload_enabled": {{ cloudflare_cache_preload_enabled | default(false) | lower }}
+  },
+  "analytics": {
+    "enabled": {{ cloudflare_cache_enable_analytics | default(true) | lower }},
+    "collection_hour": "{{ cloudflare_cache_analytics_hour | default('*/4') }}"
+  },
+  "performance": {
+    "minification_enabled": {{ cloudflare_enable_minification | default(true) | lower }},
+    "brotli_enabled": {{ cloudflare_enable_brotli | default(true) | lower }},
+    "http2_enabled": {{ cloudflare_enable_http2 | default(true) | lower }},
+    "http3_enabled": {{ cloudflare_enable_http3 | default(true) | lower }}
+  }
+}

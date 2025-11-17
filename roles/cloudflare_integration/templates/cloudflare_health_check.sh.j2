@@ -1,0 +1,126 @@
+#!/bin/bash
+# Cloudflare Health Check Script
+# Validates Cloudflare API connectivity and configuration status
+
+set -euo pipefail
+
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+LOG_FILE="/var/log/cloudflare/health-check.log"
+API_TOKEN="{{ cloudflare_api_token | default('') }}"
+DOMAIN="{{ cloudflare_domain | default('') }}"
+
+# Logging functions
+log_info() { echo "[INFO] [$TIMESTAMP] $1" >> "$LOG_FILE"; }
+log_error() { echo "[ERROR] [$TIMESTAMP] $1" >> "$LOG_FILE"; }
+log_warn() { echo "[WARN] [$TIMESTAMP] $1" >> "$LOG_FILE"; }
+
+# Initialize log
+{
+    echo "=========================================="
+    echo "Cloudflare Health Check - $TIMESTAMP"
+    echo "=========================================="
+    echo ""
+} >> "$LOG_FILE"
+
+# Verify API token is set
+if [[ -z "$API_TOKEN" ]]; then
+    log_error "API token not configured"
+    exit 1
+fi
+
+# Test 1: API Connectivity
+log_info "Testing Cloudflare API connectivity..."
+if curl -s -X GET "https://api.cloudflare.com/client/v4/user" \
+    -H "Authorization: Bearer $API_TOKEN" \
+    -H "Content-Type: application/json" | grep -q '"success":true'; then
+    log_info "API connectivity: PASS"
+    api_status="PASS"
+else
+    log_error "API connectivity: FAIL"
+    api_status="FAIL"
+fi
+
+# Test 2: Zone Configuration
+log_info "Checking zone configuration..."
+if [[ -n "$DOMAIN" ]]; then
+    zone_check=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Content-Type: application/json")
+
+    if echo "$zone_check" | grep -q '"success":true'; then
+        log_info "Zone configuration: PASS"
+        zone_status="PASS"
+    else
+        log_error "Zone configuration: FAIL"
+        zone_status="FAIL"
+    fi
+else
+    log_warn "Domain not configured, skipping zone check"
+    zone_status="SKIP"
+fi
+
+# Test 3: Configuration Files
+log_info "Checking configuration files..."
+config_files=(
+    "/etc/cloudflare/waf-rules.json"
+    "/etc/cloudflare/ddos-config.json"
+    "/etc/cloudflare/ssl-config.json"
+    "/etc/cloudflare/cache-rules.json"
+)
+
+config_status="PASS"
+for file in "${config_files[@]}"; do
+    if [[ -f "$file" ]]; then
+        log_info "  ✓ $file exists"
+    else
+        log_warn "  ✗ $file not found"
+        config_status="WARN"
+    fi
+done
+
+# Test 4: DNS Records
+log_info "Verifying DNS records..."
+if [[ -n "$DOMAIN" && -n "$API_TOKEN" ]]; then
+    dns_check=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+        -H "Authorization: Bearer $API_TOKEN" | jq '.result[0].id' -r 2>/dev/null)
+
+    if [[ -n "$dns_check" && "$dns_check" != "null" ]]; then
+        dns_records=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$dns_check/dns_records" \
+            -H "Authorization: Bearer $API_TOKEN" | jq '.result | length' 2>/dev/null)
+
+        if [[ $dns_records -gt 0 ]]; then
+            log_info "DNS records: PASS ($dns_records records found)"
+            dns_status="PASS"
+        else
+            log_warn "DNS records: WARN (no records found)"
+            dns_status="WARN"
+        fi
+    else
+        log_error "DNS records: FAIL (zone not found)"
+        dns_status="FAIL"
+    fi
+else
+    log_warn "Domain or API token not configured, skipping DNS check"
+    dns_status="SKIP"
+fi
+
+# Summary
+{
+    echo ""
+    echo "Health Check Summary:"
+    echo "===================="
+    echo "API Connectivity:      $api_status"
+    echo "Zone Configuration:    $zone_status"
+    echo "Configuration Files:   $config_status"
+    echo "DNS Records:           $dns_status"
+    echo ""
+} >> "$LOG_FILE"
+
+# Determine overall status
+if [[ "$api_status" == "FAIL" ]] || [[ "$zone_status" == "FAIL" ]] || [[ "$dns_status" == "FAIL" ]]; then
+    log_error "Health check completed with FAILURES"
+    exit 1
+else
+    log_info "Health check completed successfully"
+    exit 0
+fi

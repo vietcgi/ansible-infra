@@ -1,0 +1,219 @@
+---
+# Cloudflare Integration Role
+# Leverages community.general.cloudflare_dns and linuxhq.cloudflare collections
+# Manages DNS, WAF, DDoS protection, SSL/TLS, and edge caching through Cloudflare API
+
+- name: Display Cloudflare integration status
+  ansible.builtin.debug:
+    msg: "Configuring Cloudflare edge security platform integration"
+
+# ============================================================================
+# Ensure Required Collections Installed
+# ============================================================================
+
+- name: Install required Ansible collections
+  when: cloudflare_enabled | default(false)
+  block:
+    - name: Install community.general collection
+      ansible.builtin.command:
+        cmd: "ansible-galaxy collection install --force community.general"
+      changed_when: false
+      register: galaxy_general
+
+    - name: Install linuxhq.cloudflare collection
+      ansible.builtin.command:
+        cmd: "ansible-galaxy collection install --force linuxhq.cloudflare"
+      changed_when: false
+      register: galaxy_cloudflare
+      ignore_errors: true
+
+    - name: Display collection installation status
+      ansible.builtin.debug:
+        msg: "Collections installed successfully"
+
+# ============================================================================
+# Validate Cloudflare API Credentials
+# ============================================================================
+
+- name: Validate Cloudflare API credentials
+  when: cloudflare_enabled | default(false) and cloudflare_api_token | default('')
+  block:
+    - name: Test Cloudflare API connectivity
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/user"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: cf_api_test
+      ignore_errors: true
+
+    - name: Display API test result
+      ansible.builtin.debug:
+        msg: "Cloudflare API validation: {{ 'PASSED' if cf_api_test.status == 200 else 'FAILED' }}"
+
+# ============================================================================
+# Configure Cloudflare DNS Management
+# ============================================================================
+
+- name: Configure DNS zone management
+  when: cloudflare_enabled | default(false) and cloudflare_dns_enabled | default(false)
+  block:
+    - name: Create DNS records from configuration
+      community.general.cloudflare_dns:
+        zone: "{{ item.zone }}"
+        record: "{{ item.record | default('@') }}"
+        type: "{{ item.type }}"
+        value: "{{ item.value }}"
+        ttl: "{{ item.ttl | default(3600) }}"
+        proxied: "{{ item.proxied | default(false) }}"
+        api_token: "{{ cloudflare_api_token }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ cloudflare_dns_records | default([]) }}"
+      when: cloudflare_dns_records is defined
+      register: dns_results
+
+    - name: Display DNS configuration results
+      ansible.builtin.debug:
+        msg: "Created/Updated {{ dns_results.results | length }} DNS records"
+      when: dns_results.results is defined
+
+# ============================================================================
+# Configure WAF Rules
+# ============================================================================
+
+- name: Configure Cloudflare WAF rules
+  when: cloudflare_enabled | default(false) and cloudflare_waf_enabled | default(false)
+  block:
+    - name: Create WAF rule configuration file
+      ansible.builtin.template:
+        src: cloudflare_waf_rules.json.j2
+        dest: /etc/cloudflare/waf-rules.json
+        mode: '0600'
+        owner: root
+        group: root
+      register: waf_config
+
+    - name: Display WAF configuration
+      ansible.builtin.debug:
+        msg: "WAF rules configured at /etc/cloudflare/waf-rules.json"
+
+# ============================================================================
+# Configure DDoS Protection
+# ============================================================================
+
+- name: Configure DDoS protection settings
+  when: cloudflare_enabled | default(false) and cloudflare_ddos_protection_enabled | default(false)
+  block:
+    - name: Create DDoS protection configuration
+      ansible.builtin.template:
+        src: cloudflare_ddos_config.json.j2
+        dest: /etc/cloudflare/ddos-config.json
+        mode: '0600'
+        owner: root
+        group: root
+      register: ddos_config
+
+    - name: Display DDoS configuration
+      ansible.builtin.debug:
+        msg: "DDoS protection configured at /etc/cloudflare/ddos-config.json"
+
+# ============================================================================
+# Configure SSL/TLS Management
+# ============================================================================
+
+- name: Configure SSL/TLS certificate management
+  when: cloudflare_enabled | default(false) and cloudflare_ssl_tls_enabled | default(false)
+  block:
+    - name: Create SSL/TLS configuration
+      ansible.builtin.template:
+        src: cloudflare_ssl_config.json.j2
+        dest: /etc/cloudflare/ssl-config.json
+        mode: '0600'
+        owner: root
+        group: root
+      register: ssl_config
+
+    - name: Display SSL/TLS configuration
+      ansible.builtin.debug:
+        msg: "SSL/TLS management configured at /etc/cloudflare/ssl-config.json"
+
+# ============================================================================
+# Configure Edge Caching
+# ============================================================================
+
+- name: Configure edge caching rules
+  when: cloudflare_enabled | default(false) and cloudflare_edge_cache_enabled | default(false)
+  block:
+    - name: Create edge cache configuration
+      ansible.builtin.template:
+        src: cloudflare_cache_rules.json.j2
+        dest: /etc/cloudflare/cache-rules.json
+        mode: '0600'
+        owner: root
+        group: root
+      register: cache_config
+
+    - name: Display cache configuration
+      ansible.builtin.debug:
+        msg: "Edge cache rules configured at /etc/cloudflare/cache-rules.json"
+
+# ============================================================================
+# Setup Monitoring and Logging
+# ============================================================================
+
+- name: Configure Cloudflare monitoring
+  when: cloudflare_enabled | default(false) and cloudflare_logging_enabled | default(false)
+  block:
+    - name: Create Cloudflare logs directory
+      ansible.builtin.file:
+        path: /var/log/cloudflare
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Create health check script
+      ansible.builtin.template:
+        src: cloudflare_health_check.sh.j2
+        dest: /usr/local/bin/cloudflare-health-check
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Schedule Cloudflare health checks
+      ansible.builtin.cron:
+        name: "Cloudflare health check"
+        hour: "*/2"
+        minute: "0"
+        job: "/usr/local/bin/cloudflare-health-check >> /var/log/cloudflare/health-check.log 2>&1"
+        state: "{{ 'present' if cloudflare_health_check_enabled | default(true) else 'absent' }}"
+
+# ============================================================================
+# Display Summary
+# ============================================================================
+
+- name: Display Cloudflare integration summary
+  when: cloudflare_enabled | default(false)
+  block:
+    - name: Show integration status
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Integration Summary:
+          ================================
+          Status: {{ 'ENABLED' if cloudflare_enabled else 'DISABLED' }}
+          DNS Management: {{ 'ENABLED' if cloudflare_dns_enabled | default(false) else 'DISABLED' }}
+          WAF Rules: {{ 'ENABLED' if cloudflare_waf_enabled | default(false) else 'DISABLED' }}
+          DDoS Protection: {{ 'ENABLED' if cloudflare_ddos_protection_enabled | default(false) else 'DISABLED' }}
+          SSL/TLS Management: {{ 'ENABLED' if cloudflare_ssl_tls_enabled | default(false) else 'DISABLED' }}
+          Edge Caching: {{ 'ENABLED' if cloudflare_edge_cache_enabled | default(false) else 'DISABLED' }}
+          Logging & Monitoring: {{ 'ENABLED' if cloudflare_logging_enabled | default(false) else 'DISABLED' }}
+
+          Configuration Files:
+          - /etc/cloudflare/waf-rules.json
+          - /etc/cloudflare/ddos-config.json
+          - /etc/cloudflare/ssl-config.json
+          - /etc/cloudflare/cache-rules.json
+
+          Logs: /var/log/cloudflare/

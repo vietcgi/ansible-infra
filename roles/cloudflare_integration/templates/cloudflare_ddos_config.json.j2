@@ -1,0 +1,21 @@
+{
+  "ddos_protection": {
+    "enabled": true,
+    "sensitivity": "{{ cloudflare_ddos_sensitivity | default('medium') }}"
+  },
+  "mitigations": {
+    "http_flood_protection": {{ cloudflare_ddos_http_flood_protection | default(true) | lower }},
+    "udp_flood_protection": {{ cloudflare_ddos_udp_flood_protection | default(true) | lower }},
+    "syn_flood_protection": {{ cloudflare_ddos_syn_flood_protection | default(true) | lower }},
+    "dns_amplification_protection": {{ cloudflare_ddos_dns_amplification_protection | default(true) | lower }}
+  },
+  "rate_limiting": {
+    "enabled": {{ cloudflare_ddos_rate_limit_enabled | default(true) | lower }},
+    "threshold_rps": {{ cloudflare_ddos_rate_limit_threshold | default(1000) }},
+    "action": "{{ cloudflare_ddos_rate_limit_action | default('challenge') }}"
+  },
+  "monitoring": {
+    "enabled": {{ cloudflare_ddos_enable_monitoring | default(true) | lower }},
+    "check_interval_minutes": {{ cloudflare_ddos_check_minute | default(5) }}
+  }
+}
