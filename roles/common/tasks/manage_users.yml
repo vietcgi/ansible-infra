@@ -2,30 +2,60 @@
 # User Management - Creates SSH users from managed_users configuration
 # Source of truth: inventories/projects/*/group_vars/users.yml
 # Access control: inventories/projects/*/group_vars/access_control.yml
+# System control: inventories/projects/*/group_vars/access_systems.yml
 #
-# User status is synchronized across all systems:
-# - enabled: true  → user created, SSH key active, Auth0 account active
-# - enabled: false → user disabled, SSH key removed, nologin shell, sessions killed
+# SSH Access Control is modular - it can be independently enabled/disabled
+# When ssh.enabled = true:
+#   - SSH users created, SSH keys active, sudo managed
+# When ssh.enabled = false:
+#   - No SSH user management (access through Auth0/RBAC only)
 
-- name: Create user accounts from managed_users
-  ansible.builtin.user:
-    name: "{{ item.key }}"
-    state: present
-    shell: "{{ item.value.system.shell }}"
-    groups: "{{ item.value.system.groups | join(',') }}"
-    append: yes
-    createhome: yes
-    home: "{{ item.value.system.home }}"
-    comment: "{{ item.value.auth0.given_name }} {{ item.value.auth0.family_name }}"
-  loop: "{{ managed_users | dict2items }}"
-  when:
-    - managed_users is defined
-    - item.value.enabled | bool
+- name: Display SSH Access Control status
+  ansible.builtin.debug:
+    msg: |
+      SSH Access Control Status:
+      ========================
+      Enabled: {{ ssh_config.enabled | default(false) }}
+      {% if ssh_config.enabled %}
+        → SSH users will be created and managed
+        → SSH keys will be provisioned
+        → Sudo access will be controlled
+      {% else %}
+        → SSH user management is DISABLED
+        → Only Auth0/RBAC systems are active
+      {% endif %}
+  when: not ansible_check_mode
   tags:
     - users
     - user_create
 
-- name: Configure sudo access for enabled users
+- name: Create user accounts from managed_users (SSH ENABLED)
+  block:
+    - name: Create user accounts
+      ansible.builtin.user:
+        name: "{{ item.key }}"
+        state: present
+        shell: "{{ item.value.system.shell }}"
+        groups: "{{ item.value.system.groups | join(',') }}"
+        append: yes
+        createhome: yes
+        home: "{{ item.value.system.home }}"
+        comment: "{{ item.value.auth0.given_name }} {{ item.value.auth0.family_name }}"
+      loop: "{{ managed_users | dict2items }}"
+      when:
+        - managed_users is defined
+        - item.value.enabled | bool
+      tags:
+        - users
+        - user_create
+  when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
+  tags:
+    - users
+    - user_create
+
+- name: Configure sudo access for enabled users (SSH ENABLED)
   block:
     - name: Add sudo privileges for users with sudo_access enabled
       ansible.builtin.lineinfile:
@@ -55,33 +85,41 @@
         - users
         - user_sudo
 
-- name: Remove disabled users from sudoers
-  ansible.builtin.file:
-    path: /etc/sudoers.d/{{ item.key }}
-    state: absent
-  loop: "{{ managed_users | dict2items }}"
+    - name: Remove disabled users from sudoers
+      ansible.builtin.file:
+        path: /etc/sudoers.d/{{ item.key }}
+        state: absent
+      loop: "{{ managed_users | dict2items }}"
+      when:
+        - managed_users is defined
+        - not item.value.enabled | bool
+      ignore_errors: yes
+      tags:
+        - users
+        - user_revoke
   when:
-    - managed_users is defined
-    - not item.value.enabled | bool
-  ignore_errors: yes
+    - ssh_config is defined
+    - ssh_config.enabled | bool
   tags:
     - users
-    - user_revoke
+    - user_sudo
 
-- name: Disable user shell for disabled users (set to nologin)
+- name: Disable user shell for disabled users (SSH ENABLED, set to nologin)
   ansible.builtin.user:
     name: "{{ item.key }}"
     state: present
     shell: /sbin/nologin
   loop: "{{ managed_users | dict2items }}"
   when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
     - managed_users is defined
     - not item.value.enabled | bool
   tags:
     - users
     - user_revoke
 
-- name: Manage SSH authorized keys for users
+- name: Manage SSH authorized keys for users (SSH ENABLED)
   block:
     - name: Add SSH authorized keys for enabled users
       ansible.builtin.authorized_key:
@@ -112,8 +150,14 @@
       tags:
         - users
         - user_revoke
+  when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
+  tags:
+    - users
+    - user_ssh_keys
 
-- name: Kill active sessions for disabled users
+- name: Kill active sessions for disabled users (SSH ENABLED)
   block:
     - name: Get list of active sessions for disabled users
       ansible.builtin.shell: |
@@ -137,6 +181,12 @@
       tags:
         - users
         - user_revoke
+  when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
+  tags:
+    - users
+    - user_revoke
 
 - name: Audit log user management changes
   block:

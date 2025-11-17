@@ -1,0 +1,153 @@
+---
+# ============================================================================
+# ACCESS CONTROL SYSTEMS - Modular Configuration
+# ============================================================================
+# Control which access control systems are enabled for this customer
+# Each system can be independently toggled on/off
+# ============================================================================
+
+# Enable/disable each access control system
+access_systems_enabled:
+  # SSH Access Control - Linux user creation and SSH key management
+  ssh:
+    enabled: true
+    description: "SSH key-based access to infrastructure servers"
+    authenticator: "SSH public/private keys"
+    requires: "none"
+
+  # Auth0 Identity Management - Cloud identity and password-based access
+  auth0:
+    enabled: true
+    description: "Auth0 cloud identity service for web applications"
+    authenticator: "Email/password with optional MFA"
+    requires: "none"
+
+  # Application RBAC - Role-Based Access Control within applications
+  rbac:
+    enabled: true
+    description: "Role-based permissions for application features"
+    authenticator: "Auth0 identity (requires auth0 enabled)"
+    requires: "auth0"
+
+  # Boundary - Session proxying and access recording
+  boundary:
+    enabled: false
+    description: "HashiCorp Boundary for session recording and access audit"
+    authenticator: "Auth0 identity (requires auth0 enabled)"
+    requires: "auth0"
+
+# ============================================================================
+# SYSTEM-SPECIFIC CONFIGURATION
+# ============================================================================
+
+# SSH Configuration
+ssh_config:
+  enabled: "{{ access_systems_enabled.ssh.enabled }}"
+  # When SSH is enabled
+  when_enabled:
+    create_users: true
+    manage_keys: true
+    manage_sudo: true
+    manage_groups: true
+  # When SSH is disabled
+  when_disabled:
+    action: "remove_users"  # delete, nologin, or skip
+    preserve_home: true     # keep home directories after deletion
+
+# Auth0 Configuration
+auth0_config:
+  enabled: "{{ access_systems_enabled.auth0.enabled }}"
+  # When Auth0 is enabled
+  when_enabled:
+    manage_users: true
+    sync_from_ssh: false    # Create Auth0 users from SSH users?
+    mfa_required: true
+  # When Auth0 is disabled
+  when_disabled:
+    action: "preserve"      # preserve or delete Auth0 accounts
+
+# RBAC Configuration
+rbac_config:
+  enabled: "{{ access_systems_enabled.rbac.enabled }}"
+  requires_auth0: "{{ access_systems_enabled.auth0.enabled }}"
+  # Role-based access control
+  when_enabled:
+    sync_roles: true        # Sync roles from configuration
+    enforce_permissions: true
+  # When disabled
+  when_disabled:
+    action: "revoke_all"    # revoke all role-based permissions
+
+# Boundary Configuration
+boundary_config:
+  enabled: "{{ access_systems_enabled.boundary.enabled }}"
+  requires_auth0: "{{ access_systems_enabled.auth0.enabled }}"
+  when_enabled:
+    controller_url: "https://boundary.example.com"
+    enable_session_recording: true
+    enable_audit_logging: true
+  when_disabled:
+    action: "preserve"      # preserve or shutdown sessions
+
+# ============================================================================
+# MODULAR PLAYBOOK FLOW
+# ============================================================================
+# The playbook flow is determined by enabled systems:
+#
+# IF ssh.enabled:
+#   → roles/common/tasks/manage_users.yml runs
+#     ├─ Create SSH users
+#     ├─ Manage SSH keys
+#     └─ Manage sudo access
+#
+# IF auth0.enabled:
+#   → roles/auth0/tasks/manage_users.yml runs
+#     ├─ Create Auth0 users
+#     ├─ Set passwords
+#     └─ Manage MFA
+#
+# IF rbac.enabled AND auth0.enabled:
+#   → roles/app_integration/tasks/manage_rbac.yml runs
+#     ├─ Create roles
+#     ├─ Assign permissions
+#     └─ Sync with application
+#
+# IF boundary.enabled AND auth0.enabled:
+#   → boundary_role/tasks/main.yml runs
+#     ├─ Deploy Boundary agents
+#     ├─ Configure targets
+#     └─ Set up session recording
+#
+# ============================================================================
+
+# Example configurations for different customer types:
+#
+# Configuration 1: SSH-only infrastructure (no web apps)
+# access_systems_enabled:
+#   ssh: { enabled: true }
+#   auth0: { enabled: false }
+#   rbac: { enabled: false }
+#   boundary: { enabled: false }
+#
+# Configuration 2: SSH + Auth0 (web apps + infrastructure)
+# access_systems_enabled:
+#   ssh: { enabled: true }
+#   auth0: { enabled: true }
+#   rbac: { enabled: true }
+#   boundary: { enabled: false }
+#
+# Configuration 3: Enterprise (everything enabled)
+# access_systems_enabled:
+#   ssh: { enabled: true }
+#   auth0: { enabled: true }
+#   rbac: { enabled: true }
+#   boundary: { enabled: true }
+#
+# Configuration 4: Auth0 + RBAC only (no SSH infrastructure access)
+# access_systems_enabled:
+#   ssh: { enabled: false }
+#   auth0: { enabled: true }
+#   rbac: { enabled: true }
+#   boundary: { enabled: false }
+#
+# ============================================================================
