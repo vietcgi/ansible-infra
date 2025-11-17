@@ -1,0 +1,62 @@
+---
+# Ansible Vault Template
+# Create with: ansible-vault create group_vars/staging/vault.yml
+# Edit with: ansible-vault edit group_vars/staging/vault.yml
+#
+# Store all sensitive data here and reference using {{ vault_variable_name }}
+
+# Email Configuration
+vault_smtp_password: "your-smtp-app-password"
+
+# Slack Webhook
+vault_slack_webhook: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+
+# PagerDuty Integration
+vault_pagerduty_token: "your-pagerduty-api-token"
+vault_pagerduty_service_key: "your-pagerduty-service-key"
+
+# Vault Token for Secret Rotation
+vault_token: "s.your-vault-token"
+
+# Database Credentials (Example)
+vault_db_root_user: "admin"
+vault_db_root_password: "strong-database-password"
+vault_db_rotation_user: "rotation-user"
+vault_db_rotation_password: "rotation-password"
+
+# SSH Key for Remote Systems
+vault_ssh_key_public: "ssh-rsa AAAAB3Nza..."
+vault_ssh_key_private: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  b3BlbnNzaC1rZXktdjEAAAAABG5vbmU..."
+  -----END OPENSSH PRIVATE KEY-----
+
+# API Keys
+vault_api_key_external_service: "your-api-key-here"
+vault_auth_token_external: "bearer-token-here"
+
+# TLS Certificates (Optional)
+vault_tls_cert: |
+  -----BEGIN CERTIFICATE-----
+  MIIDXTCCAkWgAwIBAgIJAJ...
+  -----END CERTIFICATE-----
+
+vault_tls_key: |
+  -----BEGIN PRIVATE KEY-----
+  MIIEvQIBADANBgkqhkiG9w0...
+  -----END PRIVATE KEY-----
+
+# Encryption Keys
+vault_log_encryption_key: "256-bit-hex-encryption-key-here"
+
+# Compliance-related secrets
+vault_compliance_api_token: "token-for-compliance-scanning"
+
+# Monitoring secrets
+vault_monitoring_api_key: "monitoring-service-api-key"
+
+# Notes:
+# - Encrypt this file with: ansible-vault encrypt
+# - Use in playbooks: {{ vault_variable_name }}
+# - Reference in defaults: vault_password: "{{ vault_smtp_password }}"
+# - Run playbooks: ansible-playbook site.yml --ask-vault-pass

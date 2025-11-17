@@ -1,0 +1,25 @@
+---
+# Sample Staging Inventory for Ansible-Infra
+# Use this as a template for your environment
+
+[all:vars]
+ansible_user=ansible
+ansible_ssh_private_key_file=~/.ssh/id_rsa
+ansible_python_interpreter=/usr/bin/python3
+
+[staging_web]
+staging-web-01 ansible_host=10.0.1.10
+staging-web-02 ansible_host=10.0.1.11
+
+[staging_db]
+staging-db-01 ansible_host=10.0.2.10
+
+[staging:children]
+staging_web
+staging_db
+
+[staging:vars]
+environment=staging
+ansible_become=yes
+ansible_become_method=sudo
+ansible_become_user=root

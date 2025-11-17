@@ -1,0 +1,59 @@
+---
+# Sample Staging Environment Group Variables
+# Copy to group_vars/staging.yml and customize for your environment
+
+# Firewall Settings
+firewall_enabled: true
+firewall_allow_ssh: true
+firewall_ssh_port: 22
+firewall_allow_icmp: true
+firewall_enable_ddos_protection: true
+firewall_enable_egress_filtering: true
+firewall_enable_ipv6_hardening: true
+
+# Logging Settings
+logging_enabled: true
+logging_enable_tls: true
+logging_enable_encryption: true
+logging_enable_integrity_check: true
+logging_enable_remote_syslog: false
+logging_enable_aggregation: false
+
+# Alert Thresholds (Staging - More Relaxed)
+alert_cpu_high: 90
+alert_cpu_critical: 95
+alert_memory_high: 90
+alert_memory_critical: 95
+alert_disk_warning: 80
+alert_disk_high: 90
+alert_disk_critical: 95
+alert_failed_logins: 10
+alert_sudo_spike: 500
+
+# Notification Channels
+monitoring_email_enabled: false
+monitoring_slack_enabled: true
+monitoring_pagerduty_enabled: false
+
+# Compliance Settings
+compliance_fedramp_enabled: false
+compliance_hipaa_enabled: false
+compliance_pci_dss_enabled: false
+compliance_soc2_enabled: false
+compliance_nist_sp800_53_enabled: true
+
+# Monitoring
+monitoring_slack_enabled: true
+monitoring_grafana_enabled: false
+
+# Performance Tuning
+performance_tuning_enabled: true
+performance_io_scheduler: "mq-deadline"
+
+# Storage Hardening
+storage_hardening_enabled: true
+storage_enable_quotas: true
+
+# Security
+kernel_hardening_enabled: true
+password_policy_enabled: true
