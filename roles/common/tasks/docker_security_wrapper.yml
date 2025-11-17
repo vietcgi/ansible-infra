@@ -1,0 +1,405 @@
+---
+# Docker Security Hardening Wrapper Task
+# Implements security best practices and compliance requirements
+# Purpose: Secure Docker daemon and container runtime
+
+# Pre-flight checks
+- name: Validate Docker security configuration is enabled
+  ansible.builtin.assert:
+    that:
+      - container_docker_enabled | default(true) | bool
+    fail_msg: "Docker must be enabled for security configuration"
+    quiet: true
+  tags:
+    - docker_security
+    - containers
+    - security
+    - validation
+
+# Verify Docker installation
+- name: Check Docker installation
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_installation
+  tags:
+    - docker_security
+    - validation
+
+- name: Fail if Docker is not installed
+  ansible.builtin.fail:
+    msg: "Docker must be installed before applying security hardening"
+  when: not docker_installation.stat.exists
+  tags:
+    - docker_security
+    - validation
+
+# Configure Docker daemon security options
+- name: Create Docker daemon security configuration
+  ansible.builtin.template:
+    src: docker_daemon_security.j2
+    dest: /etc/docker/daemon.json.d/security.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  register: docker_security_config
+  tags:
+    - docker_security
+    - config
+
+# Disable unnecessary Docker features
+- name: Disable experimental Docker features
+  ansible.builtin.copy:
+    content: |
+      {
+        "experimental": false,
+        "metrics-addr": "",
+        "debug": false
+      }
+    dest: /etc/docker/daemon.json.d/disable-experimental.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - config
+
+# Configure AppArmor for Docker if available
+- name: Check AppArmor support
+  ansible.builtin.stat:
+    path: /etc/apparmor.d
+  register: apparmor_dir
+  tags:
+    - docker_security
+    - apparmor
+
+- name: Create Docker AppArmor profile
+  ansible.builtin.template:
+    src: docker_apparmor_profile.j2
+    dest: /etc/apparmor.d/docker
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: apparmor_dir.stat.exists and container_docker_apparmor_enabled | default(true) | bool
+  register: apparmor_profile
+  tags:
+    - docker_security
+    - apparmor
+    - mac
+
+- name: Load Docker AppArmor profile
+  ansible.builtin.command:
+    cmd: apparmor_parser -r /etc/apparmor.d/docker
+  become: true
+  when: apparmor_profile.changed
+  tags:
+    - docker_security
+    - apparmor
+    - mac
+
+# Configure SELinux for Docker if available
+- name: Check SELinux support
+  ansible.builtin.stat:
+    path: /etc/selinux
+  register: selinux_dir
+  tags:
+    - docker_security
+    - selinux
+
+- name: Configure SELinux for Docker containers
+  ansible.builtin.template:
+    src: docker_selinux_policy.j2
+    dest: /etc/selinux/docker_context
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: selinux_dir.stat.exists and container_docker_selinux_enabled | default(true) | bool
+  tags:
+    - docker_security
+    - selinux
+    - mac
+
+# Configure Docker socket permissions
+- name: Set secure Docker socket permissions
+  ansible.builtin.file:
+    path: /var/run/docker.sock
+    owner: root
+    group: docker
+    mode: '0660'
+  become: true
+  tags:
+    - docker_security
+    - permissions
+
+# Configure container resource limits
+- name: Create Docker resource limits configuration
+  ansible.builtin.template:
+    src: docker_resource_limits.j2
+    dest: /etc/docker/daemon.json.d/resource-limits.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_resource_limits | default({}) | length > 0
+  tags:
+    - docker_security
+    - resources
+
+# Set up container runtime capabilities restrictions
+- name: Configure Docker capabilities restrictions
+  ansible.builtin.copy:
+    content: |
+      {
+        "cap-default": {{ container_docker_default_capabilities | default(["NET_BIND_SERVICE"]) | to_nice_json }},
+        "cap-add": {{ container_docker_capabilities_add | default([]) | to_nice_json }},
+        "cap-drop": {{ container_docker_capabilities_drop | default(["ALL"]) | to_nice_json }}
+      }
+    dest: /etc/docker/daemon.json.d/capabilities.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - capabilities
+
+# Configure read-only root filesystem enforcement
+- name: Create read-only filesystem policy
+  ansible.builtin.copy:
+    content: |
+      {
+        "read-only": {{ container_docker_read_only_fs | default(false) | to_nice_json }},
+        "tmpfs": {{ container_docker_tmpfs | default({}) | to_nice_json }}
+      }
+    dest: /etc/docker/daemon.json.d/filesystem.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - filesystem
+
+# Configure user namespace remapping for privilege isolation
+- name: Create user namespace remapping configuration
+  ansible.builtin.template:
+    src: docker_userns_remap.j2
+    dest: /etc/docker/daemon.json.d/userns-remap.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_userns_remap_enabled | default(false) | bool
+  tags:
+    - docker_security
+    - namespaces
+    - privilege_isolation
+
+# Set up container network security
+- name: Configure Docker network security policies
+  ansible.builtin.template:
+    src: docker_network_security.j2
+    dest: /etc/docker/daemon.json.d/network-security.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - network
+
+# Configure image signature verification
+- name: Create image verification configuration
+  ansible.builtin.copy:
+    content: |
+      {
+        "content-trust": {{ container_docker_content_trust | default(false) | to_nice_json }},
+        "content-trust-server": "{{ container_docker_content_trust_server | default('https://notary.docker.io') }}"
+      }
+    dest: /etc/docker/daemon.json.d/image-verification.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - image_verification
+
+# Configure audit logging for Docker
+- name: Create Docker audit logging configuration
+  ansible.builtin.template:
+    src: docker_audit_logging.j2
+    dest: /etc/docker/daemon.json.d/audit-logging.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_audit_logging | default(true) | bool
+  tags:
+    - docker_security
+    - audit
+    - logging
+
+# Configure seccomp profiles
+- name: Create default seccomp profile
+  ansible.builtin.template:
+    src: docker_seccomp_profile.json.j2
+    dest: /etc/docker/seccomp.json
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: container_docker_seccomp_enabled | default(true) | bool
+  tags:
+    - docker_security
+    - seccomp
+
+# Restart Docker daemon to apply security changes
+- name: Restart Docker daemon with security configuration
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: docker_security_config.changed or apparmor_profile.changed | default(false)
+  register: docker_security_restart
+  tags:
+    - docker_security
+    - service
+
+# Wait for Docker socket after restart
+- name: Wait for Docker socket availability
+  ansible.builtin.wait_for:
+    path: /var/run/docker.sock
+    state: present
+    timeout: 30
+  become: true
+  when: docker_security_restart.changed
+  tags:
+    - docker_security
+    - health
+
+# Verify Docker security configuration
+- name: Verify Docker daemon is running securely
+  community.docker.docker_host_info:
+  register: docker_security_check
+  ignore_errors: true
+  tags:
+    - docker_security
+    - health
+    - validation
+
+# Create container security policy template
+- name: Create container security policy
+  ansible.builtin.template:
+    src: container_security_policy.j2
+    dest: /etc/docker/container-security-policy.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - policy
+
+# Configure container scanning configuration
+- name: Create container scanning configuration
+  ansible.builtin.template:
+    src: docker_image_scanning.j2
+    dest: /etc/docker/image-scanning.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: container_docker_image_scanning | default(false) | bool
+  tags:
+    - docker_security
+    - scanning
+
+# Set up security monitoring
+- name: Create Docker security monitoring configuration
+  ansible.builtin.template:
+    src: docker_security_monitoring.j2
+    dest: /etc/docker/security-monitoring.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: container_docker_security_monitoring | default(true) | bool
+  tags:
+    - docker_security
+    - monitoring
+
+# Create compliance checklist
+- name: Generate Docker security compliance checklist
+  ansible.builtin.template:
+    src: docker_security_checklist.j2
+    dest: /etc/docker/SECURITY_CHECKLIST.md
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  tags:
+    - docker_security
+    - compliance
+    - documentation
+
+# Final security validation
+- name: Docker security hardening validation
+  block:
+    - name: Verify Docker daemon security
+      ansible.builtin.debug:
+        msg: |
+          ✓ Docker Security Hardening Complete:
+          - Daemon Status: {{ 'Healthy' if docker_security_check.host_info is defined else 'Check Required' }}
+          - AppArmor Support: {{ 'Enabled' if apparmor_dir.stat.exists else 'Not Available' }}
+          - SELinux Support: {{ 'Enabled' if selinux_dir.stat.exists else 'Not Available' }}
+          - Socket Permissions: Configured (root:docker 0660)
+          - Audit Logging: {{ 'Enabled' if container_docker_audit_logging | default(true) else 'Disabled' }}
+          - Seccomp Profiles: {{ 'Enabled' if container_docker_seccomp_enabled | default(true) else 'Disabled' }}
+      tags:
+        - docker_security
+        - health
+        - summary
+
+  rescue:
+    - name: Log security validation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Docker security validation encountered issues:
+          - Check Docker daemon status: systemctl status docker
+          - Review security logs: journalctl -u docker -n 50
+          - Validate configuration: docker info
+      tags:
+        - docker_security
+        - health
+        - error
+
+# Final status message
+- name: Docker security hardening task completion
+  ansible.builtin.debug:
+    msg: "Docker security hardening wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - docker_security
+    - summary

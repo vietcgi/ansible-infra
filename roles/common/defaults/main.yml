@@ -380,3 +380,119 @@ monitoring_remote_write_url: ""
 monitoring_remote_write_max_shards: 200
 monitoring_remote_write_min_shards: 1
 monitoring_remote_write_max_samples: 500
+
+# ============================================================================
+# PHASE 2.B - Docker & Container Configuration
+# ============================================================================
+
+## Docker Installation & Runtime
+container_docker_enabled: true
+container_docker_version: "latest"
+container_docker_compose_enabled: true
+container_docker_data_root: "/var/lib/docker"
+container_docker_storage_driver: "overlay2"
+container_docker_live_restore: true
+container_docker_max_concurrent_downloads: 3
+container_docker_max_concurrent_uploads: 5
+
+## Docker Logging
+container_docker_log_driver: "json-file"
+container_docker_log_max_size: "10m"
+container_docker_log_max_file: "3"
+container_docker_syslog_enabled: false
+
+## Docker Networking
+container_docker_bridge_name: "docker0"
+container_docker_bridge_ip: "172.17.0.1/16"
+container_docker_fixed_cidr: ""
+container_docker_default_gateway: ""
+container_docker_icc: false
+container_docker_ip_forward: true
+container_docker_ip_masq: true
+container_docker_iptables: true
+container_docker_ip6tables: false
+container_docker_userland_proxy: true
+container_docker_userland_proxy_path: "/usr/libexec/docker/docker-proxy"
+container_docker_network_config: {}
+
+## Docker Registry
+container_docker_registry_mirrors: []
+container_docker_insecure_registries: []
+container_docker_registry_credentials: []
+container_docker_credentials_store: ""
+
+## Docker Security
+container_docker_buildkit_enabled: true
+container_docker_tlsverify: false
+container_docker_tls_cacert: "/etc/docker/ca.pem"
+container_docker_tls_cert: "/etc/docker/server-cert.pem"
+container_docker_tls_key: "/etc/docker/server-key.pem"
+container_docker_apparmor_enabled: true
+container_docker_selinux_enabled: false
+container_docker_seccomp_enabled: true
+container_docker_seccomp_profile_path: "/etc/docker/seccomp.json"
+container_docker_userns_remap_enabled: false
+container_docker_userns_remap_user: ""
+container_docker_content_trust: false
+container_docker_content_trust_server: "https://notary.docker.io"
+container_docker_audit_logging: true
+container_docker_security_monitoring: true
+container_docker_image_scanning: false
+container_docker_no_new_privileges: false
+
+## Docker Users & Permissions
+container_docker_users: []
+container_docker_sudo_access: false
+
+## Docker Custom Networks
+container_docker_custom_networks: []
+
+## Docker Prune Configuration
+container_docker_prune_enabled: false
+container_docker_prune_hour: "2"
+container_docker_prune_minute: "0"
+container_docker_prune_days: "30"
+
+## Docker Resource Limits
+container_docker_resource_limits: {}
+container_docker_default_capabilities: ["NET_BIND_SERVICE"]
+container_docker_capabilities_add: []
+container_docker_capabilities_drop: ["ALL"]
+container_docker_read_only_fs: false
+container_docker_tmpfs: {}
+
+## Docker Daemon Configuration
+container_docker_daemon_options: {}
+container_docker_daemon_config: {}
+container_docker_exec_opts:
+  - "native.cgroupdriver=systemd"
+container_docker_configure_logging: true
+
+## Docker DNS Configuration
+container_docker_dns: []
+container_docker_dns_search: []
+
+## Docker Compose Configuration
+container_docker_compose_project_name: "compose"
+container_docker_compose_file: "docker-compose.yml"
+container_docker_compose_api_version: "1.40"
+container_docker_compose_data_dir: "/data/docker-compose"
+container_docker_compose_log_dir: "/var/log/docker-compose"
+container_docker_compose_log_level: "info"
+container_docker_compose_status_stdout: true
+container_docker_compose_parallel_pull: true
+container_docker_compose_parallel_remove_volumes: true
+container_docker_compose_install_samples: false
+container_docker_compose_monitoring: false
+
+## Docker Compose Health Checks
+container_docker_compose_healthcheck_interval: "30s"
+container_docker_compose_healthcheck_timeout: "10s"
+container_docker_compose_healthcheck_retries: "3"
+container_docker_compose_healthcheck_start_period: "0s"
+
+## Docker Compose Networks & Volumes
+container_docker_compose_networks: []
+container_docker_compose_volumes: []
+container_docker_compose_defaults: {}
+container_docker_compose_resource_limits: {}

@@ -1,0 +1,14 @@
+{
+  "auths": {
+{% for registry in container_docker_registry_credentials | default([]) %}
+    "{{ registry.url }}": {
+      "auth": "{{ (registry.username + ':' + registry.password) | b64encode }}",
+      "email": "{{ registry.email | default('noreply@example.com') }}"
+    }{{ ',' if not loop.last else '' }}
+{% endfor %}
+  },
+  "HttpHeaders": {
+    "User-Agent": "Docker-Client/{{ ansible_date_time.iso8601 | default('') }}"
+  },
+  "credsStore": "{{ container_docker_credentials_store | default('') }}"
+}

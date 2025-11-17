@@ -1,0 +1,6 @@
+#!/bin/bash
+# Docker Compose wrapper script
+# Provides backwards compatibility for docker-compose v1 API
+# Redirects to docker compose (v2) plugin
+
+exec docker compose "$@"

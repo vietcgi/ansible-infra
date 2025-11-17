@@ -1,0 +1,336 @@
+---
+# Docker Installation & Configuration Wrapper Task
+# Integrates community.docker collection with organization customization
+# Upstream Role: community.docker.docker
+# Purpose: Install Docker daemon with security hardening and custom configuration
+
+# Pre-flight checks
+- name: Validate Docker installation is enabled
+  ansible.builtin.assert:
+    that:
+      - container_docker_enabled | bool
+    fail_msg: "Docker installation is disabled (container_docker_enabled=false)"
+    quiet: true
+  tags:
+    - docker
+    - containers
+    - validation
+
+# Map our variables to upstream role expectations
+- name: Set docker installation variables
+  ansible.builtin.set_fact:
+    docker_install_compose: "{{ container_docker_compose_enabled | default(true) }}"
+    docker_version: "{{ container_docker_version | default('latest') }}"
+    docker_daemon_options: "{{ container_docker_daemon_options | default({}) }}"
+  tags:
+    - docker
+    - config
+
+# Ensure docker group exists for non-root access
+- name: Create docker system group
+  ansible.builtin.group:
+    name: docker
+    state: present
+    system: true
+  become: true
+  tags:
+    - docker
+    - users
+
+# Create necessary directories for Docker configuration
+- name: Create Docker configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+  loop:
+    - /etc/docker
+    - /var/lib/docker
+    - "{{ container_docker_storage_driver_path | default('/var/lib/docker') }}"
+  tags:
+    - docker
+    - directories
+
+# Use upstream community.docker role for Docker installation
+- name: Install Docker from upstream role
+  ansible.builtin.include_role:
+    name: community.docker.docker
+  vars:
+    docker_install_compose: "{{ container_docker_compose_enabled | default(true) }}"
+    docker_daemon_json: "{{ container_docker_daemon_config | default({}) }}"
+  become: true
+  tags:
+    - docker
+    - installation
+
+# Configure Docker daemon with security settings
+- name: Deploy Docker daemon configuration
+  ansible.builtin.template:
+    src: docker_daemon_config.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  register: docker_daemon_config_result
+  tags:
+    - docker
+    - config
+
+# Configure Docker logging driver
+- name: Configure Docker logging driver
+  ansible.builtin.copy:
+    content: |
+      {
+        "log-driver": "{{ container_docker_log_driver | default('json-file') }}",
+        "log-opts": {
+          "max-size": "{{ container_docker_log_max_size | default('10m') }}",
+          "max-file": "{{ container_docker_log_max_file | default('3') }}"
+        }
+      }
+    dest: /etc/docker/daemon.json.d/logging.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_configure_logging | default(true)
+  tags:
+    - docker
+    - logging
+    - config
+
+# Create registry credentials file if configured
+- name: Configure Docker registry credentials
+  ansible.builtin.template:
+    src: docker_registry_config.j2
+    dest: /etc/docker/config.json
+    owner: root
+    group: docker
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_registry_credentials | default([]) | length > 0
+  tags:
+    - docker
+    - registry
+    - secrets
+
+# Configure Docker storage driver
+- name: Configure Docker storage driver
+  ansible.builtin.copy:
+    content: |
+      {
+        "storage-driver": "{{ container_docker_storage_driver | default('overlay2') }}",
+        "storage-opts": {{ container_docker_storage_opts | default([]) | to_nice_json }}
+      }
+    dest: /etc/docker/daemon.json.d/storage.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_storage_driver | default(false)
+  tags:
+    - docker
+    - storage
+    - config
+
+# Apply network configuration if specified
+- name: Configure Docker network options
+  ansible.builtin.template:
+    src: docker_network_config.j2
+    dest: /etc/docker/daemon.json.d/network.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_network_config | default({}) | length > 0
+  tags:
+    - docker
+    - network
+    - config
+
+# Restart Docker daemon to apply configuration
+- name: Restart Docker daemon
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: docker_daemon_config_result.changed or
+        (container_docker_configure_logging | default(true) | bool)
+  register: docker_daemon_restart
+  tags:
+    - docker
+    - service
+
+# Wait for Docker socket to be available
+- name: Wait for Docker socket availability
+  ansible.builtin.wait_for:
+    path: /var/run/docker.sock
+    state: present
+    timeout: 30
+  become: true
+  when: docker_daemon_restart.changed
+  tags:
+    - docker
+    - health
+
+# Verify Docker installation and connectivity
+- name: Verify Docker installation
+  community.docker.docker_host_info:
+  register: docker_info_result
+  ignore_errors: true
+  tags:
+    - docker
+    - validation
+    - health
+
+# Add users to docker group
+- name: Add authorized users to docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: yes
+    state: present
+  become: true
+  loop: "{{ container_docker_users | default([]) }}"
+  when: container_docker_users | default([]) | length > 0
+  tags:
+    - docker
+    - users
+    - access
+
+# Configure sudo access for docker commands if needed
+- name: Configure sudo for Docker commands
+  ansible.builtin.template:
+    src: docker_sudoers.j2
+    dest: /etc/sudoers.d/docker
+    owner: root
+    group: root
+    mode: '0440'
+    backup: yes
+    validate: '/usr/sbin/visudo -cf %s'
+  become: true
+  when: container_docker_sudo_access | default(false) | bool
+  tags:
+    - docker
+    - sudo
+    - access
+
+# Create Docker custom networks if specified
+- name: Create custom Docker networks
+  community.docker.docker_network:
+    name: "{{ item.name }}"
+    driver: "{{ item.driver | default('bridge') }}"
+    driver_options: "{{ item.options | default({}) }}"
+    state: present
+  loop: "{{ container_docker_custom_networks | default([]) }}"
+  when: container_docker_custom_networks | default([]) | length > 0
+  tags:
+    - docker
+    - network
+    - config
+
+# Configure prune settings if cleanup is enabled
+- name: Configure Docker prune settings
+  ansible.builtin.cron:
+    name: "Docker prune old images and containers"
+    minute: "{{ container_docker_prune_minute | default('0') }}"
+    hour: "{{ container_docker_prune_hour | default('2') }}"
+    job: "/usr/bin/docker system prune -f --filter 'until={{ container_docker_prune_days | default('30') }}d'"
+    state: "{{ 'present' if container_docker_prune_enabled | default(false) else 'absent' }}"
+  become: true
+  tags:
+    - docker
+    - maintenance
+    - cleanup
+
+# Configure Docker logging to syslog for centralized logging
+- name: Configure Docker syslog forwarding
+  ansible.builtin.template:
+    src: docker_syslog_config.j2
+    dest: /etc/docker/daemon.json.d/syslog.json
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: container_docker_syslog_enabled | default(false) | bool
+  tags:
+    - docker
+    - logging
+    - centralized_logging
+
+# Verify Docker service is running and enabled
+- name: Verify Docker service status
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+  register: docker_service_status
+  tags:
+    - docker
+    - service
+    - health
+
+# Final health check: verify Docker daemon functionality
+- name: Docker installation health check
+  block:
+    - name: Test Docker daemon connectivity
+      community.docker.docker_ping:
+      register: docker_ping_result
+      tags:
+        - docker
+        - health
+
+    - name: Retrieve Docker system information
+      community.docker.docker_host_info:
+      register: docker_system_info
+      tags:
+        - docker
+        - health
+
+    - name: Log Docker installation completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ Docker Installation Complete:
+          - Version: {{ docker_system_info.host_info.ServerVersion | default('unknown') }}
+          - Storage Driver: {{ docker_system_info.host_info.Driver | default('unknown') }}
+          - Running Containers: {{ docker_system_info.host_info.Containers | default(0) }}
+          - Images Count: {{ docker_system_info.host_info.Images | default(0) }}
+          - Status: {{ docker_system_info.host_info.ServerVersion is defined | ternary('Healthy', 'Warning') }}
+      tags:
+        - docker
+        - health
+        - summary
+
+  rescue:
+    - name: Handle Docker installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ Docker health check incomplete:
+          - Container runtime may not be fully initialized
+          - Please verify manually: docker ps
+          - Log output: journalctl -u docker -n 50
+      tags:
+        - docker
+        - health
+        - error
+
+# Final status message
+- name: Docker installation task completion
+  ansible.builtin.debug:
+    msg: "Docker installation wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - docker
+    - summary

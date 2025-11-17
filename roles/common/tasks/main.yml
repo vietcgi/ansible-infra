@@ -35,6 +35,11 @@
     - monitoring_grafana_wrapper.yml
     - monitoring_alertmanager_wrapper.yml
 
+    # PHASE 2.B: Container & Application Deployment (Docker)
+    - docker_installation_wrapper.yml
+    - docker_compose_wrapper.yml
+    - docker_security_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"
@@ -50,5 +55,19 @@
   tags:
     - monitoring
     - phase_2_a
+    - summary
+  when: not ansible_check_mode
+
+- name: Display PHASE 2.B status
+  debug:
+    msg: |
+      ✓ PHASE 2.B Container Deployment Status:
+      - Docker: {{ 'Enabled' if container_docker_enabled | default(true) else 'Disabled' }}
+      - Docker Compose: {{ 'Enabled' if container_docker_compose_enabled | default(true) else 'Disabled' }}
+      - Security Hardening: Configured
+  tags:
+    - docker
+    - containers
+    - phase_2_b
     - summary
   when: not ansible_check_mode

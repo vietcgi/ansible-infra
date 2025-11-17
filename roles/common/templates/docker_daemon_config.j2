@@ -1,0 +1,35 @@
+{
+  "debug": false,
+  "log-driver": "{{ container_docker_log_driver | default('json-file') }}",
+  "log-opts": {
+    "max-size": "{{ container_docker_log_max_size | default('10m') }}",
+    "max-file": "{{ container_docker_log_max_file | default('3') }}"
+  },
+  "storage-driver": "{{ container_docker_storage_driver | default('overlay2') }}",
+  "data-root": "{{ container_docker_data_root | default('/var/lib/docker') }}",
+  "exec-opts": {{ container_docker_exec_opts | default(['native.cgroupdriver=systemd']) | to_nice_json }},
+  "live-restore": {{ container_docker_live_restore | default(true) | to_nice_json }},
+  "max-concurrent-downloads": {{ container_docker_max_concurrent_downloads | default(3) }},
+  "max-concurrent-uploads": {{ container_docker_max_concurrent_uploads | default(5) }},
+  "bridge": "{{ container_docker_bridge_name | default('docker0') }}",
+  "bip": "{{ container_docker_bridge_ip | default('172.17.0.1/16') }}",
+  "fixed-cidr": "{{ container_docker_fixed_cidr | default('') }}",
+  "default-gateway": "{{ container_docker_default_gateway | default('') }}",
+  "metrics-addr": "{{ container_docker_metrics_addr | default('') }}",
+  "experimental": false,
+  "features": {
+    "buildkit": {{ container_docker_buildkit_enabled | default(true) | to_nice_json }}
+  }
+{% if container_docker_registry_mirrors | default([]) | length > 0 %},
+  "registry-mirrors": {{ container_docker_registry_mirrors | to_nice_json }}
+{% endif %}
+{% if container_docker_insecure_registries | default([]) | length > 0 %},
+  "insecure-registries": {{ container_docker_insecure_registries | to_nice_json }}
+{% endif %}
+{% if container_docker_dns | default([]) | length > 0 %},
+  "dns": {{ container_docker_dns | to_nice_json }}
+{% endif %}
+{% if container_docker_dns_search | default([]) | length > 0 %},
+  "dns-search": {{ container_docker_dns_search | to_nice_json }}
+{% endif %}
+}

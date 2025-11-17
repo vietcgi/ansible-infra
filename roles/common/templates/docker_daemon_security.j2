@@ -1,0 +1,11 @@
+{
+  "userns-remap": "{{ container_docker_userns_remap_user | default('') }}",
+  "seccomp-profile": "{{ container_docker_seccomp_profile_path | default('/etc/docker/seccomp.json') }}",
+  "no-new-privileges": {{ container_docker_no_new_privileges | default(false) | to_nice_json }},
+  "authorization-plugins": {{ container_docker_authorization_plugins | default([]) | to_nice_json }},
+  "disable-legacy-registry": true,
+  "tlsverify": {{ container_docker_tlsverify | default(false) | to_nice_json }},
+  "tlscacert": "{{ container_docker_tls_cacert | default('/etc/docker/ca.pem') }}",
+  "tlscert": "{{ container_docker_tls_cert | default('/etc/docker/server-cert.pem') }}",
+  "tlskey": "{{ container_docker_tls_key | default('/etc/docker/server-key.pem') }}"
+}

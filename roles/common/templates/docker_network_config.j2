@@ -1,0 +1,12 @@
+{
+  "userland-proxy": {{ container_docker_userland_proxy | default(true) | to_nice_json }},
+  "userland-proxy-path": "{{ container_docker_userland_proxy_path | default('/usr/libexec/docker/docker-proxy') }}",
+  "icc": {{ container_docker_icc | default(false) | to_nice_json }},
+  "ip-forward": {{ container_docker_ip_forward | default(true) | to_nice_json }},
+  "ip-masq": {{ container_docker_ip_masq | default(true) | to_nice_json }},
+  "iptables": {{ container_docker_iptables | default(true) | to_nice_json }},
+  "ip6tables": {{ container_docker_ip6tables | default(false) | to_nice_json }},
+{% if container_docker_network_config | default({}) | length > 0 %}
+  "network-config": {{ container_docker_network_config | to_nice_json }}
+{% endif %}
+}
