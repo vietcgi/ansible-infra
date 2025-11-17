@@ -40,6 +40,11 @@
     - docker_compose_wrapper.yml
     - docker_security_wrapper.yml
 
+    # PHASE 2.C: Service Discovery & Load Balancing (Consul + HAProxy)
+    - consul_installation_wrapper.yml
+    - consul_service_discovery_wrapper.yml
+    - haproxy_loadbalancer_wrapper.yml
+
 - name: Display role completion summary
   debug:
     msg: "Common role applied successfully - base server configuration complete"
@@ -69,5 +74,21 @@
     - docker
     - containers
     - phase_2_b
+    - summary
+  when: not ansible_check_mode
+
+- name: Display PHASE 2.C status
+  debug:
+    msg: |
+      ✓ PHASE 2.C Service Discovery & Load Balancing Status:
+      - Consul: {{ 'Enabled' if service_discovery_consul_enabled | default(false) else 'Disabled' }}
+      - HAProxy: {{ 'Enabled' if loadbalancing_haproxy_enabled | default(false) else 'Disabled' }}
+      - Service Integration: {{ 'Enabled' if (service_discovery_consul_enabled | default(false) and loadbalancing_haproxy_enabled | default(false)) else 'Not fully enabled' }}
+  tags:
+    - consul
+    - haproxy
+    - service_discovery
+    - load_balancing
+    - phase_2_c
     - summary
   when: not ansible_check_mode

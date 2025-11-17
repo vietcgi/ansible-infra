@@ -1,0 +1,367 @@
+---
+# HAProxy Load Balancer Wrapper Task
+# Implements high-performance load balancing with Consul service discovery
+# Purpose: Install and configure HAProxy for distributing traffic to backend services
+
+# Pre-flight checks
+- name: Validate HAProxy load balancing is enabled
+  ansible.builtin.assert:
+    that:
+      - loadbalancing_haproxy_enabled | default(false) | bool
+    fail_msg: "HAProxy load balancing is disabled (loadbalancing_haproxy_enabled=false)"
+    quiet: true
+  tags:
+    - haproxy
+    - load_balancing
+    - validation
+
+# Detect system architecture for HAProxy installation
+- name: Set HAProxy architecture facts
+  ansible.builtin.set_fact:
+    haproxy_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine }}"
+  tags:
+    - haproxy
+    - installation
+    - facts
+
+# Install HAProxy via package manager
+- name: Install HAProxy package
+  ansible.builtin.package:
+    name: "haproxy{{ ('=' + loadbalancing_haproxy_version) if loadbalancing_haproxy_version != 'latest' else '' }}"
+    state: present
+  become: true
+  register: haproxy_package_install
+  tags:
+    - haproxy
+    - installation
+    - packages
+
+# Create HAProxy directories
+- name: Create HAProxy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  loop:
+    - /etc/haproxy
+    - /var/lib/haproxy
+    - /var/run/haproxy
+    - /var/log/haproxy
+  tags:
+    - haproxy
+    - directories
+
+# Create HAProxy user and group for privilege separation
+- name: Create HAProxy system user
+  ansible.builtin.user:
+    name: haproxy
+    group: haproxy
+    home: /var/lib/haproxy
+    shell: /bin/false
+    system: true
+    state: present
+  become: true
+  tags:
+    - haproxy
+    - users
+
+# Deploy HAProxy configuration from template
+- name: Deploy HAProxy configuration
+  ansible.builtin.template:
+    src: haproxy_config.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+    validate: 'haproxy -f %s -c'
+  become: true
+  register: haproxy_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+
+# Deploy HAProxy default configuration if provided
+- name: Deploy HAProxy defaults configuration
+  ansible.builtin.template:
+    src: haproxy_defaults.j2
+    dest: /etc/haproxy/defaults.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: loadbalancing_haproxy_defaults_enabled | default(false) | bool
+  register: haproxy_defaults_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+    - defaults
+
+# Deploy per-frontend configurations
+- name: Deploy HAProxy frontend configurations
+  ansible.builtin.template:
+    src: haproxy_frontend_config.j2
+    dest: "/etc/haproxy/frontends/{{ item.name | default('frontend-' + loop.index | string) }}.cfg"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  loop: "{{ loadbalancing_haproxy_frontends | default([]) }}"
+  when: loadbalancing_haproxy_frontends | default([]) | length > 0
+  register: haproxy_frontend_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+    - frontends
+
+# Deploy per-backend configurations
+- name: Deploy HAProxy backend configurations
+  ansible.builtin.template:
+    src: haproxy_backend_config.j2
+    dest: "/etc/haproxy/backends/{{ item.name | default('backend-' + loop.index | string) }}.cfg"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  loop: "{{ loadbalancing_haproxy_backends | default([]) }}"
+  when: loadbalancing_haproxy_backends | default([]) | length > 0
+  register: haproxy_backend_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+    - backends
+
+# Deploy Consul service discovery integration
+- name: Deploy Consul service discovery configuration
+  ansible.builtin.template:
+    src: haproxy_consul_integration.j2
+    dest: /etc/haproxy/consul-integration.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: service_discovery_consul_enabled | default(false) | bool
+  register: haproxy_consul_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+    - consul
+    - service_discovery
+
+# Deploy HAProxy stats configuration
+- name: Deploy HAProxy stats configuration
+  ansible.builtin.template:
+    src: haproxy_stats_config.j2
+    dest: /etc/haproxy/stats.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: loadbalancing_haproxy_stats_enabled | default(true) | bool
+  register: haproxy_stats_config
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - config
+    - stats
+    - monitoring
+
+# Deploy SSL/TLS certificate if configured
+- name: Deploy SSL/TLS certificate for HAProxy
+  ansible.builtin.copy:
+    content: "{{ loadbalancing_haproxy_ssl_cert_content }}"
+    dest: /etc/haproxy/ssl-cert.pem
+    owner: root
+    group: root
+    mode: '0600'
+    backup: yes
+  become: true
+  when:
+    - loadbalancing_haproxy_ssl_enabled | default(false) | bool
+    - loadbalancing_haproxy_ssl_cert_content is defined
+  register: haproxy_ssl_cert
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - ssl
+    - tls
+    - security
+
+# Create systemd service unit for HAProxy
+- name: Create HAProxy systemd service unit
+  ansible.builtin.template:
+    src: haproxy_systemd_service.j2
+    dest: /etc/systemd/system/haproxy.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  register: haproxy_systemd
+  notify: reload systemd
+  tags:
+    - haproxy
+    - systemd
+    - service
+
+# Enable and start HAProxy service
+- name: Enable and start HAProxy service
+  ansible.builtin.systemd:
+    name: haproxy
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: haproxy_systemd.changed or haproxy_config.changed | default(false)
+  tags:
+    - haproxy
+    - service
+
+# Wait for HAProxy to be available
+- name: Wait for HAProxy to be available
+  ansible.builtin.wait_for:
+    host: "{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}"
+    port: "{{ loadbalancing_haproxy_frontend_port | default(80) }}"
+    timeout: 30
+    state: started
+  become: true
+  tags:
+    - haproxy
+    - health
+
+# Verify HAProxy is running and responding
+- name: Verify HAProxy health
+  ansible.builtin.uri:
+    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_frontend_port | default(80) }}/status"
+    method: GET
+    status_code: [200, 404]
+  register: haproxy_health_check
+  retries: 5
+  delay: 2
+  tags:
+    - haproxy
+    - health
+    - validation
+
+# Verify HAProxy stats API is available (if enabled)
+- name: Verify HAProxy stats API
+  ansible.builtin.uri:
+    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_stats_port | default(8404) }}/stats"
+    method: GET
+    status_code: [200, 401]
+  register: haproxy_stats_check
+  retries: 3
+  delay: 2
+  when: loadbalancing_haproxy_stats_enabled | default(true) | bool
+  tags:
+    - haproxy
+    - stats
+    - validation
+
+# Query HAProxy stats and display backend status
+- name: Retrieve HAProxy backend status
+  ansible.builtin.command:
+    cmd: "haproxy -f /etc/haproxy/haproxy.cfg -c"
+  changed_when: false
+  register: haproxy_verify
+  tags:
+    - haproxy
+    - health
+    - validation
+
+# Set up log rotation for HAProxy
+- name: Configure log rotation for HAProxy
+  ansible.builtin.template:
+    src: haproxy_logrotate.j2
+    dest: /etc/logrotate.d/haproxy
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  tags:
+    - haproxy
+    - logging
+    - logrotate
+
+# Log HAProxy installation completion
+- name: HAProxy installation health check
+  block:
+    - name: Get HAProxy version
+      ansible.builtin.command:
+        cmd: "haproxy -v"
+      register: haproxy_version_output
+      changed_when: false
+      tags:
+        - haproxy
+        - health
+
+    - name: Display HAProxy installation completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ HAProxy Load Balancer Installation Complete:
+          - Version: {{ loadbalancing_haproxy_version }}
+          - Frontend Port: {{ loadbalancing_haproxy_frontend_port | default(80) }}
+          - Stats Port: {{ loadbalancing_haproxy_stats_port | default(8404) }}
+          - Stats Enabled: {{ loadbalancing_haproxy_stats_enabled | default(true) }}
+          - SSL/TLS: {{ 'Enabled' if loadbalancing_haproxy_ssl_enabled | default(false) else 'Disabled' }}
+          - Consul Integration: {{ 'Enabled' if service_discovery_consul_enabled | default(false) else 'Disabled' }}
+          - Frontends: {{ loadbalancing_haproxy_frontends | default([]) | length }}
+          - Backends: {{ loadbalancing_haproxy_backends | default([]) | length }}
+          - Status: Ready for traffic distribution
+      tags:
+        - haproxy
+        - health
+        - summary
+
+  rescue:
+    - name: Handle HAProxy installation errors
+      ansible.builtin.debug:
+        msg: |
+          ⚠ HAProxy health check incomplete:
+          - Service may still be initializing
+          - Check status: systemctl status haproxy
+          - View logs: journalctl -u haproxy -n 50
+      tags:
+        - haproxy
+        - health
+        - error
+
+# Monitoring integration
+- name: Configure HAProxy metrics export
+  ansible.builtin.template:
+    src: haproxy_metrics_export.j2
+    dest: /etc/haproxy/metrics-export.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: monitoring_prometheus_enabled | default(false) | bool
+  register: haproxy_metrics_export
+  notify: reload haproxy
+  tags:
+    - haproxy
+    - monitoring
+    - metrics
+    - prometheus
+
+# Final status message
+- name: HAProxy load balancer task completion
+  ansible.builtin.debug:
+    msg: "HAProxy load balancer wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - haproxy
+    - summary

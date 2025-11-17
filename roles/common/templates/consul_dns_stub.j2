@@ -1,0 +1,7 @@
+# Consul DNS Stub Resolver Configuration
+# Automatically redirects .consul domain queries to Consul DNS
+
+[Resolve]
+DNS=127.0.0.1:{{ service_discovery_consul_dns_port | default(8600) }}
+DNSSEC=no
+Domains=~{{ service_discovery_consul_domain | default('consul') }}

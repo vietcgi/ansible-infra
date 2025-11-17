@@ -1,0 +1,258 @@
+---
+# Consul Service Discovery & Health Checking Wrapper Task
+# Implements service registration and dynamic discovery
+# Purpose: Register services with Consul and manage health checks
+
+# Pre-flight checks
+- name: Validate Consul service discovery is enabled
+  ansible.builtin.assert:
+    that:
+      - service_discovery_consul_enabled | default(false) | bool
+    fail_msg: "Consul service discovery is disabled"
+    quiet: true
+  tags:
+    - consul
+    - service_discovery
+    - validation
+
+# Verify Consul is available
+- name: Verify Consul API accessibility
+  ansible.builtin.uri:
+    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500) }}/v1/status/leader"
+    method: GET
+    status_code: 200
+  register: consul_api_check
+  retries: 3
+  delay: 2
+  tags:
+    - consul
+    - service_discovery
+    - validation
+
+# Deploy service definitions from configuration
+- name: Register services with Consul
+  ansible.builtin.template:
+    src: consul_service_definition.j2
+    dest: "/etc/consul.d/service-{{ item.name | default('service-' + loop.index | string) }}.json"
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  loop: "{{ service_discovery_consul_services | default([]) }}"
+  when: service_discovery_consul_services | default([]) | length > 0
+  register: consul_services_deployed
+  notify: reload consul
+  tags:
+    - consul
+    - service_discovery
+    - services
+
+# Deploy health check definitions
+- name: Register health checks with Consul
+  ansible.builtin.template:
+    src: consul_healthcheck_definition.j2
+    dest: "/etc/consul.d/healthcheck-{{ item.name | default('check-' + loop.index | string) }}.json"
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  loop: "{{ service_discovery_consul_healthchecks | default([]) }}"
+  when: service_discovery_consul_healthchecks | default([]) | length > 0
+  register: consul_healthchecks_deployed
+  notify: reload consul
+  tags:
+    - consul
+    - service_discovery
+    - health_checks
+
+# Reload Consul to apply service definitions
+- name: Reload Consul configuration
+  ansible.builtin.command:
+    cmd: /usr/local/bin/consul reload
+  become: true
+  when: consul_services_deployed.changed | default(false) or consul_healthchecks_deployed.changed | default(false)
+  tags:
+    - consul
+    - service_discovery
+    - reload
+
+# Wait for service registration to complete
+- name: Wait for service registration
+  ansible.builtin.pause:
+    seconds: 2
+  when: consul_services_deployed.changed | default(false) or consul_healthchecks_deployed.changed | default(false)
+  tags:
+    - consul
+    - service_discovery
+    - pause
+
+# Verify services are registered
+- name: Verify service registration
+  ansible.builtin.uri:
+    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500) }}/v1/catalog/services"
+    method: GET
+    status_code: 200
+  register: consul_services_list
+  tags:
+    - consul
+    - service_discovery
+    - validation
+
+# Set up Consul watches for service changes
+- name: Deploy Consul watch configuration
+  ansible.builtin.template:
+    src: consul_watch_config.j2
+    dest: "/etc/consul.d/watches.json"
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+    validate: '/usr/local/bin/consul validate /etc/consul.d'
+  become: true
+  when: service_discovery_consul_watch_enabled | default(false) | bool
+  register: consul_watches
+  notify: reload consul
+  tags:
+    - consul
+    - service_discovery
+    - watches
+
+# Deploy Consul template configuration for dynamic service discovery
+- name: Deploy Consul template configuration
+  ansible.builtin.template:
+    src: consul_template_config.j2
+    dest: "/etc/consul-template.d/config.hcl"
+    owner: root
+    group: root
+    mode: '0640'
+    backup: yes
+  become: true
+  when: service_discovery_consul_template_enabled | default(false) | bool
+  tags:
+    - consul
+    - service_discovery
+    - templates
+
+# Create systemd service for Consul template
+- name: Create Consul template systemd service
+  ansible.builtin.template:
+    src: consul_template_systemd_service.j2
+    dest: /etc/systemd/system/consul-template.service
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  become: true
+  when: service_discovery_consul_template_enabled | default(false) | bool
+  register: consul_template_systemd
+  notify: reload systemd
+  tags:
+    - consul
+    - service_discovery
+    - templates
+    - systemd
+
+# Enable and start Consul template service
+- name: Enable Consul template service
+  ansible.builtin.systemd:
+    name: consul-template
+    state: started
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: consul_template_systemd.changed | default(false)
+  tags:
+    - consul
+    - service_discovery
+    - templates
+    - service
+
+# Configure service metadata
+- name: Deploy service metadata
+  ansible.builtin.template:
+    src: consul_service_metadata.j2
+    dest: "/etc/consul.d/metadata-{{ item.service_id | default(item.name) }}.json"
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+  loop: "{{ service_discovery_consul_services | default([]) }}"
+  when:
+    - service_discovery_consul_services | default([]) | length > 0
+    - item.metadata | default({}) | length > 0
+  register: consul_metadata
+  notify: reload consul
+  tags:
+    - consul
+    - service_discovery
+    - metadata
+
+# Configure deregistration handlers
+- name: Deploy deregistration configuration
+  ansible.builtin.copy:
+    content: |
+      {
+        "services": [
+          {% for service in service_discovery_consul_services | default([]) %}
+          {
+            "id": "{{ service.service_id | default(service.name) }}",
+            "deregister_critical_service_after": "{{ service.deregister_after | default('30s') }}"
+          }{{ "," if not loop.last else "" }}
+          {% endfor %}
+        ]
+      }
+    dest: /etc/consul.d/deregistration.json
+    owner: consul
+    group: consul
+    mode: '0640'
+    backup: yes
+  become: true
+  when: service_discovery_consul_services | default([]) | length > 0
+  register: consul_deregistration
+  notify: reload consul
+  tags:
+    - consul
+    - service_discovery
+    - deregistration
+
+# Verify service health
+- name: Verify service health status
+  ansible.builtin.uri:
+    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500) }}/v1/health/state/passing"
+    method: GET
+    status_code: 200
+  register: consul_health_status
+  retries: 5
+  delay: 2
+  tags:
+    - consul
+    - service_discovery
+    - health
+
+# Log service discovery setup completion
+- name: Service discovery setup completion
+  ansible.builtin.debug:
+    msg: |
+      ✓ Consul Service Discovery Setup Complete:
+      - Services Registered: {{ service_discovery_consul_services | default([]) | length }}
+      - Health Checks: {{ service_discovery_consul_healthchecks | default([]) | length }}
+      - Watches Enabled: {{ service_discovery_consul_watch_enabled | default(false) }}
+      - Templates Enabled: {{ service_discovery_consul_template_enabled | default(false) }}
+      - Catalog API: Available
+      - Health Status: Passing
+  tags:
+    - consul
+    - service_discovery
+    - summary
+
+# Final status message
+- name: Consul service discovery task completion
+  ansible.builtin.debug:
+    msg: "Consul service discovery wrapper task completed successfully"
+  when: not ansible_check_mode
+  tags:
+    - consul
+    - service_discovery
+    - summary

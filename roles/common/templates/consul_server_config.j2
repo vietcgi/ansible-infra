@@ -1,0 +1,55 @@
+{
+  "datacenter": "{{ service_discovery_consul_datacenter | default('dc1') }}",
+  "node_id": "{{ ansible_hostname }}-server",
+  "node_name": "{{ ansible_hostname }}-server",
+  "server": true,
+  "bootstrap_expect": {{ service_discovery_consul_server_count | default(3) }},
+  "ui_config": {
+    "enabled": {{ service_discovery_consul_ui_enabled | default(true) | lower }}
+  },
+  "bind_addr": "{{ service_discovery_consul_bind_addr | default('0.0.0.0') }}",
+  "advertise_addr": "{{ service_discovery_consul_advertise_addr | default(ansible_default_ipv4.address) }}",
+  "client_addr": "{{ service_discovery_consul_client_addr | default('0.0.0.0') }}",
+  "ports": {
+    "http": {{ service_discovery_consul_http_port | default(8500) }},
+    "https": {{ service_discovery_consul_https_port | default(8501) }},
+    "grpc": {{ service_discovery_consul_grpc_port | default(8502) }},
+    "serf_lan": {{ service_discovery_consul_serf_lan_port | default(8301) }},
+    "serf_wan": {{ service_discovery_consul_serf_wan_port | default(8302) }},
+    "server": {{ service_discovery_consul_server_port | default(8300) }},
+    "dns": {{ service_discovery_consul_dns_port | default(8600) }}
+  },
+  "domain": "{{ service_discovery_consul_domain | default('consul') }}",
+  "data_dir": "/var/lib/consul",
+  "log_level": "{{ service_discovery_consul_log_level | default('info') }}",
+  "enable_debug": {{ service_discovery_consul_debug_enabled | default(false) | lower }},
+  "enable_syslog": true,
+  "syslog_facility": "LOCAL0",
+  "leave_on_terminate": true,
+  "skip_leave_on_interrupt": false,
+  "enable_local_script_checks": false,
+  "enable_script_checks": false,
+  "check_update_interval": "5m",
+  "performance": {
+    "raft_multiplier": 1
+  },
+  "dns_config": {
+    "allow_stale": true,
+    "enable_truncate": true,
+    "max_stale": "30s",
+    "recursor_timeout": "3s"
+  },
+  "limits": {
+    "http_max_conns_per_client": 100,
+    "rpc_max_conns_per_client": 100,
+    "https_handshake_timeout": "5s",
+    "rpc_handshake_timeout": "5s"
+  },
+  "telemetry": {
+    "prometheus_retention_time": "30s"
+  },
+  "auto_reload_config": true,
+  "disable_http_unprintable_char_filter": false,
+  "disable_remote_exec": true,
+  "disable_update_check": true
+}

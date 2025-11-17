@@ -1,0 +1,48 @@
+{
+  "service": {
+    "id": "{{ item.service_id | default(item.name) }}",
+    "name": "{{ item.name }}",
+    "tags": {{ item.tags | default([]) | tojson }},
+    "address": "{{ item.address | default(ansible_default_ipv4.address) }}",
+    "port": {{ item.port | default(8080) }},
+    "protocol": "{{ item.protocol | default('http') }}",
+    "weights": {
+      "passing": {{ item.weight_passing | default(1) }},
+      "warning": {{ item.weight_warning | default(1) }}
+    },
+    {% if item.meta is defined and item.meta %}
+    "meta": {{ item.meta | tojson }},
+    {% endif %}
+    "enable_tag_override": {{ item.enable_tag_override | default(false) | lower }},
+    "check": {
+      "id": "{{ item.check_id | default(item.name + '-check') }}",
+      "name": "{{ item.check_name | default(item.name + ' health check') }}",
+      "status": "passing",
+      {% if item.check_type is defined %}
+      "type": "{{ item.check_type }}",
+      {% if item.check_type == 'http' %}
+      "method": "{{ item.check_method | default('GET') }}",
+      "http": "{{ item.check_http | default('http://localhost:' + (item.port | string)) }}{{ item.check_path | default('/health') }}",
+      "interval": "{{ item.check_interval | default('10s') }}",
+      "timeout": "{{ item.check_timeout | default('5s') }}",
+      {% elif item.check_type == 'tcp' %}
+      "tcp": "{{ item.check_tcp | default(ansible_default_ipv4.address + ':' + (item.port | string)) }}",
+      "interval": "{{ item.check_interval | default('10s') }}",
+      "timeout": "{{ item.check_timeout | default('5s') }}",
+      {% elif item.check_type == 'grpc' %}
+      "grpc": "{{ item.check_grpc | default(ansible_default_ipv4.address + ':' + (item.port | string)) }}",
+      "grpc_use_tls": {{ item.check_grpc_use_tls | default(false) | lower }},
+      "interval": "{{ item.check_interval | default('10s') }}",
+      "timeout": "{{ item.check_timeout | default('10s') }}",
+      {% endif %}
+      "deregister_critical_service_after": "{{ item.deregister_after | default('30s') }}"
+      {% else %}
+      "type": "http",
+      "http": "http://localhost:{{ item.port | default(8080) }}/health",
+      "interval": "10s",
+      "timeout": "5s",
+      "deregister_critical_service_after": "30s"
+      {% endif %}
+    }
+  }
+}

@@ -496,3 +496,91 @@ container_docker_compose_networks: []
 container_docker_compose_volumes: []
 container_docker_compose_defaults: {}
 container_docker_compose_resource_limits: {}
+
+# ============================================================================
+# PHASE 2.C - Service Discovery & Load Balancing
+# ============================================================================
+
+## Consul Service Discovery Configuration
+service_discovery_consul_enabled: false
+service_discovery_consul_version: "1.17.0"
+service_discovery_consul_download_url: ""
+service_discovery_consul_checksum: ""
+
+## Consul Networking
+service_discovery_consul_bind_addr: "127.0.0.1"
+service_discovery_consul_advertise_addr: "{{ ansible_default_ipv4.address }}"
+service_discovery_consul_client_addr: "0.0.0.0"
+service_discovery_consul_http_port: 8500
+service_discovery_consul_https_port: 8501
+service_discovery_consul_grpc_port: 8502
+service_discovery_consul_dns_port: 8600
+service_discovery_consul_serf_lan_port: 8301
+service_discovery_consul_serf_wan_port: 8302
+service_discovery_consul_server_port: 8300
+
+## Consul Mode Configuration
+service_discovery_consul_node_type: "server"
+service_discovery_consul_ui_enabled: true
+service_discovery_consul_dns_enabled: true
+service_discovery_consul_dns_integration: true
+service_discovery_consul_debug_enabled: false
+service_discovery_consul_log_level: "info"
+
+## Consul Cluster Configuration
+service_discovery_consul_datacenter: "dc1"
+service_discovery_consul_domain: "consul"
+service_discovery_consul_server_count: 3
+service_discovery_consul_servers: []
+
+## Consul Services & Health Checks
+service_discovery_consul_services: []
+service_discovery_consul_healthchecks: []
+service_discovery_consul_custom_config: {}
+
+## Consul Watch & Template Configuration
+service_discovery_consul_watch_enabled: false
+service_discovery_consul_template_enabled: false
+
+## HAProxy Load Balancing Configuration
+loadbalancing_haproxy_enabled: false
+loadbalancing_haproxy_version: "2.8.0"
+loadbalancing_haproxy_bind_addr: "0.0.0.0"
+loadbalancing_haproxy_frontend_port: 80
+loadbalancing_haproxy_ssl_enabled: false
+loadbalancing_haproxy_ssl_cert: ""
+loadbalancing_haproxy_ssl_cert_content: ""
+
+## HAProxy Stats Configuration
+loadbalancing_haproxy_stats_enabled: true
+loadbalancing_haproxy_stats_port: 8404
+loadbalancing_haproxy_stats_auth_enabled: false
+loadbalancing_haproxy_stats_username: "admin"
+loadbalancing_haproxy_stats_password: "admin"
+
+## HAProxy Metrics Export
+loadbalancing_haproxy_metrics_port: 8405
+
+## HAProxy Consul Integration
+loadbalancing_haproxy_consul_port: 8080
+
+## HAProxy Performance Tuning
+loadbalancing_haproxy_maxconn: 4096
+loadbalancing_haproxy_tune_bufsize: 16384
+loadbalancing_haproxy_tune_maxconn: 2000
+loadbalancing_haproxy_tune_http_maxhdr: 101
+loadbalancing_haproxy_tune_http_keepalive: 5000
+
+## HAProxy Timeouts
+loadbalancing_haproxy_timeout_connect: 5000
+loadbalancing_haproxy_timeout_client: 50000
+loadbalancing_haproxy_timeout_server: 50000
+loadbalancing_haproxy_timeout_http_keep_alive: 1000
+loadbalancing_haproxy_timeout_check: 10000
+
+## HAProxy Frontend & Backend Configuration
+loadbalancing_haproxy_frontends: []
+loadbalancing_haproxy_backends: []
+loadbalancing_haproxy_defaults_enabled: false
+loadbalancing_haproxy_global_options: {}
+loadbalancing_haproxy_default_options: {}

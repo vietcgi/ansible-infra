@@ -1,0 +1,34 @@
+[Unit]
+Description=HAProxy - The Reliable, High Performance TCP/HTTP Load Balancer
+Documentation=man:haproxy(1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=haproxy
+Group=haproxy
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/haproxy /var/run/haproxy /var/log/haproxy
+
+# HAProxy startup
+ExecStartPre=/usr/sbin/haproxy -f /etc/haproxy/haproxy.cfg -c -q
+ExecStart=/usr/sbin/haproxy -W -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid
+ExecReload=/bin/kill -USR2 $MAINPID
+KillMode=mixed
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+LimitNOFILE=65536
+LimitNPROC=512
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=haproxy
+
+[Install]
+WantedBy=multi-user.target

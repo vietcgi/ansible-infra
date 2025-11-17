@@ -1,0 +1,36 @@
+# HAProxy Stats Configuration
+# Provides metrics and management interface for monitoring and administration
+
+listen haproxy-stats
+  bind {{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_stats_port | default(8404) }}
+  mode http
+
+  # Stats configuration
+  stats enable
+  stats uri /stats
+  stats refresh 30s
+  stats show-legends
+  stats show-node
+  stats show-desc "HAProxy Load Balancer Stats"
+
+  # Admin capabilities
+  stats admin if TRUE
+
+  # Monitoring capabilities
+  option contstats
+  http-reuse safe
+
+  # Timeouts for admin connections
+  timeout client 5m
+  timeout server 5m
+  timeout connect 5m
+  timeout tunnel 1h
+
+  # Logging
+  log global
+  option httplog
+
+  # Security (if authentication is enabled)
+  {% if loadbalancing_haproxy_stats_auth_enabled | default(false) %}
+  stats auth {{ loadbalancing_haproxy_stats_username | default('admin') }}:{{ loadbalancing_haproxy_stats_password | default('admin') }}
+  {% endif %}

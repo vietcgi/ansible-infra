@@ -1,0 +1,38 @@
+# HAProxy Consul Integration Configuration
+# Enables service discovery from Consul for dynamic backend configuration
+
+{% if service_discovery_consul_enabled | default(false) %}
+# Backend for services discovered from Consul
+backend consul_services
+  mode http
+  balance roundrobin
+  option httpchk GET /health
+  http-check expect status 200
+
+  # Server template that will be populated by Consul API
+  # Uses Consul DNS interface for service discovery
+  # Services are resolved via: <service>.service.{{ service_discovery_consul_domain | default('consul') }}
+
+  # Example: web-frontend
+  # The following would be auto-generated from Consul services:
+  # server web1 web-frontend.service.consul:80 check resolvers consul resolve-prefer ipv4 resolve-net 10.0.0.0/8
+
+# Resolvers configuration for Consul DNS
+resolvers consul
+  nameserver consul {{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_dns_port | default(8600) }}
+  accepted_payload_size 8192
+  hold valid 10s
+
+# Frontend for Consul service discovery
+frontend consul_discovery
+  bind {{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_consul_port | default(8080) }}
+  mode http
+  option httplog
+
+  # Route to Consul-discovered services
+  default_backend consul_services
+
+{% else %}
+# Consul integration disabled
+# Set service_discovery_consul_enabled: true to enable dynamic service discovery
+{% endif %}

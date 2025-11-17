@@ -1,0 +1,36 @@
+# HAProxy Prometheus Metrics Export Configuration
+# Provides metrics in Prometheus format for monitoring and alerting
+
+{% if monitoring_prometheus_enabled | default(false) %}
+# Metrics endpoint for Prometheus scraping
+listen prometheus_metrics
+  bind {{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_metrics_port | default(8405) }}
+  mode http
+
+  # Stats enabled for metric export
+  stats enable
+  stats uri /metrics
+  stats format prometheus
+
+  # Allow Prometheus scraping
+  http-request allow if { path /metrics }
+  http-request deny
+
+  # Logging
+  log global
+  option httplog
+
+  # Timeouts
+  timeout client 5m
+  timeout server 5m
+  timeout connect 5m
+
+# Backend for metrics scraping validation
+backend metrics_backend
+  mode http
+  server localhost 127.0.0.1:{{ loadbalancing_haproxy_metrics_port | default(8405) }} check
+
+{% else %}
+# Prometheus metrics export disabled
+# Set monitoring_prometheus_enabled: true to enable metric export
+{% endif %}
