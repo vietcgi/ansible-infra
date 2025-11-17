@@ -11,14 +11,16 @@ client_timezone: "America/Los_Angeles"
 # Common Role Configuration (OS Baseline)
 # ============================================================================
 
+# SSH users are now defined centrally in users.yml
+# Dynamically generate from managed_users
 common_users:
   - name: "admin"
-    shell: "/bin/bash"
-    groups: ["sudo"]
+    shell: "{{ managed_users.admin.system.shell }}"
+    groups: "{{ managed_users.admin.system.groups }}"
 
   - name: "support"
-    shell: "/bin/bash"
-    groups: ["sudo"]
+    shell: "{{ managed_users.support.system.shell }}"
+    groups: "{{ managed_users.support.system.groups }}"
 
 common_packages:
   - curl
@@ -79,21 +81,22 @@ auth0_applications:
     type: "non_interactive"
     description: "Vietcgi Backend API (M2M)"
 
-# Production Users (same names as SSH users for consistency)
+# Auth0 users are now defined centrally in users.yml
+# Dynamically generate from managed_users
 auth0_users:
-  - email: "admin@vietcgi.us"
-    username: "admin"                  # Must match SSH user: admin
-    given_name: "Admin"
-    family_name: "User"
-    password: "{{ vault_initial_admin_password }}"
-    email_verified: true
+  - email: "{{ managed_users.admin.auth0.email }}"
+    username: "admin"
+    given_name: "{{ managed_users.admin.auth0.given_name }}"
+    family_name: "{{ managed_users.admin.auth0.family_name }}"
+    password: "{{ managed_users.admin.auth0.password }}"
+    email_verified: "{{ managed_users.admin.auth0.email_verified }}"
 
-  - email: "support@vietcgi.us"
-    username: "support"                # Must match SSH user: support
-    given_name: "Support"
-    family_name: "Team"
-    password: "{{ vault_support_user_password }}"
-    email_verified: true
+  - email: "{{ managed_users.support.auth0.email }}"
+    username: "support"
+    given_name: "{{ managed_users.support.auth0.given_name }}"
+    family_name: "{{ managed_users.support.auth0.family_name }}"
+    password: "{{ managed_users.support.auth0.password }}"
+    email_verified: "{{ managed_users.support.auth0.email_verified }}"
 
 # Production Roles
 auth0_roles:

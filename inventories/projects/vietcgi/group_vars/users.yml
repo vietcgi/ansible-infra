@@ -1,0 +1,179 @@
+---
+# ============================================================================
+# CENTRALIZED USER MANAGEMENT - Single Source of Truth
+# ============================================================================
+# Define all users here. They're automatically synced to:
+# 1. SSH/Linux system users
+# 2. Auth0 identity service
+# 3. Application roles and permissions
+# ============================================================================
+
+# Define users in ONE place - all systems stay synchronized
+managed_users:
+  admin:
+    # SSH/System Configuration
+    system:
+      shell: "/bin/bash"
+      groups: ["sudo"]
+      home: "/home/admin"
+      manage_ssh_key: true
+
+    # Auth0 Configuration
+    auth0:
+      email: "admin@vietcgi.us"
+      given_name: "Admin"
+      family_name: "User"
+      email_verified: true
+      password: "{{ vault_initial_admin_password }}"
+
+    # Role-Based Access Control
+    rbac:
+      auth0_roles: ["admin"]           # Full access
+      sudo_access: true
+      can_deploy: true
+      can_manage_users: true
+
+    # SSH Key Management
+    ssh_keys:
+      - name: "primary"
+        fingerprint: "SHA256:..."       # Optional: track key fingerprints
+        rotation_days: 90               # Auto-rotation policy
+
+  support:
+    # SSH/System Configuration
+    system:
+      shell: "/bin/bash"
+      groups: ["sudo"]
+      home: "/home/support"
+      manage_ssh_key: true
+
+    # Auth0 Configuration
+    auth0:
+      email: "support@vietcgi.us"
+      given_name: "Support"
+      family_name: "Team"
+      email_verified: true
+      password: "{{ vault_support_user_password }}"
+
+    # Role-Based Access Control
+    rbac:
+      auth0_roles: ["manager"]         # Team management
+      sudo_access: true
+      can_deploy: false
+      can_manage_users: false
+
+    # SSH Key Management
+    ssh_keys:
+      - name: "primary"
+        fingerprint: "SHA256:..."
+        rotation_days: 90
+
+# ============================================================================
+# CENTRALIZED ROLE DEFINITIONS
+# ============================================================================
+# Map roles to permissions across all systems
+access_roles:
+  admin:
+    description: "Administrator - Full system and application access"
+    ssh_permissions: "ALL"
+    auth0_permissions:
+      - "read:users"
+      - "create:users"
+      - "update:users"
+      - "delete:users"
+      - "read:applications"
+      - "manage:roles"
+    application_permissions:
+      - "admin_panel"
+      - "user_management"
+      - "system_settings"
+      - "audit_logs"
+
+  manager:
+    description: "Manager - Team and resource management"
+    ssh_permissions: "LIMITED"
+    auth0_permissions:
+      - "read:users"
+      - "update:users"
+      - "read:applications"
+    application_permissions:
+      - "team_management"
+      - "reports"
+      - "resource_allocation"
+
+  user:
+    description: "User - Standard application access"
+    ssh_permissions: "NONE"
+    auth0_permissions:
+      - "read:profile"
+    application_permissions:
+      - "basic_features"
+      - "personal_data"
+
+  viewer:
+    description: "Viewer - Read-only access"
+    ssh_permissions: "NONE"
+    auth0_permissions:
+      - "read:profile"
+    application_permissions:
+      - "read_only"
+      - "reports"
+
+# ============================================================================
+# ACCESS CONTROL POLICIES
+# ============================================================================
+access_policies:
+  # SSH Access Policy
+  ssh:
+    enabled: true
+    key_based_only: true              # No password auth
+    port: 22
+    max_retries: 3
+    timeout_minutes: 30
+    require_mfa: false                # Future enhancement
+
+  # Auth0 Access Policy
+  auth0:
+    enabled: true
+    mfa_required: true
+    password_min_length: 12
+    password_policy: "good"
+    session_timeout_hours: 8
+    require_email_verification: true
+
+  # Application Access Policy
+  application:
+    api_rate_limit: 1000              # Requests per hour
+    session_timeout_minutes: 60
+    require_https: true
+    require_secure_cookies: true
+
+# ============================================================================
+# AUDIT & MONITORING
+# ============================================================================
+audit_config:
+  enabled: true
+  log_all_logins: true
+  log_all_changes: true
+  log_retention_days: 90
+  alert_on_failed_attempts: true
+  failed_attempts_threshold: 5
+
+# ============================================================================
+# INTEGRATION MAPPING
+# ============================================================================
+# This maps the above users to Ansible variables for each role
+integration:
+  # Common role gets SSH users
+  common_users_source: "managed_users"
+
+  # Auth0 role gets Auth0 users
+  auth0_users_source: "managed_users"
+
+  # Derive SSH system users from managed_users
+  derived_common_users:
+    - "{{ managed_users[item.key].system | combine({'name': item.key}) }}"
+
+  # Derive Auth0 users from managed_users
+  derived_auth0_users:
+    - "{{ managed_users[item.key].auth0 | combine({'username': item.key}) }}"
