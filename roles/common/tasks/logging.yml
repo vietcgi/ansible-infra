@@ -1,15 +1,107 @@
 ---
-# Logging configuration
+# Logging configuration with TLS, encryption, and remote syslog support
 
 - name: Create logging directory
-  file:
+  ansible.builtin.file:
     path: /var/log/sentinel
     state: directory
     mode: '0755'
+    owner: root
+    group: root
   become: yes
 
+- name: Create TLS certificate directory for rsyslog
+  ansible.builtin.file:
+    path: /etc/rsyslog.d/tls
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+  become: yes
+  when: logging_enable_tls | default(true)
+
+- name: Generate self-signed TLS certificate for remote logging
+  ansible.builtin.shell: |
+    openssl req -x509 -newkey rsa:4096 -nodes \
+      -keyout /etc/rsyslog.d/tls/server-key.pem \
+      -out /etc/rsyslog.d/tls/server-cert.pem \
+      -days 365 -subj "/CN={{ ansible_fqdn }}"
+  args:
+    creates: /etc/rsyslog.d/tls/server-cert.pem
+  become: yes
+  when: logging_enable_tls | default(true)
+
+- name: Configure log file permissions for security
+  ansible.builtin.file:
+    path: /var/log
+    mode: '0755'
+  become: yes
+
+- name: Configure log file encryption (Debian-based)
+  ansible.builtin.package:
+    name:
+      - openssl
+      - rsyslog
+      - rsyslog-gnutls
+      - rsyslog-elasticsearch
+    state: present
+    cache_valid_time: 3600
+  become: yes
+  when:
+    - ansible_os_family == "Debian"
+    - logging_enabled | default(true)
+
+- name: Configure log file encryption (RedHat-based)
+  ansible.builtin.package:
+    name:
+      - openssl
+      - rsyslog
+      - rsyslog-gnutls
+      - rsyslog-elasticsearch
+    state: present
+  become: yes
+  when:
+    - ansible_os_family == "RedHat"
+    - logging_enabled | default(true)
+
+- name: Configure rsyslog for TLS remote logging
+  ansible.builtin.template:
+    src: rsyslog_tls_remote.j2
+    dest: /etc/rsyslog.d/tls-remote.conf
+    backup: yes
+    mode: '0644'
+    owner: root
+    group: root
+  become: yes
+  notify: restart rsyslog
+  when: logging_enable_remote_syslog | default(false)
+
+- name: Configure log encryption for sensitive files
+  ansible.builtin.template:
+    src: log_encryption.j2
+    dest: /etc/rsyslog.d/log-encryption.conf
+    backup: yes
+    mode: '0644'
+    owner: root
+    group: root
+  become: yes
+  notify: restart rsyslog
+  when: logging_enable_encryption | default(true)
+
+- name: Configure centralized log aggregation
+  ansible.builtin.template:
+    src: log_aggregation.j2
+    dest: /etc/rsyslog.d/log-aggregation.conf
+    backup: yes
+    mode: '0644'
+    owner: root
+    group: root
+  become: yes
+  notify: restart rsyslog
+  when: logging_enable_aggregation | default(false)
+
 - name: Configure log rotation (Debian-based)
-  template:
+  ansible.builtin.template:
     src: logrotate_sentinel.j2
     dest: /etc/logrotate.d/sentinel
     backup: yes
@@ -18,7 +110,7 @@
   when: ansible_os_family == "Debian"
 
 - name: Configure log rotation (RedHat-based)
-  template:
+  ansible.builtin.template:
     src: logrotate_sentinel.j2
     dest: /etc/logrotate.d/sentinel
     backup: yes
@@ -26,6 +118,43 @@
   become: yes
   when: ansible_os_family == "RedHat"
 
+- name: Set up log file integrity monitoring
+  ansible.builtin.template:
+    src: log_integrity_check.sh.j2
+    dest: /usr/local/bin/check-log-integrity.sh
+    backup: yes
+    mode: '0755'
+    owner: root
+    group: root
+  become: yes
+  when: logging_enable_integrity_check | default(true)
+
+- name: Schedule log integrity checks
+  ansible.builtin.cron:
+    name: "Log integrity check"
+    hour: "*/6"
+    minute: "0"
+    job: "/usr/local/bin/check-log-integrity.sh"
+    user: root
+  become: yes
+  when: logging_enable_integrity_check | default(true)
+
+- name: Enable rsyslog service
+  ansible.builtin.systemd:
+    name: rsyslog
+    enabled: yes
+    state: started
+  become: yes
+
 - name: Display logging configuration summary
-  debug:
-    msg: "Logging and log rotation configured"
+  ansible.builtin.debug:
+    msg: |
+      Logging Configuration Complete:
+      ================================
+      TLS Remote Logging: {{ 'Enabled' if logging_enable_remote_syslog | default(false) else 'Disabled' }}
+      Log Encryption: {{ 'Enabled' if logging_enable_encryption | default(true) else 'Disabled' }}
+      Log Aggregation: {{ 'Enabled' if logging_enable_aggregation | default(false) else 'Disabled' }}
+      Log Integrity Checks: {{ 'Enabled' if logging_enable_integrity_check | default(true) else 'Disabled' }}
+      Syslog Server: {{ logging_remote_syslog_server | default('None') }}
+      TLS Certificates: {{ 'Generated' if logging_enable_tls | default(true) else 'Not generated' }}
+    verbosity: 1

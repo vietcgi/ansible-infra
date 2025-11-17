@@ -1,0 +1,63 @@
+# Rsyslog Centralized Log Aggregation Configuration
+# Forwards all logs to centralized logging server
+
+# Load omfwd module for forwarding
+module(load="omfwd")
+
+# Enable high precision timestamps
+$ActionFileDefaultTemplate RSYSLOG_FileFormat
+
+# Centralized syslog server configuration
+{% if logging_aggregation_servers is defined and logging_aggregation_servers | length > 0 %}
+# Forward to primary aggregation server
+action(
+  type="omfwd"
+  protocol="{{ logging_aggregation_protocol | default('tcp') }}"
+  target="{{ logging_aggregation_servers[0] }}"
+  port="{{ logging_aggregation_port | default(514) }}"
+  action.resumeRetryCount="-1"
+  queue.type="linkedList"
+  queue.maxdiskspace="1g"
+  queue.saveonshutdown="on"
+)
+
+# Forward to backup server if configured
+{% if logging_aggregation_servers | length > 1 %}
+action(
+  type="omfwd"
+  protocol="{{ logging_aggregation_protocol | default('tcp') }}"
+  target="{{ logging_aggregation_servers[1] }}"
+  port="{{ logging_aggregation_port | default(514) }}"
+  action.resumeRetryCount="-1"
+  queue.type="linkedList"
+  queue.maxdiskspace="1g"
+  queue.saveonshutdown="on"
+)
+{% endif %}
+
+# Forward with hostname enrichment
+$template TmplForward,"<%PRI%>%TIMESTAMP% %HOSTNAME% %TAG% %MSG%"
+
+# Send all messages to aggregation server
+*.* action(
+  type="omfwd"
+  protocol="{{ logging_aggregation_protocol | default('tcp') }}"
+  target="{{ logging_aggregation_servers[0] }}"
+  port="{{ logging_aggregation_port | default(514) }}"
+  template="TmplForward"
+  action.resumeRetryCount="-1"
+  queue.type="linkedList"
+  queue.maxdiskspace="1g"
+  queue.saveonshutdown="on"
+)
+
+{% else %}
+# No aggregation servers configured
+# Configure logging_aggregation_servers variable to enable centralized logging
+{% endif %}
+
+# Stop processing after forwarding to prevent duplicate local storage
+# (unless you want both local and remote logging)
+{% if not logging_keep_local_copy | default(false) %}
+& stop
+{% endif %}

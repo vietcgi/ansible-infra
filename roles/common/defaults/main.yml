@@ -127,6 +127,22 @@ common_disable_swap: false
 # PHASE 1: SECURITY, MONITORING, AND BACKUP (New in this phase)
 ################################################################################
 
+## Logging Configuration (Rsyslog with TLS/Encryption)
+logging_enabled: true
+logging_enable_tls: true                     # Enable TLS certificates
+logging_enable_remote_syslog: false          # Enable remote syslog forwarding
+logging_enable_encryption: true              # Enable log file encryption
+logging_enable_aggregation: false            # Enable centralized log aggregation
+logging_enable_integrity_check: true         # Enable log integrity monitoring
+logging_remote_syslog_server: "logs.example.com"
+logging_remote_syslog_port: 6514
+logging_aggregation_servers: []              # List of aggregation servers
+logging_aggregation_protocol: "tcp"          # tcp or tls
+logging_aggregation_port: 514
+logging_keep_local_copy: true                # Keep local logs if aggregating
+logging_integrity_alert_email: ""            # Email for integrity violation alerts
+logging_monitored_logs: []                   # Additional logs to monitor
+
 ## Firewall Configuration (UFW/firewalld)
 firewall_enabled: true
 firewall_allow_ssh: true

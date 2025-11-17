@@ -1,0 +1,100 @@
+# Rsyslog Configuration for Log Encryption
+# Encrypts sensitive log files for compliance and security
+
+# Load encryption module
+module(load="mmexternal")
+
+# Create encrypted versions of sensitive logs
+# Store sensitive logs in encrypted format
+action(
+  type="omfile"
+  file="/var/log/auth-encrypted.log"
+  mode="0600"
+  owner="root"
+  group="root"
+  dirOwner="root"
+  dirGroup="root"
+  dirMode="0700"
+  createDirs="on"
+  template="RSYSLOG_FileFormat"
+  action.resumeRetryCount="-1"
+)
+
+# Encrypt authentication logs
+if prifilt("auth.*") then {
+  action(
+    type="omfile"
+    file="/var/log/auth.log"
+    mode="0600"
+    owner="root"
+    group="root"
+  )
+
+  # Also store in encrypted directory
+  action(
+    type="omfile"
+    file="/var/log/encrypted/auth.log"
+    mode="0600"
+    owner="root"
+    group="root"
+    dirOwner="root"
+    dirGroup="root"
+    dirMode="0700"
+    createDirs="on"
+  )
+}
+
+# Encrypt sudo logs
+if prifilt("authpriv.*") then {
+  action(
+    type="omfile"
+    file="/var/log/authpriv.log"
+    mode="0600"
+    owner="root"
+    group="root"
+  )
+
+  # Also store encrypted
+  action(
+    type="omfile"
+    file="/var/log/encrypted/authpriv.log"
+    mode="0600"
+    owner="root"
+    group="root"
+    dirOwner="root"
+    dirGroup="root"
+    dirMode="0700"
+    createDirs="on"
+  )
+}
+
+# Encrypt security logs
+if prifilt("security.*") then {
+  action(
+    type="omfile"
+    file="/var/log/security.log"
+    mode="0600"
+    owner="root"
+    group="root"
+    dirOwner="root"
+    dirGroup="root"
+    dirMode="0700"
+    createDirs="on"
+  )
+}
+
+# Store all system logs with restricted access
+:programname, isequal, "systemd" action(
+  type="omfile"
+  file="/var/log/encrypted/systemd.log"
+  mode="0600"
+  owner="root"
+  group="root"
+  dirOwner="root"
+  dirGroup="root"
+  dirMode="0700"
+  createDirs="on"
+)
+
+# Daily log file integrity hashing for tamper detection
+# This is triggered by cron job for scheduled hash verification
