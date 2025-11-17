@@ -1,13 +1,12 @@
 ---
 # Validate OS compatibility
 
-- name: Check OS family support
+- name: Check OS distribution support
   assert:
     that:
-      - ansible_os_family is defined
-      - ansible_os_family in common_supported_distributions
-    fail_msg: "Unsupported OS family: {{ ansible_os_family }}. Supported: {{ common_supported_distributions | join(', ') }}"
-    success_msg: "✓ OS family supported: {{ ansible_os_family }}"
+      - ansible_distribution | lower in common_supported_distributions
+    fail_msg: "Unsupported OS distribution: {{ ansible_distribution }}. Supported: {{ common_supported_distributions | join(', ') }}"
+    success_msg: "✓ OS distribution supported: {{ ansible_distribution }}"
   tags:
     - validation
     - always
