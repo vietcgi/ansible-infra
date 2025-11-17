@@ -868,3 +868,199 @@ orchestration_vulnerability_scanning_enabled: true
 orchestration_compliance_monitoring_enabled: true
 orchestration_network_segmentation_enabled: true
 orchestration_secret_management_enabled: true
+
+## Service Mesh Integration
+service_mesh_enabled: false
+service_mesh_type: "istio"
+service_mesh_istio_version: "1.18.0"
+service_mesh_image_registry: "docker.io/istio"
+service_mesh_proxy_cpu: "100m"
+service_mesh_proxy_memory: "128Mi"
+service_mesh_cert_expiry: "2160h"
+
+## Service Mesh Features - Sidecar Injection
+service_mesh_sidecar_injection_enabled: true
+service_mesh_sidecar_resources_cpu_request: "100m"
+service_mesh_sidecar_resources_memory_request: "128Mi"
+service_mesh_sidecar_resources_cpu_limit: "1000m"
+service_mesh_sidecar_resources_memory_limit: "512Mi"
+
+## Service Mesh Features - Traffic Management
+service_mesh_traffic_management_enabled: true
+service_mesh_load_balancing_algorithm: "ROUND_ROBIN"
+service_mesh_request_timeout: "30s"
+service_mesh_retry_attempts: 3
+service_mesh_retry_timeout: "10s"
+service_mesh_max_connections: 100
+service_mesh_max_pending_requests: 100
+service_mesh_max_requests_per_conn: 2
+service_mesh_max_http2_requests: 1000
+
+## Service Mesh Features - Outlier Detection
+service_mesh_outlier_consecutive_errors: 5
+service_mesh_outlier_interval: "30s"
+service_mesh_outlier_ejection_time: "30s"
+
+## Service Mesh Features - Security (mTLS)
+service_mesh_mtls_enabled: true
+service_mesh_mtls_mode: "STRICT"
+
+## Service Mesh Features - Authorization
+service_mesh_authorization_enabled: true
+
+## Service Mesh Features - JWT Authentication
+service_mesh_jwt_enabled: false
+service_mesh_jwt_issuer: "https://accounts.google.com"
+service_mesh_jwks_uri: "https://www.googleapis.com/oauth2/v3/certs"
+
+## Service Mesh Features - Ingress Gateway
+service_mesh_ingress_enabled: true
+service_mesh_ingress_class: "istio"
+service_mesh_ingress_tls_enabled: false
+
+## Service Mesh Features - Distributed Tracing
+service_mesh_tracing_enabled: true
+service_mesh_trace_sampling: 100
+service_mesh_tracing_backend: "zipkin"
+service_mesh_zipkin_address: "zipkin.istio-system:9411"
+
+## Service Mesh Features - Visualization
+service_mesh_visualization_enabled: true
+service_mesh_visualization_backend: "kiali"
+service_mesh_kiali_enabled: true
+
+## Service Mesh Features - Monitoring
+service_mesh_monitoring_enabled: true
+service_mesh_prometheus_integration: true
+service_mesh_metrics_enabled: true
+service_mesh_access_log_enabled: true
+service_mesh_access_log_format: "default"
+
+## Service Mesh Egress Control
+service_mesh_egress_control_enabled: false
+service_mesh_outbound_traffic_policy: "ALLOW_ANY"
+
+## Disaster Recovery & Backup Configuration
+disaster_recovery_enabled: true
+backup_storage_path: "/var/backups/kubernetes"
+backup_storage_type: "local"
+
+## Disaster Recovery - RTO/RPO Targets
+disaster_recovery_rto: "4 hours"
+disaster_recovery_rpo: "1 hour"
+disaster_recovery_backup_retention: 30
+
+## Disaster Recovery - Backup Encryption
+disaster_recovery_encryption_enabled: true
+disaster_recovery_encryption_algorithm: "aes-256-cbc"
+
+## Disaster Recovery - Backup Types
+disaster_recovery_etcd_backup_enabled: true
+disaster_recovery_application_backup_enabled: true
+disaster_recovery_pv_snapshots_enabled: true
+disaster_recovery_database_backup_enabled: true
+
+## Disaster Recovery - Backup Scheduling
+disaster_recovery_backup_schedule_hour: 2
+disaster_recovery_backup_schedule_minute: 0
+disaster_recovery_backup_frequency: "daily"
+
+## Disaster Recovery - Backup Replication
+disaster_recovery_backup_replication_enabled: true
+disaster_recovery_backup_replication_method: "rsync"
+disaster_recovery_secondary_backup_location: "backup-replica:/backup"
+disaster_recovery_replication_schedule_hour: 3
+
+## Disaster Recovery - Failover Configuration
+disaster_recovery_automated_failover_enabled: true
+disaster_recovery_failover_check_interval: 30
+disaster_recovery_failover_timeout: 300
+
+## Disaster Recovery - Database Replication
+database_replication_primary_host: "postgres-primary"
+database_replication_replica_host: "postgres-replica"
+database_replication_lag_threshold: 60
+database_replication_check_interval: 10
+
+## Disaster Recovery - Monitoring & Alerting
+disaster_recovery_monitoring_enabled: true
+disaster_recovery_alert_on_backup_failure: true
+disaster_recovery_alert_on_replication_lag: true
+disaster_recovery_alert_recipients: "ops-team@example.com"
+
+## Disaster Recovery - Testing
+disaster_recovery_recovery_testing_enabled: true
+disaster_recovery_recovery_test_frequency: "monthly"
+disaster_recovery_recovery_test_environment: "staging"
+
+## Disaster Recovery - Documentation
+disaster_recovery_runbook_enabled: true
+disaster_recovery_runbook_location: "/var/backups/kubernetes/RECOVERY_PROCEDURES.md"
+disaster_recovery_status_dashboard_enabled: true
+
+## Advanced Monitoring & Observability
+monitoring_observability_enabled: true
+
+## Distributed Tracing Configuration
+monitoring_jaeger_enabled: true
+monitoring_jaeger_memory: "512Mi"
+monitoring_jaeger_cpu: "250m"
+monitoring_trace_sampling_rate: 0.1
+
+## Log Aggregation Configuration
+monitoring_elasticsearch_enabled: true
+monitoring_elasticsearch_memory: "1Gi"
+monitoring_elasticsearch_cpu: "500m"
+monitoring_elasticsearch_replicas: 1
+monitoring_log_collection_enabled: true
+monitoring_fluent_bit_memory: "256Mi"
+monitoring_fluent_bit_cpu: "200m"
+monitoring_kibana_enabled: true
+monitoring_kibana_memory: "512Mi"
+monitoring_kibana_cpu: "250m"
+
+## Metrics Collection Configuration
+monitoring_prometheus_enabled: true
+monitoring_metrics_scrape_interval: "15s"
+monitoring_metrics_evaluation_interval: "15s"
+monitoring_metrics_retention_days: 30
+
+## Alerting Configuration
+monitoring_alerting_enabled: true
+monitoring_alert_email: "ops-team@example.com"
+monitoring_critical_alert_email: "on-call@example.com"
+monitoring_smtp_host: "smtp.example.com:587"
+monitoring_error_rate_threshold: 0.05
+monitoring_latency_threshold: 1
+
+## Grafana Visualization
+monitoring_grafana_enabled: true
+monitoring_grafana_memory: "512Mi"
+monitoring_grafana_cpu: "250m"
+
+## OpenTelemetry Collector
+monitoring_otel_collector_enabled: true
+monitoring_otel_collector_memory: "256Mi"
+monitoring_otel_collector_cpu: "200m"
+
+## Advanced Monitoring Features
+monitoring_anomaly_detection_enabled: false
+monitoring_machine_learning_enabled: false
+monitoring_root_cause_analysis_enabled: false
+monitoring_synthetic_tests_enabled: false
+
+## Observability Stack
+monitoring_distributed_tracing_backend: "jaeger"
+monitoring_log_aggregation_backend: "elasticsearch"
+monitoring_metrics_backend: "prometheus"
+monitoring_visualization_backend: "grafana"
+
+## Observability Retention Policies
+monitoring_trace_retention_days: 7
+monitoring_log_retention_days: 30
+monitoring_metrics_retention_days: 30
+
+## Service Level Objectives (SLOs)
+monitoring_slo_availability_target: 0.99
+monitoring_slo_latency_p99_ms: 1000
+monitoring_slo_error_rate_target: 0.01

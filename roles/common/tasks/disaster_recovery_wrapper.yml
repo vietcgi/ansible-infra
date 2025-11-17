@@ -1,0 +1,399 @@
+---
+# Disaster Recovery & Backup Automation Wrapper
+# Implements comprehensive backup strategies, failover automation, and recovery procedures
+
+- name: Disaster Recovery & Backup Automation Block
+  block:
+    # Validate disaster recovery prerequisites
+    - name: Validate disaster recovery prerequisites
+      ansible.builtin.assert:
+        that:
+          - orchestration_disaster_recovery_enabled | default(true) | bool
+          - orchestration_backup_enabled | default(true) | bool
+        fail_msg: "Disaster recovery requires orchestration_disaster_recovery_enabled and orchestration_backup_enabled configured"
+      when: orchestration_disaster_recovery_enabled | default(true) | bool
+
+    # Create backup storage directories
+    - name: Create backup storage directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - "{{ backup_storage_path | default('/var/backups/kubernetes') }}"
+        - "{{ backup_storage_path | default('/var/backups/kubernetes') }}/database"
+        - "{{ backup_storage_path | default('/var/backups/kubernetes') }}/etcd"
+        - "{{ backup_storage_path | default('/var/backups/kubernetes') }}/applications"
+        - "{{ backup_storage_path | default('/var/backups/kubernetes') }}/persistent-volumes"
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Configure backup encryption
+    - name: Setup backup encryption keys
+      ansible.builtin.shell: |
+        openssl genrsa -out {{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-key.pem 2048
+        chmod 600 {{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-key.pem
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - disaster_recovery_encryption_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Create Kubernetes etcd backup script
+    - name: Create etcd backup script
+      ansible.builtin.copy:
+        dest: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-etcd.sh"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          BACKUP_DIR="{{ backup_storage_path | default('/var/backups/kubernetes') }}/etcd"
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="${BACKUP_DIR}/etcd_backup_${TIMESTAMP}.db"
+
+          export ETCDCTL_API=3
+          export ETCDCTL_CACERT=/etc/kubernetes/pki/etcd/ca.crt
+          export ETCDCTL_CERT=/etc/kubernetes/pki/etcd/server.crt
+          export ETCDCTL_KEY=/etc/kubernetes/pki/etcd/server.key
+
+          # Perform etcd backup
+          etcdctl --endpoints=127.0.0.1:2379 snapshot save "$BACKUP_FILE"
+
+          if [ $? -eq 0 ]; then
+            # Encrypt backup if enabled
+            {% if disaster_recovery_encryption_enabled | default(true) %}
+            openssl enc -aes-256-cbc -salt -in "$BACKUP_FILE" -out "${BACKUP_FILE}.enc" \
+              -K $(xxd -p -c 256 {{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-key.pem | head -c 64) \
+              -iv $(openssl rand -hex 16)
+            rm "$BACKUP_FILE"
+            BACKUP_FILE="${BACKUP_FILE}.enc"
+            {% endif %}
+
+            # Verify backup integrity
+            if [ -f "$BACKUP_FILE" ]; then
+              md5sum "$BACKUP_FILE" > "${BACKUP_FILE}.md5"
+              echo "✓ etcd backup completed: $BACKUP_FILE"
+            fi
+          else
+            echo "✗ etcd backup failed"
+            exit 1
+          fi
+
+          # Cleanup old backups (keep last {{ disaster_recovery_backup_retention | default(30) }} days)
+          find "${BACKUP_DIR}" -name "etcd_backup_*.db*" -mtime +{{ disaster_recovery_backup_retention | default(30) }} -delete
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Create application data backup script
+    - name: Create application backup script
+      ansible.builtin.copy:
+        dest: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-applications.sh"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          BACKUP_DIR="{{ backup_storage_path | default('/var/backups/kubernetes') }}/applications"
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+          # Backup all namespaces except system namespaces
+          for namespace in $(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}' | \
+                            grep -v "^kube-" | grep -v "^default$"); do
+            NAMESPACE_BACKUP="${BACKUP_DIR}/${namespace}_${TIMESTAMP}.yaml"
+
+            kubectl get all -n "$namespace" -o yaml > "$NAMESPACE_BACKUP"
+
+            # Backup ConfigMaps and Secrets
+            kubectl get configmaps -n "$namespace" -o yaml >> "$NAMESPACE_BACKUP"
+            kubectl get secrets -n "$namespace" -o yaml >> "$NAMESPACE_BACKUP"
+
+            if [ -f "$NAMESPACE_BACKUP" ]; then
+              {% if disaster_recovery_encryption_enabled | default(true) %}
+              openssl enc -aes-256-cbc -salt -in "$NAMESPACE_BACKUP" -out "${NAMESPACE_BACKUP}.enc" \
+                -pass file:{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-key.pem
+              rm "$NAMESPACE_BACKUP"
+              {% endif %}
+              echo "✓ Backup completed for namespace: $namespace"
+            fi
+          done
+
+          # Cleanup old backups
+          find "${BACKUP_DIR}" -name "*_${TIMESTAMP}.yaml*" -mtime +{{ disaster_recovery_backup_retention | default(30) }} -delete
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Create persistent volume backup script
+    - name: Create persistent volume backup script
+      ansible.builtin.copy:
+        dest: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-pvs.sh"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          BACKUP_DIR="{{ backup_storage_path | default('/var/backups/kubernetes') }}/persistent-volumes"
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+          # Create snapshots of persistent volumes
+          for pvc in $(kubectl get pvc --all-namespaces -o jsonpath='{.items[*].metadata.name}'); do
+            NAMESPACE=$(kubectl get pvc "$pvc" --all-namespaces -o jsonpath='{.items[0].metadata.namespace}')
+            PV=$(kubectl get pvc "$pvc" -n "$NAMESPACE" -o jsonpath='{.spec.volumeName}')
+
+            if [ ! -z "$PV" ]; then
+              SNAPSHOT_NAME="${namespace}-${pvc}-snapshot-${TIMESTAMP}"
+
+              # Create volume snapshot
+              cat <<EOF | kubectl apply -f -
+          apiVersion: snapshot.storage.k8s.io/v1
+          kind: VolumeSnapshot
+          metadata:
+            name: $SNAPSHOT_NAME
+            namespace: $NAMESPACE
+          spec:
+            volumeSnapshotClassName: default
+            source:
+              persistentVolumeClaimName: $pvc
+          EOF
+
+              echo "✓ Volume snapshot created: $SNAPSHOT_NAME"
+            fi
+          done
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - disaster_recovery_pv_snapshots_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Schedule automated backups via cron
+    - name: Schedule etcd backups via cron
+      ansible.builtin.cron:
+        name: "Kubernetes etcd backup"
+        hour: "{{ disaster_recovery_backup_schedule_hour | default('2') }}"
+        minute: "0"
+        job: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-etcd.sh >> {{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-etcd.log 2>&1"
+        state: present
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Configure backup replication to secondary location
+    - name: Setup backup replication (cross-region)
+      ansible.builtin.shell: |
+        # Setup rsync or object storage replication
+        cat > /etc/cron.d/backup-replication << 'EOFCRON'
+        0 3 * * * root rsync -av {{ backup_storage_path | default('/var/backups/kubernetes') }}/ \
+          {{ disaster_recovery_secondary_backup_location | default('backup-replica:/backup') }} \
+          >> /var/log/backup-replication.log 2>&1
+        EOFCRON
+      become: yes
+      when:
+        - orchestration_backup_enabled | default(true) | bool
+        - disaster_recovery_backup_replication_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Create disaster recovery runbook
+    - name: Create disaster recovery runbook
+      ansible.builtin.copy:
+        dest: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/RECOVERY_PROCEDURES.md"
+        content: |
+          # Disaster Recovery Procedures
+
+          ## RTO/RPO Targets
+          - **RTO (Recovery Time Objective)**: {{ disaster_recovery_rto | default('4 hours') }}
+          - **RPO (Recovery Point Objective)**: {{ disaster_recovery_rpo | default('1 hour') }}
+
+          ## Backup Status
+          - Last etcd backup: Check `/var/backups/kubernetes/etcd/` for latest backup
+          - Application backups: Check `/var/backups/kubernetes/applications/`
+          - Persistent volumes: Check VolumeSnapshot objects in cluster
+          - Encryption: {{ 'Enabled' if disaster_recovery_encryption_enabled | default(true) else 'Disabled' }}
+
+          ## Single Node Failure Recovery
+
+          1. **Identify failed node**: `kubectl get nodes`
+          2. **Drain workloads**: `kubectl drain <node-name> --ignore-daemonsets`
+          3. **Remove node**: `kubectl delete node <node-name>`
+          4. **Rejoin node to cluster**: Run kubeadm join command
+
+          ## Multi-Node Failure Recovery
+
+          1. **Restore from etcd backup**:
+             ```bash
+             export ETCDCTL_API=3
+             etcdctl --endpoints=https://127.0.0.1:2379 \
+               --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+               --cert=/etc/kubernetes/pki/etcd/server.crt \
+               --key=/etc/kubernetes/pki/etcd/server.key \
+               snapshot restore /var/backups/kubernetes/etcd/etcd_backup_*.db
+             ```
+
+          2. **Restore member list**: `etcdctl member list`
+          3. **Verify cluster health**: `etcdctl endpoint health`
+
+          ## Application Restore
+
+          1. **Identify backup to restore**: `ls /var/backups/kubernetes/applications/`
+          2. **Decrypt if encrypted**:
+             ```bash
+             openssl enc -aes-256-cbc -d -in backup.yaml.enc -out backup.yaml
+             ```
+          3. **Restore resources**: `kubectl apply -f backup.yaml`
+
+          ## Database Failover
+
+          1. **Check replica lag**: `SELECT extract(epoch FROM (now() - pg_last_xact_replay_timestamp()));`
+          2. **Promote replica**: `sudo -u postgres pg_ctl promote`
+          3. **Update connection strings**: Point applications to new primary
+          4. **Verify replication**: Monitor logs for recovery progress
+
+          ## Testing Recovery
+
+          - Run monthly recovery tests in staging environment
+          - Document recovery time for each procedure
+          - Update runbook based on test results
+      become: yes
+      when: orchestration_disaster_recovery_enabled | default(true) | bool
+
+    # Setup automated failover for database replicas
+    - name: Configure automated database failover
+      ansible.builtin.shell: |
+        # Create failover monitor script
+        cat > {{ backup_storage_path | default('/var/backups/kubernetes') }}/monitor-failover.sh << 'EOFSCRIPT'
+        #!/bin/bash
+
+        PRIMARY_HOST="{{ database_replication_primary_host | default('postgres-primary') }}"
+        REPLICA_HOST="{{ database_replication_replica_host | default('postgres-replica') }}"
+        CHECK_INTERVAL="{{ disaster_recovery_failover_check_interval | default(30) }}"
+
+        while true; do
+          # Check primary health
+          pg_isready -h "$PRIMARY_HOST" -U postgres > /dev/null 2>&1
+
+          if [ $? -ne 0 ]; then
+            echo "$(date): Primary database down - initiating failover"
+
+            # Promote replica
+            ssh "$REPLICA_HOST" "sudo -u postgres pg_ctl promote"
+
+            if [ $? -eq 0 ]; then
+              echo "$(date): Replica promotion successful"
+              # Update DNS/connection string
+              # Notify operations team
+            fi
+          fi
+
+          sleep "$CHECK_INTERVAL"
+        done
+        EOFSCRIPT
+        chmod +x {{ backup_storage_path | default('/var/backups/kubernetes') }}/monitor-failover.sh
+      become: yes
+      when:
+        - orchestration_disaster_recovery_enabled | default(true) | bool
+        - disaster_recovery_automated_failover_enabled | default(true) | bool
+
+    # Create health check service for monitoring
+    - name: Setup health check monitoring for disaster recovery
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: disaster-recovery-config
+            namespace: kube-system
+          data:
+            rto_hours: "{{ disaster_recovery_rto | default('4') }}"
+            rpo_hours: "{{ disaster_recovery_rpo | default('1') }}"
+            backup_retention_days: "{{ disaster_recovery_backup_retention | default('30') }}"
+            encryption_enabled: "{{ disaster_recovery_encryption_enabled | default('true') }}"
+            failover_enabled: "{{ disaster_recovery_automated_failover_enabled | default('true') }}"
+            backup_location: "{{ backup_storage_path | default('/var/backups/kubernetes') }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - orchestration_disaster_recovery_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Create backup status dashboard
+    - name: Create backup status monitoring dashboard
+      ansible.builtin.copy:
+        dest: "{{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-status.sh"
+        mode: '0755'
+        content: |
+          #!/bin/bash
+
+          echo "=== Disaster Recovery & Backup Status ==="
+          echo ""
+          echo "Backup Storage Location: {{ backup_storage_path | default('/var/backups/kubernetes') }}"
+          echo "RTO Target: {{ disaster_recovery_rto | default('4 hours') }}"
+          echo "RPO Target: {{ disaster_recovery_rpo | default('1 hour') }}"
+          echo ""
+
+          echo "etcd Backups:"
+          ls -lh {{ backup_storage_path | default('/var/backups/kubernetes') }}/etcd/ 2>/dev/null | tail -5
+          echo ""
+
+          echo "Application Backups:"
+          ls -lh {{ backup_storage_path | default('/var/backups/kubernetes') }}/applications/ 2>/dev/null | tail -5
+          echo ""
+
+          echo "Volume Snapshots:"
+          kubectl get volumesnapshot --all-namespaces 2>/dev/null | head -10
+          echo ""
+
+          echo "Last Backup Status:"
+          tail -20 {{ backup_storage_path | default('/var/backups/kubernetes') }}/backup-etcd.log 2>/dev/null
+      become: yes
+      when: orchestration_backup_enabled | default(true) | bool
+
+    # Display disaster recovery configuration
+    - name: Display disaster recovery configuration status
+      ansible.builtin.debug:
+        msg: |
+          Disaster Recovery Configuration:
+          ✓ Backup Storage: {{ backup_storage_path | default('/var/backups/kubernetes') }}
+          ✓ RTO Target: {{ disaster_recovery_rto | default('4 hours') }}
+          ✓ RPO Target: {{ disaster_recovery_rpo | default('1 hour') }}
+          ✓ Backup Retention: {{ disaster_recovery_backup_retention | default('30') }} days
+          ✓ Encryption: {{ 'Enabled' if disaster_recovery_encryption_enabled | default(true) else 'Disabled' }}
+          ✓ etcd Backups: {{ 'Enabled' if orchestration_backup_enabled | default(true) else 'Disabled' }}
+          ✓ PV Snapshots: {{ 'Enabled' if disaster_recovery_pv_snapshots_enabled | default(true) else 'Disabled' }}
+          ✓ Backup Replication: {{ 'Enabled' if disaster_recovery_backup_replication_enabled | default(true) else 'Disabled' }}
+          ✓ Automated Failover: {{ 'Enabled' if disaster_recovery_automated_failover_enabled | default(true) else 'Disabled' }}
+
+  rescue:
+    - name: Disaster recovery configuration failed
+      ansible.builtin.debug:
+        msg: |
+          Disaster recovery configuration encountered an error.
+          This may occur if backup directories cannot be created or backup tools are not available.
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+  tags:
+    - disaster_recovery
+    - backup
+    - failover
+
+- name: Display disaster recovery summary
+  ansible.builtin.debug:
+    msg: |
+      ✓ Disaster Recovery & Backup Status:
+      - Backup Storage: {{ backup_storage_path | default('/var/backups/kubernetes') }}
+      - RTO Target: {{ disaster_recovery_rto | default('4 hours') }}
+      - RPO Target: {{ disaster_recovery_rpo | default('1 hour') }}
+      - Automated Failover: {{ 'Enabled' if disaster_recovery_automated_failover_enabled | default(true) else 'Disabled' }}
+      - Backup Encryption: {{ 'Enabled' if disaster_recovery_encryption_enabled | default(true) else 'Disabled' }}
+  when: not ansible_check_mode

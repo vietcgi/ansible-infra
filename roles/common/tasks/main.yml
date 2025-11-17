@@ -57,6 +57,9 @@
     # PHASE 3: Final Integration & Orchestration
     - kubernetes_orchestration_wrapper.yml
     - application_deployment_wrapper.yml
+    - service_mesh_integration_wrapper.yml
+    - disaster_recovery_wrapper.yml
+    - advanced_monitoring_wrapper.yml
 
 - name: Display role completion summary
   debug:

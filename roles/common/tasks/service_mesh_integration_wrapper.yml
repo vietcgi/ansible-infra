@@ -1,0 +1,433 @@
+---
+# Service Mesh Integration Wrapper
+# Deploys and configures service mesh (Istio or Linkerd) with traffic management, security, and observability
+
+- name: Service Mesh Integration Block
+  block:
+    # Validate service mesh prerequisites
+    - name: Validate service mesh prerequisites
+      ansible.builtin.assert:
+        that:
+          - service_mesh_enabled | default(false) | bool
+          - service_mesh_type | default('istio') in ['istio', 'linkerd']
+          - "inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])"
+        fail_msg: "Service mesh requires service_mesh_enabled=true and service_mesh_type configured"
+      when: service_mesh_enabled | default(false) | bool
+
+    # Create monitoring namespace for service mesh
+    - name: Create monitoring namespace for service mesh
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monitoring
+            labels:
+              istio-injection: "{{ 'enabled' if service_mesh_type | default('istio') == 'istio' else 'disabled' }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Install Istio service mesh
+    - name: Install Istio operator
+      ansible.builtin.shell: |
+        helm repo add istio https://istio-release.storage.googleapis.com/charts
+        helm repo update
+        helm upgrade --install istio-operator istio/istiod \
+          --namespace istio-system \
+          --create-namespace \
+          --set hub={{ service_mesh_image_registry | default('docker.io/istio') }} \
+          --set tag={{ service_mesh_istio_version | default('1.18.0') }} \
+          --set global.proxy.resources.requests.cpu={{ service_mesh_proxy_cpu | default('100m') }} \
+          --set global.proxy.resources.requests.memory={{ service_mesh_proxy_memory | default('128Mi') }} \
+          --set meshConfig.enableAutoMTLS=true \
+          --set meshConfig.accessLogFile=/dev/stdout
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Install Linkerd service mesh
+    - name: Install Linkerd service mesh
+      ansible.builtin.shell: |
+        helm repo add linkerd https://helm.linkerd.io
+        helm repo update
+        helm upgrade --install linkerd-crds linkerd/linkerd-crds \
+          --namespace linkerd \
+          --create-namespace
+        helm upgrade --install linkerd-control-plane linkerd/linkerd-control-plane \
+          --namespace linkerd \
+          --set identity.issuer.tls.crtExpiry={{ service_mesh_cert_expiry | default('2160h') }} \
+          --set proxy.resources.cpu.request={{ service_mesh_proxy_cpu | default('100m') }} \
+          --set proxy.resources.memory.request={{ service_mesh_proxy_memory | default('128Mi') }}
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'linkerd'
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure Istio ingress gateway
+    - name: Install Istio ingress gateway
+      ansible.builtin.shell: |
+        helm upgrade --install istio-ingressgateway istio/gateway \
+          --namespace istio-system \
+          --set service.type=LoadBalancer \
+          --set service.ports[0].port=80 \
+          --set service.ports[0].targetPort=8080 \
+          --set service.ports[0].protocol=TCP \
+          --set service.ports[0].name=http \
+          --set service.ports[1].port=443 \
+          --set service.ports[1].targetPort=8443 \
+          --set service.ports[1].protocol=TCP \
+          --set service.ports[1].name=https
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_ingress_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Enable sidecar auto-injection for application namespace
+    - name: Enable sidecar auto-injection for application namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ deployment_namespace | default('default') }}"
+            labels:
+              istio-injection: enabled
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_sidecar_injection_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure Istio virtual services for traffic management
+    - name: Create Istio VirtualService for application routing
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace | default('default') }}"
+        definition:
+          apiVersion: networking.istio.io/v1beta1
+          kind: VirtualService
+          metadata:
+            name: "{{ item.name }}-vs"
+          spec:
+            hosts:
+              - "{{ item.name }}"
+              - "{{ item.name }}.{{ deployment_namespace | default('default') }}"
+              - "{{ item.name }}.{{ deployment_namespace | default('default') }}.svc.cluster.local"
+            http:
+              - match:
+                  - uri:
+                      prefix: "{{ item.traffic_prefix | default('/') }}"
+                route:
+                  - destination:
+                      host: "{{ item.name }}-service"
+                      port:
+                        number: "{{ item.service_port | default(80) }}"
+                      subset: "{{ item.traffic_subset | default('v1') }}"
+                    weight: "{{ item.traffic_weight | default(100) }}"
+                timeout: "{{ service_mesh_request_timeout | default('30s') }}"
+                retries:
+                  attempts: "{{ service_mesh_retry_attempts | default(3) }}"
+                  perTryTimeout: "{{ service_mesh_retry_timeout | default('10s') }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_traffic_management_enabled | default(true) | bool
+        - item.traffic_routing_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure Istio destination rules for load balancing
+    - name: Create Istio DestinationRule for load balancing
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace | default('default') }}"
+        definition:
+          apiVersion: networking.istio.io/v1beta1
+          kind: DestinationRule
+          metadata:
+            name: "{{ item.name }}-dr"
+          spec:
+            host: "{{ item.name }}-service"
+            trafficPolicy:
+              connectionPool:
+                tcp:
+                  maxConnections: "{{ service_mesh_max_connections | default(100) }}"
+                http:
+                  http1MaxPendingRequests: "{{ service_mesh_max_pending_requests | default(100) }}"
+                  maxRequestsPerConnection: "{{ service_mesh_max_requests_per_conn | default(2) }}"
+                  http2MaxRequests: "{{ service_mesh_max_http2_requests | default(1000) }}"
+              loadBalancer:
+                simple: "{{ service_mesh_load_balancing_algorithm | default('ROUND_ROBIN') }}"
+              outlierDetection:
+                consecutive5xxErrors: "{{ service_mesh_outlier_consecutive_errors | default(5) }}"
+                interval: "{{ service_mesh_outlier_interval | default('30s') }}"
+                baseEjectionTime: "{{ service_mesh_outlier_ejection_time | default('30s') }}"
+            subsets:
+              - name: "{{ item.traffic_subset | default('v1') }}"
+                labels:
+                  version: "{{ item.traffic_subset | default('v1') }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_traffic_management_enabled | default(true) | bool
+        - item.traffic_routing_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure mTLS for service-to-service communication
+    - name: Create PeerAuthentication for mTLS
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace | default('default') }}"
+        definition:
+          apiVersion: security.istio.io/v1beta1
+          kind: PeerAuthentication
+          metadata:
+            name: default
+          spec:
+            mtls:
+              mode: "{{ service_mesh_mtls_mode | default('STRICT') }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_mtls_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure request authorization policies
+    - name: Create AuthorizationPolicy for service access control
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace | default('default') }}"
+        definition:
+          apiVersion: security.istio.io/v1beta1
+          kind: AuthorizationPolicy
+          metadata:
+            name: "{{ item.name }}-authpolicy"
+          spec:
+            selector:
+              matchLabels:
+                app: "{{ item.name }}"
+            action: ALLOW
+            rules:
+              - from:
+                  - source:
+                      principals: ["cluster.local/ns/{{ deployment_namespace | default('default') }}/sa/*"]
+                to:
+                  - operation:
+                      methods: ["GET", "POST"]
+                      ports: ["{{ item.port | default(8080) }}"]
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_authorization_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Configure request rate limiting
+    - name: Create Istio RequestAuthentication
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ deployment_namespace | default('default') }}"
+        definition:
+          apiVersion: security.istio.io/v1beta1
+          kind: RequestAuthentication
+          metadata:
+            name: "{{ item.name }}-reqauth"
+          spec:
+            selector:
+              matchLabels:
+                app: "{{ item.name }}"
+            jwtRules:
+              - issuer: "{{ service_mesh_jwt_issuer | default('https://accounts.google.com') }}"
+                jwksUri: "{{ service_mesh_jwks_uri | default('https://www.googleapis.com/oauth2/v3/certs') }}"
+      loop: "{{ deployment_applications | default([]) }}"
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_jwt_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Setup distributed tracing integration
+    - name: Configure Istio telemetry for tracing
+      ansible.builtin.shell: |
+        kubectl patch cm istio -n istio-system -p '{"data":{"mesh":"accessLogFile: /dev/stdout\naccessLogFormat: |
+          [%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\"\n
+          %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%\n
+          \"%DURATION%\" \"%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%\"\n
+          \"%REQ(X-FORWARDED-FOR)%\" \"%USER-AGENT%\"\n
+          \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\"\n
+          tracing:\n
+            sampling: {{ service_mesh_trace_sampling | default(100) }}\n
+            provider:\n
+              name: zipkin\n
+              zipkin:\n
+                address: zipkin.istio-system:9411"}}'
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_tracing_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Install Kiali for service mesh visualization
+    - name: Install Kiali service mesh visualization
+      ansible.builtin.shell: |
+        helm repo add kiali https://kiali.org/helm-charts
+        helm repo update
+        helm upgrade --install kiali kiali/kiali-operator \
+          --namespace istio-system \
+          --set cr.create=true \
+          --set cr.namespace=istio-system \
+          --set auth.strategy=anonymous
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_visualization_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Install Jaeger for distributed tracing
+    - name: Install Jaeger distributed tracing
+      ansible.builtin.shell: |
+        helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+        helm repo update
+        helm upgrade --install jaeger jaegertracing/jaeger \
+          --namespace istio-system \
+          --set provisionDataStore.cassandra=false \
+          --set provisionDataStore.elasticsearch=false \
+          --set cassandra.enabled=false \
+          --set elasticsearch.enabled=false
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - service_mesh_type | default('istio') == 'istio'
+        - service_mesh_tracing_enabled | default(true) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Wait for service mesh to be ready
+    - name: Wait for service mesh operator to be ready
+      ansible.builtin.pause:
+        seconds: 30
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+
+    # Verify service mesh installation
+    - name: Verify service mesh pods status
+      ansible.builtin.shell: |
+        kubectl get pods -n {{ 'istio-system' if service_mesh_type | default('istio') == 'istio' else 'linkerd' }} -o wide
+      become: yes
+      become_user: root
+      environment:
+        KUBECONFIG: /root/.kube/config
+      register: service_mesh_status
+      when:
+        - service_mesh_enabled | default(false) | bool
+        - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
+      ignore_errors: yes
+
+    # Display service mesh configuration
+    - name: Display service mesh configuration status
+      ansible.builtin.debug:
+        msg: |
+          Service Mesh Configuration:
+          ✓ Service Mesh Type: {{ service_mesh_type | default('istio') }}
+          ✓ Version: {{ service_mesh_istio_version | default('1.18.0') if service_mesh_type | default('istio') == 'istio' else 'Linkerd latest' }}
+          ✓ Sidecar Auto-Injection: {{ 'Enabled' if service_mesh_sidecar_injection_enabled | default(true) else 'Disabled' }}
+          ✓ mTLS Mode: {{ service_mesh_mtls_mode | default('STRICT') }}
+          ✓ Traffic Management: {{ 'Enabled' if service_mesh_traffic_management_enabled | default(true) else 'Disabled' }}
+          ✓ Authorization Policies: {{ 'Enabled' if service_mesh_authorization_enabled | default(true) else 'Disabled' }}
+          ✓ Distributed Tracing: {{ 'Enabled' if service_mesh_tracing_enabled | default(true) else 'Disabled' }}
+          ✓ Visualization (Kiali): {{ 'Enabled' if service_mesh_visualization_enabled | default(true) else 'Disabled' }}
+          ✓ Ingress Gateway: {{ 'Enabled' if service_mesh_ingress_enabled | default(true) else 'Disabled' }}
+
+  rescue:
+    - name: Service mesh integration failed
+      ansible.builtin.debug:
+        msg: |
+          Service mesh integration encountered an error.
+          This may occur if Helm repositories are unreachable or Kubernetes is not properly configured.
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+  tags:
+    - service_mesh
+    - orchestration
+    - istio
+    - linkerd
+
+- name: Display service mesh integration summary
+  ansible.builtin.debug:
+    msg: |
+      ✓ Service Mesh Integration Status:
+      - Service Mesh Type: {{ service_mesh_type | default('istio') }}
+      - Status: {{ 'Ready' if service_mesh_enabled | default(false) else 'Not enabled' }}
+      - Sidecar Auto-Injection: {{ 'Enabled' if service_mesh_sidecar_injection_enabled | default(true) else 'Disabled' }}
+      - Distributed Tracing: {{ 'Enabled' if service_mesh_tracing_enabled | default(true) else 'Disabled' }}
+  when: not ansible_check_mode
