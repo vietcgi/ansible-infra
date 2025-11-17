@@ -71,9 +71,12 @@
                       # Create new user
                       user_data = {
                           'email': user['email'],
+                          'username': user.get('username', user['email'].split('@')[0]),  # Use provided username or derive from email
                           'password': user['password'],
                           'connection': 'Username-Password-Authentication',
-                          'user_metadata': {},
+                          'user_metadata': {
+                              'ssh_username': user.get('username', user['email'].split('@')[0])  # Track SSH username
+                          },
                           'email_verified': user.get('email_verified', False),
                           'given_name': user.get('given_name', ''),
                           'family_name': user.get('family_name', '')

@@ -12,7 +12,11 @@ client_timezone: "America/Los_Angeles"
 # ============================================================================
 
 common_users:
-  - name: "app"
+  - name: "admin"
+    shell: "/bin/bash"
+    groups: ["sudo"]
+
+  - name: "support"
     shell: "/bin/bash"
     groups: ["sudo"]
 
@@ -75,15 +79,17 @@ auth0_applications:
     type: "non_interactive"
     description: "Vietcgi Backend API (M2M)"
 
-# Production Users
+# Production Users (same names as SSH users for consistency)
 auth0_users:
   - email: "admin@vietcgi.us"
+    username: "admin"                  # Must match SSH user: admin
     given_name: "Admin"
     family_name: "User"
     password: "{{ vault_initial_admin_password }}"
     email_verified: true
 
   - email: "support@vietcgi.us"
+    username: "support"                # Must match SSH user: support
     given_name: "Support"
     family_name: "Team"
     password: "{{ vault_support_user_password }}"
