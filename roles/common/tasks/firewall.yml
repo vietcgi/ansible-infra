@@ -16,7 +16,7 @@
         enabled: yes
         state: started
 
-    - name: Configure UFW defaults
+    - name: Configure UFW defaults (ingress, egress, IPv6)
       ansible.builtin.lineinfile:
         path: /etc/ufw/ufw.conf
         regexp: "^{{ item.key }}="
@@ -28,7 +28,8 @@
         - { key: 'DEFAULT_FORWARD_POLICY', value: 'DROP' }
         - { key: 'DEFAULT_APPLICATION_POLICY', value: 'SKIP' }
         - { key: 'MANAGE_BUILTINS', value: 'yes' }
-        - { key: 'IPV6', value: 'yes' }
+        - { key: 'IPV6', value: 'yes' }  # Full IPv6 support and hardening
+        - { key: 'LOGLEVEL', value: 'low' }  # Packet logging enabled
       notify: restart ufw
 
     - name: Allow SSH connections
@@ -51,6 +52,73 @@
         ufw insert 1 limit proto icmp from any to any comment "Rate limit ICMP"
       changed_when: false
       when: firewall_allow_icmp | default(true)
+
+    - name: Configure IPv6 ICMP rate limiting
+      ansible.builtin.shell: |
+        ufw insert 2 limit proto icmpv6 from any to any comment "Rate limit ICMPv6"
+      changed_when: false
+      when:
+        - firewall_allow_icmp | default(true)
+        - ansible_all_ipv6_addresses is defined and ansible_all_ipv6_addresses | length > 0
+
+    - name: Add DDoS protection with connection rate limiting
+      community.general.ufw:
+        rule: limit
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        comment: "DDoS protection: {{ item.description }}"
+      loop:
+        - { port: 22, proto: 'tcp', description: 'SSH rate limit' }
+        - { port: 80, proto: 'tcp', description: 'HTTP rate limit' }
+        - { port: 443, proto: 'tcp', description: 'HTTPS rate limit' }
+      when: firewall_enable_ddos_protection | default(true)
+
+    - name: Configure egress filtering rules
+      ansible.builtin.shell: |
+        # Allow essential outbound services
+        ufw allow out 53 proto tcp comment "DNS over TCP"
+        ufw allow out 53 proto udp comment "DNS over UDP"
+        ufw allow out 123 proto udp comment "NTP"
+        ufw allow out 25 proto tcp comment "SMTP"
+        ufw allow out 587 proto tcp comment "SMTP TLS"
+        ufw allow out 465 proto tcp comment "SMTP SSL"
+        ufw allow out 110 proto tcp comment "POP3"
+        ufw allow out 995 proto tcp comment "POP3 SSL"
+        ufw allow out 143 proto tcp comment "IMAP"
+        ufw allow out 993 proto tcp comment "IMAP SSL"
+      changed_when: false
+      when: firewall_enable_egress_filtering | default(true)
+
+    - name: Add connection state tracking configuration
+      ansible.builtin.lineinfile:
+        path: /etc/ufw/ufw.conf
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        backup: yes
+      loop:
+        - { key: 'TRACKING', value: 'yes' }
+        - { key: 'CONNECTION_RATE_LIMIT', value: '300/minute' }
+      notify: restart ufw
+      when: firewall_enable_stateful_tracking | default(true)
+
+    - name: Configure IPv6-specific hardening rules
+      community.general.ufw:
+        rule: "{{ item.rule }}"
+        protocol: "{{ item.protocol }}"
+        direction: "{{ item.direction | default('in') }}"
+        comment: "{{ item.comment }}"
+      loop:
+        - { rule: 'deny', protocol: 'ipv6-icmp', direction: 'in', comment: 'Block IPv6 redirect messages' }
+      when:
+        - firewall_enable_ipv6_hardening | default(true)
+        - ansible_all_ipv6_addresses is defined and ansible_all_ipv6_addresses | length > 0
+
+    - name: Set UFW logging level for packet inspection
+      ansible.builtin.shell: |
+        ufw logging on
+        ufw logging high
+      changed_when: false
+      when: firewall_enable_packet_logging | default(true)
 
     - name: Add custom firewall rules (ports and IPs)
       community.general.ufw:

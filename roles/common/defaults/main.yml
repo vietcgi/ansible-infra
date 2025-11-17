@@ -134,11 +134,29 @@ firewall_ssh_port: 22
 firewall_allow_icmp: true
 firewall_allow_icmp_rate: 10/minute
 firewall_enable_ddos_protection: true
+firewall_enable_egress_filtering: true
+firewall_enable_stateful_tracking: true
+firewall_enable_ipv6_hardening: true
+firewall_enable_packet_logging: true
+firewall_zone: "public"                     # Default firewalld zone
+firewall_enable_masquerading: false         # NAT masquerading
 firewall_custom_rules: []
+firewall_custom_services: []                # For firewalld service-based rules
+firewall_custom_ports: []                   # For firewalld port-based rules
+firewall_rich_rules: []                     # For firewalld rich rules
 # Example custom rules:
 #  - rule: "allow"
 #    port: "8080"
 #    protocol: "tcp"
+# Example custom services:
+#  - service: "http"
+#    state: "enabled"
+# Example custom ports:
+#  - port: "8080"
+#    proto: "tcp"
+#    state: "enabled"
+# Example rich rules:
+#  - "rule family='ipv4' source address='192.168.1.0/24' service name='ssh' accept"
 
 ## fail2ban: Intrusion Prevention System
 fail2ban_enabled: true
