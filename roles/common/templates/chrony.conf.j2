@@ -1,0 +1,45 @@
+# {{ ansible_managed }}
+# Chrony Configuration - ansible-infra
+# Modern NTP replacement with superior accuracy and faster synchronization
+
+# NTP Server Pool - Primary time sources
+{% for server in common_chrony_servers %}
+server {{ server }}
+{% endfor %}
+
+# Allow chrony to step the system clock on startup if needed
+makestep 1.0 3
+
+# RTC synchronization - sync system time to RTC for persistent timekeeping
+hwclockfile /etc/adjtime
+
+# Enable RTC to be set from system clock
+rtcsync
+
+# Enable hardware timestamp for network packets (if supported)
+hwtimestamp *
+
+# Specify logging directory
+logdir /var/log/chrony
+
+# Log measurements and statistics
+log measurements statistics tracking
+
+# Restrict access to local connections only
+allow 127.0.0.1
+allow ::1
+
+# Deny others by default
+deny all
+
+# Local time source (e.g., for isolated systems)
+local stratum 10
+
+# Smooth the time correction to avoid frequency step anomalies
+maxpoll 10
+
+# NTP rate limiting
+ratelimit interval 32 burst 16
+
+# Serve local time to other clients on the network (if needed)
+# port 123

@@ -33,3 +33,10 @@
     state: restarted
   become: yes
   listen: restart auditd
+
+- name: restart chronyd
+  systemd:
+    name: chronyd
+    state: restarted
+  become: yes
+  listen: restart chronyd

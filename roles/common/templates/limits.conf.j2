@@ -1,19 +1,27 @@
 # {{ ansible_managed }}
-# Resource Limits Configuration - ansible-infra
-# File descriptor and resource limits
+# Resource Limits Configuration - ansible-infra (Production Optimized)
+# File descriptor and process limits for high-performance environments
 
-# All users
+# All users - file limits
 * soft nofile {{ common_file_limits.soft }}
 * hard nofile {{ common_file_limits.hard }}
-* soft nproc 65536
-* hard nproc 65536
+
+# All users - process limits (nproc)
+* soft nproc {{ common_process_limits.soft }}
+* hard nproc {{ common_process_limits.hard }}
+
+# Address space limit (unlimited for memory-intensive apps)
+* soft as unlimited
+* hard as unlimited
+
+# Memory locking and other limits
 * soft memlock unlimited
 * hard memlock unlimited
 * soft locks unlimited
 * hard locks unlimited
 
-# Root user (may need higher limits)
+# Root user (elevated limits for system operations)
 root soft nofile {{ common_file_limits.hard }}
 root hard nofile {{ common_file_limits.hard }}
-root soft nproc unlimited
-root hard nproc unlimited
+root soft nproc {{ common_process_limits.hard }}
+root hard nproc {{ common_process_limits.hard }}

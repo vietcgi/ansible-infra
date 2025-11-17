@@ -39,14 +39,16 @@ common_python_packages:
   - python3-dev
   - python3-venv
 
-# Time Management
+# Time Management (Chrony)
 common_timezone: "UTC"
-common_ntp_enabled: true
-common_ntp_servers:
-  - 0.pool.ntp.org
-  - 1.pool.ntp.org
-  - 2.pool.ntp.org
-  - 3.pool.ntp.org
+common_chrony_enabled: true
+common_chrony_servers:
+  - 0.pool.ntp.org iburst
+  - 1.pool.ntp.org iburst
+  - 2.pool.ntp.org iburst
+  - 3.pool.ntp.org iburst
+common_chrony_pool_enabled: true
+common_chrony_ntp_domain: pool.ntp.org
 
 # SSH Hardening
 common_ssh_port: 22
@@ -54,13 +56,36 @@ common_ssh_permit_root_login: "no"
 common_ssh_password_authentication: "no"
 common_ssh_key_bits: 4096
 
-# Sysctl Parameters (OS Tuning)
+# Sysctl Parameters (OS Tuning) - Production Performance Optimized
 common_sysctl_config:
-  # Network performance
-  net.core.somaxconn: 1024
+  # Network performance - Optimized for high throughput
+  net.ipv4.ip_forward: 1
+  net.core.somaxconn: 65536
   net.ipv4.tcp_max_syn_backlog: 2048
   net.ipv4.tcp_tw_reuse: 1
-  net.ipv4.tcp_fin_timeout: 30
+  net.ipv4.tcp_fin_timeout: 10
+
+  # Multipath routing optimizations
+  net.ipv4.fib_multipath_hash_policy: 1
+  net.ipv4.fib_multipath_use_neigh: 1
+
+  # ARP cache optimizations (high-traffic environments)
+  net.ipv4.neigh.default.gc_thresh1: 80000
+  net.ipv4.neigh.default.gc_thresh2: 90000
+  net.ipv4.neigh.default.gc_thresh3: 100000
+
+  # TCP buffer optimization (throughput for gigabit+ networks)
+  net.ipv4.tcp_mem: '1535106 2046809 10000000'
+  net.ipv4.tcp_rmem: '4096 131072 6291456'
+  net.ipv4.tcp_wmem: '4096 16384 4194304'
+
+  # Port range for high-connection scenarios
+  net.ipv4.ip_local_port_range: '1024 65535'
+  net.ipv4.tcp_moderate_rcvbuf: 1
+
+  # File system optimizations
+  fs.file-max: 12000500
+  fs.nr_open: 20000500
 
   # Security
   net.ipv4.conf.all.send_redirects: 0
@@ -72,10 +97,15 @@ common_sysctl_config:
   net.ipv4.icmp_echo_ignore_broadcasts: 1
   net.ipv4.icmp_ignore_bogus_error_responses: 1
 
-# File Limits
+# File Limits - Production Grade
 common_file_limits:
-  soft: 65536
-  hard: 65536
+  soft: 1039999
+  hard: 1039999
+
+# Process limits for high-concurrency environments
+common_process_limits:
+  soft: 9999999
+  hard: 9999999
 
 # Logging
 common_enable_audit: true
@@ -89,7 +119,8 @@ common_dns_servers:
 
 # Miscellaneous
 common_hostname_environment: production
-common_ntp_synchronize_on_boot: true
+common_chrony_synchronize_on_boot: true
+common_chrony_rtc_sync: true
 common_disable_swap: false
 
 ################################################################################

@@ -11,7 +11,7 @@
     - core_packages.yml
     - python.yml
     - manage_users.yml
-    - ntp.yml
+    - chrony.yml
     - ssh_hardening.yml
     - sysctl.yml
     - audit.yml
