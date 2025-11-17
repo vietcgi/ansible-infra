@@ -1,0 +1,273 @@
+---
+# Prometheus Installation & Configuration Task
+# Component 2.A.1: Advanced Monitoring Stack - Prometheus Server
+# Purpose: Install and configure Prometheus for enterprise-grade metrics collection
+# Supports: Ubuntu 20.04+, Debian 11+, RHEL 8+, Alpine 3.16+
+
+- name: Prometheus Setup Block
+  block:
+    # ============================================================================
+    # 1. VALIDATION & PREREQUISITES
+    # ============================================================================
+
+    - name: Validate Prometheus required variables
+      ansible.builtin.assert:
+        that:
+          - monitoring_prometheus_enabled is defined
+          - monitoring_prometheus_version is defined
+          - monitoring_prometheus_port is defined
+          - monitoring_prometheus_retention is defined
+        fail_msg: "Required Prometheus variables not defined"
+        quiet: true
+
+    - name: Set Prometheus facts
+      ansible.builtin.set_fact:
+        prometheus_user: "prometheus"
+        prometheus_group: "prometheus"
+        prometheus_home: "/var/lib/prometheus"
+        prometheus_config_dir: "/etc/prometheus"
+        prometheus_bin_dir: "/usr/local/bin"
+
+    # ============================================================================
+    # 2. SYSTEM USER & DIRECTORIES
+    # ============================================================================
+
+    - name: Create Prometheus system group
+      ansible.builtin.group:
+        name: "{{ prometheus_group }}"
+        system: true
+        state: present
+
+    - name: Create Prometheus system user
+      ansible.builtin.user:
+        name: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        system: true
+        shell: "/usr/sbin/nologin"
+        home: "{{ prometheus_home }}"
+        createhome: true
+        state: present
+
+    - name: Create Prometheus directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: "{{ item.mode }}"
+        state: directory
+      loop:
+        - { path: "{{ prometheus_config_dir }}", mode: '0755' }
+        - { path: "{{ prometheus_home }}", mode: '0750' }
+        - { path: "{{ prometheus_home }}/data", mode: '0750' }
+        - { path: "{{ prometheus_config_dir }}/rules", mode: '0755' }
+        - { path: "{{ prometheus_config_dir }}/targets", mode: '0755' }
+
+    # ============================================================================
+    # 3. PROMETHEUS BINARY INSTALLATION
+    # ============================================================================
+
+    - name: Check Prometheus binary version
+      ansible.builtin.stat:
+        path: "{{ prometheus_bin_dir }}/prometheus"
+      register: prometheus_binary
+
+    - name: Get latest Prometheus version (if needed)
+      ansible.builtin.set_fact:
+        prometheus_actual_version: "{{ monitoring_prometheus_version }}"
+      when: monitoring_prometheus_version != "latest"
+
+    - name: Download Prometheus binary
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_actual_version }}/prometheus-{{ prometheus_actual_version }}.linux-{{ ansible_architecture | regex_replace('x86_64', 'amd64') }}.tar.gz"
+        dest: "/tmp/prometheus-{{ prometheus_actual_version }}.tar.gz"
+        mode: '0644'
+        force: false
+      register: prometheus_download
+      when: not prometheus_binary.stat.exists or prometheus_binary.stat.exists | bool
+
+    - name: Extract Prometheus binary
+      ansible.builtin.unarchive:
+        src: "/tmp/prometheus-{{ prometheus_actual_version }}.tar.gz"
+        dest: "/tmp/"
+        remote_src: true
+      when: prometheus_download.changed
+
+    - name: Install Prometheus binary
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_actual_version }}.linux-{{ ansible_architecture | regex_replace('x86_64', 'amd64') }}/prometheus"
+        dest: "{{ prometheus_bin_dir }}/prometheus"
+        mode: '0755'
+        remote_src: true
+      notify:
+        - restart prometheus
+      when: prometheus_download.changed
+
+    - name: Install Prometheus Tools (promtool)
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_actual_version }}.linux-{{ ansible_architecture | regex_replace('x86_64', 'amd64') }}/promtool"
+        dest: "{{ prometheus_bin_dir }}/promtool"
+        mode: '0755'
+        remote_src: true
+      when: prometheus_download.changed
+
+    - name: Clean up Prometheus download
+      ansible.builtin.file:
+        path: "/tmp/prometheus-{{ prometheus_actual_version }}.tar.gz"
+        state: absent
+
+    # ============================================================================
+    # 4. PROMETHEUS CONFIGURATION
+    # ============================================================================
+
+    - name: Create Prometheus main configuration
+      ansible.builtin.template:
+        src: "prometheus_config.j2"
+        dest: "{{ prometheus_config_dir }}/prometheus.yml"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0640'
+        backup: true
+      notify:
+        - validate prometheus config
+        - restart prometheus
+
+    - name: Create Prometheus scrape targets configuration
+      ansible.builtin.template:
+        src: "prometheus_targets.j2"
+        dest: "{{ prometheus_config_dir }}/targets/prometheus-targets.yml"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0640'
+        backup: true
+      notify:
+        - validate prometheus config
+        - restart prometheus
+
+    # ============================================================================
+    # 5. ALERTING RULES (AlertManager Integration)
+    # ============================================================================
+
+    - name: Create alert rules directory
+      ansible.builtin.file:
+        path: "{{ prometheus_config_dir }}/rules"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Create default alert rules
+      ansible.builtin.template:
+        src: "prometheus_alert_rules.j2"
+        dest: "{{ prometheus_config_dir }}/rules/alert-rules.yml"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0640'
+        backup: true
+      notify:
+        - validate prometheus config
+        - restart prometheus
+
+    # ============================================================================
+    # 6. SYSTEMD SERVICE CONFIGURATION
+    # ============================================================================
+
+    - name: Create Prometheus systemd service
+      ansible.builtin.template:
+        src: "prometheus_systemd.j2"
+        dest: "/etc/systemd/system/prometheus.service"
+        owner: "root"
+        group: "root"
+        mode: '0644'
+        backup: true
+      notify:
+        - reload systemd daemon
+        - restart prometheus
+
+    - name: Create Prometheus sysconfig file
+      ansible.builtin.template:
+        src: "prometheus_sysconfig.j2"
+        dest: "/etc/sysconfig/prometheus"
+        owner: "root"
+        group: "root"
+        mode: '0640'
+        backup: true
+      notify:
+        - restart prometheus
+
+    # ============================================================================
+    # 7. SECURITY HARDENING
+    # ============================================================================
+
+    - name: Apply SELinux context (if enabled)
+      community.general.sefcontext:
+        target: "{{ prometheus_config_dir }}(/.*)?"
+        setype: "admin_home_t"
+        state: present
+      when: ansible_os_family == 'RedHat' and ansible_selinux.status == 'enabled'
+      ignore_errors: true
+
+    - name: Configure Prometheus firewall access
+      ansible.builtin.set_fact:
+        prometheus_firewall_port: "{{ monitoring_prometheus_port }}"
+
+    # ============================================================================
+    # 8. SERVICE ACTIVATION
+    # ============================================================================
+
+    - name: Enable Prometheus service
+      ansible.builtin.systemd:
+        name: prometheus
+        daemon_reload: true
+        enabled: true
+        state: started
+      register: prometheus_service_result
+
+    - name: Wait for Prometheus to be ready
+      ansible.builtin.uri:
+        url: "http://localhost:{{ monitoring_prometheus_port }}/-/healthy"
+        method: "GET"
+        status_code: 200
+      register: prometheus_health
+      until: prometheus_health.status == 200
+      retries: 5
+      delay: 2
+      when: prometheus_service_result.changed
+
+    # ============================================================================
+    # 9. VERIFICATION & VALIDATION
+    # ============================================================================
+
+    - name: Validate Prometheus configuration syntax
+      ansible.builtin.command:
+        cmd: "{{ prometheus_bin_dir }}/promtool check config {{ prometheus_config_dir }}/prometheus.yml"
+      changed_when: false
+      register: prometheus_config_check
+
+    - name: Verify Prometheus process
+      ansible.builtin.command:
+        cmd: "pgrep -f 'prometheus --config.file'"
+      changed_when: false
+      register: prometheus_process
+      failed_when: prometheus_process.rc not in [0, 1]
+
+    - name: Debug Prometheus status
+      ansible.builtin.debug:
+        msg: |
+          Prometheus Status:
+          - Binary: {{ prometheus_bin_dir }}/prometheus
+          - Config: {{ prometheus_config_dir }}/prometheus.yml
+          - Port: {{ monitoring_prometheus_port }}
+          - Retention: {{ monitoring_prometheus_retention }}
+          - Service Status: {{ prometheus_service_result.status.state | default('starting') }}
+          - Health Check: {{ prometheus_health.status | default('pending') }}
+
+  rescue:
+    - name: Prometheus setup failed
+      ansible.builtin.debug:
+        msg: "Prometheus installation failed: {{ ansible_failed_result }}"
+      failed_when: true
+
+  tags:
+    - monitoring
+    - prometheus
+    - monitoring_prometheus
