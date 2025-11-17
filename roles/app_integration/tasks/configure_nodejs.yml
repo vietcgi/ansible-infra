@@ -77,8 +77,8 @@
 
       module.exports = Auth0Config;
     dest: "{{ app_root_path }}/auth0.config.js"
-    owner: "{{ app_config_user | default('root') }}"
-    group: "{{ app_config_group | default('root') }}"
+    owner: "root"
+    group: "root"
     mode: "0644"
     backup: yes
   register: nodejs_config_result

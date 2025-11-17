@@ -19,9 +19,146 @@
     - auth0
     - users
 
-# TODO: Implement actual user creation via Auth0 API
-# This will use auth0-python SDK to:
-# 1. Create user with email/password
-# 2. Set user metadata
-# 3. Assign to roles
-# 4. Send password reset email if needed
+- name: Create temporary Python script for user management
+  copy:
+    content: |
+      #!/usr/bin/env python3
+      import sys
+      import json
+      import requests
+
+      try:
+          domain = "{{ auth0_domain }}"
+          client_id = "{{ auth0_client_id }}"
+          client_secret = "{{ auth0_client_secret }}"
+
+          # Get management API token
+          token_url = f'https://{domain}/oauth/token'
+          payload = {
+              'client_id': client_id,
+              'client_secret': client_secret,
+              'audience': f'https://{domain}/api/v2/',
+              'grant_type': 'client_credentials'
+          }
+
+          token_response = requests.post(token_url, json=payload)
+          if token_response.status_code != 200:
+              raise Exception(f"Failed to get token: {token_response.text}")
+
+          token = token_response.json().get('access_token')
+          headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+
+          # Parse users from JSON
+          users = json.loads("""{{ auth0_users | to_json }}""")
+
+          created_users = []
+          for user in users:
+              try:
+                  # Check if user already exists
+                  response = requests.get(f'https://{domain}/api/v2/users', headers=headers, params={'q': f'email:"{user["email"]}"'})
+                  existing = response.json()
+                  user_exists = isinstance(existing, list) and len(existing) > 0
+
+                  if user_exists:
+                      print(f"INFO: User '{user['email']}' already exists, skipping")
+                      existing_user = existing[0]
+                      created_users.append({
+                          'email': user['email'],
+                          'user_id': existing_user.get('user_id'),
+                          'status': 'existing'
+                      })
+                  else:
+                      # Create new user
+                      user_data = {
+                          'email': user['email'],
+                          'password': user['password'],
+                          'connection': 'Username-Password-Authentication',
+                          'user_metadata': {},
+                          'email_verified': user.get('email_verified', False),
+                          'given_name': user.get('given_name', ''),
+                          'family_name': user.get('family_name', '')
+                      }
+
+                      result = requests.post(f'https://{domain}/api/v2/users', json=user_data, headers=headers).json()
+
+                      if 'statusCode' in result and result['statusCode'] != 201:
+                          raise Exception(f"Failed to create user: {result.get('message', str(result))}")
+
+                      print(f"SUCCESS: Created user '{user['email']}'")
+                      print(f"  User ID: {result.get('user_id')}")
+
+                      created_users.append({
+                          'email': user['email'],
+                          'user_id': result.get('user_id'),
+                          'status': 'created'
+                      })
+
+              except Exception as e:
+                  print(f"ERROR: Failed to create user '{user['email']}': {str(e)}")
+                  sys.exit(1)
+
+          # Output created users as JSON
+          print("\n=== CREATED_USERS_JSON_START ===")
+          print(json.dumps(created_users, indent=2))
+          print("=== CREATED_USERS_JSON_END ===")
+          sys.exit(0)
+
+      except Exception as e:
+          print(f"ERROR: {str(e)}")
+          sys.exit(1)
+    dest: /tmp/auth0_create_users.py
+    mode: '0755'
+  tags:
+    - auth0
+    - users
+
+- name: Execute user creation script
+  shell: python3 /tmp/auth0_create_users.py
+  register: auth0_user_creation
+  failed_when: auth0_user_creation.rc != 0
+  changed_when: "'created' in auth0_user_creation.stdout.lower()"
+  tags:
+    - auth0
+    - users
+
+- name: Extract JSON from user script output
+  shell: |
+    echo '{{ auth0_user_creation.stdout }}' | sed -n '/=== CREATED_USERS_JSON_START ===/,/=== CREATED_USERS_JSON_END ===/p' | sed '1d;$d'
+  register: extracted_users_json
+  changed_when: false
+  tags:
+    - auth0
+    - users
+
+- name: Parse extracted JSON into users list
+  set_fact:
+    created_auth0_users: "{{ extracted_users_json.stdout | from_json }}"
+  tags:
+    - auth0
+    - users
+
+- name: Display created users
+  debug:
+    msg: |
+      ========================================
+      Auth0 Users Created/Verified
+      ========================================
+      {% for user in created_auth0_users %}
+
+      User: {{ user.email }}
+      User ID: {{ user.user_id }}
+      Status: {{ user.status }}
+      {% endfor %}
+
+      Users are now available to login to Auth0.
+  tags:
+    - auth0
+    - users
+
+- name: Clean up user script
+  file:
+    path: /tmp/auth0_create_users.py
+    state: absent
+  tags:
+    - auth0
+    - users

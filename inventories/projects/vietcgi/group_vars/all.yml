@@ -93,15 +93,19 @@ auth0_users:
 auth0_roles:
   - name: "admin"
     description: "Administrator - Full access"
+    permissions: []
 
   - name: "manager"
     description: "Manager - Team management"
+    permissions: []
 
   - name: "user"
     description: "Standard User - Basic access"
+    permissions: []
 
   - name: "viewer"
     description: "Viewer - Read-only access"
+    permissions: []
 
 # MFA and Security
 auth0_mfa_enabled: true

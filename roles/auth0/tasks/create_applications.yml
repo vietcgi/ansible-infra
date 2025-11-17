@@ -112,9 +112,18 @@
     - auth0
     - applications
 
-- name: Extract created apps from output
+- name: Extract JSON from script output
+  shell: |
+    echo '{{ auth0_app_creation.stdout }}' | sed -n '/=== CREATED_APPS_JSON_START ===/,/=== CREATED_APPS_JSON_END ===/p' | sed '1d;$d'
+  register: extracted_json
+  changed_when: false
+  tags:
+    - auth0
+    - applications
+
+- name: Parse extracted JSON into apps list
   set_fact:
-    created_auth0_apps: "{{ auth0_app_creation.stdout | regex_search('=== CREATED_APPS_JSON_START ===(.*)=== CREATED_APPS_JSON_END ===', '\\1') | first | from_json }}"
+    created_auth0_apps: "{{ extracted_json.stdout | from_json }}"
   tags:
     - auth0
     - applications
