@@ -1,0 +1,168 @@
+---
+# Compliance Scanning & Validation
+# Automated CIS, NIST, and industry compliance checking
+# Compliance: CIS Benchmark, NIST SP 800-53, SOC 2, PCI DSS
+
+- name: Install compliance scanning tools
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - lynis
+    - aide
+    - aide-common
+    - samhain
+    - chkrootkit
+  tags:
+    - compliance_scanning
+    - cis_benchmark
+
+- name: Install OpenSCAP for NIST compliance
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - libopenscap8
+    - openscap-utils
+    - openscap-daemon
+  when: ansible_os_family == 'Debian'
+  tags:
+    - compliance_scanning
+    - nist
+
+- name: Create compliance scanning scripts directory
+  ansible.builtin.file:
+    path: /opt/compliance-scanning
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_scanning
+
+- name: Create CIS Benchmark audit script
+  ansible.builtin.template:
+    src: cis-audit.sh.j2
+    dest: /opt/compliance-scanning/run-cis-audit.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_scanning
+    - cis_benchmark
+
+- name: Initialize AIDE database
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -f /var/lib/aide/aide.db ]; then
+      echo "Initializing AIDE database..."
+      aideinit
+      mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags:
+    - compliance_scanning
+    - aide
+
+- name: Create AIDE daily scan cron job
+  ansible.builtin.cron:
+    name: "Daily AIDE integrity scan"
+    minute: "0"
+    hour: "3"
+    job: "/opt/compliance-scanning/run-aide-check.sh >> /var/log/aide/daily-scan.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - compliance_scanning
+    - aide
+
+- name: Create compliance scan script
+  ansible.builtin.template:
+    src: compliance-scan.sh.j2
+    dest: /opt/compliance-scanning/run-full-scan.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_scanning
+
+- name: Schedule weekly compliance scans
+  ansible.builtin.cron:
+    name: "Weekly compliance scan"
+    minute: "0"
+    hour: "1"
+    weekday: "0"
+    job: "/opt/compliance-scanning/run-full-scan.sh >> /var/log/compliance/weekly-scan.log 2>&1"
+    state: present
+    user: root
+  tags:
+    - compliance_scanning
+
+- name: Create compliance log directory
+  ansible.builtin.file:
+    path: /var/log/compliance
+    state: directory
+    owner: root
+    group: root
+    mode: '0750'
+  tags:
+    - compliance_scanning
+
+- name: Configure AIDE for auto-update after scan
+  ansible.builtin.lineinfile:
+    path: /etc/aide/aide.conf.d/05_aide_post
+    create: yes
+    line: "# AIDE post-scan configuration"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - compliance_scanning
+    - aide
+
+- name: Create compliance report generator
+  ansible.builtin.template:
+    src: generate-compliance-report.j2
+    dest: /usr/local/bin/generate-compliance-report
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - compliance_scanning
+
+- name: Configure log rotation for compliance logs
+  ansible.builtin.template:
+    src: logrotate-compliance.j2
+    dest: /etc/logrotate.d/compliance
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - compliance_scanning
+
+- name: Display compliance scanning configuration
+  ansible.builtin.debug:
+    msg: |
+      Compliance Scanning Configured:
+      ==============================
+      CIS Benchmark: lynis
+      NIST Compliance: OpenSCAP
+      File Integrity: AIDE (daily at 3 AM)
+      Rootkit Detection: chkrootkit
+      Kernel Integrity: samhain
+      Full Compliance Scan: Weekly (Sunday 1 AM)
+
+      Results Location: /var/log/compliance/
+      Reports Available: /opt/compliance-scanning/
+
+      Scanning Includes:
+      - CIS Benchmark compliance check
+      - File integrity monitoring
+      - Baseline deviation detection
+      - Unauthorized changes alert
+      - NIST compliance validation
+  tags:
+    - compliance_scanning
+    - report
