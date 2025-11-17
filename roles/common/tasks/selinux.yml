@@ -1,0 +1,316 @@
+---
+# SELinux MAC (Mandatory Access Control) Configuration
+# Enforces security policies on RHEL/CentOS systems
+# Provides fine-grained access control and mandatory policies
+
+- name: Check SELinux prerequisites
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == 'RedHat'
+    fail_msg: "SELinux is only supported on RHEL/CentOS systems"
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - always
+
+- name: Install SELinux packages
+  block:
+    - name: Install SELinux core packages
+      ansible.builtin.package:
+        name:
+          - selinux-policy
+          - selinux-policy-devel
+          - policycoreutils
+          - policycoreutils-python-utils
+          - selinux-policy-targeted
+          - libselinux-utils
+        state: present
+
+    - name: Install SELinux optional packages
+      ansible.builtin.package:
+        name:
+          - selinux-gui
+          - setroubleshoot
+        state: present
+      when: selinux_install_gui | default(false) | bool
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - packages
+
+- name: Configure SELinux kernel parameters
+  block:
+    - name: Enable SELinux in GRUB configuration
+      ansible.builtin.lineinfile:
+        path: /etc/default/grub
+        regexp: "^GRUB_CMDLINE_LINUX="
+        line: "GRUB_CMDLINE_LINUX=\"selinux=1 security=selinux enforcing={{ selinux_mode | default('enforcing') }}\""
+        state: present
+      notify: rebuild grub
+
+    - name: Rebuild GRUB configuration
+      ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+      when: ansible_os_family == 'RedHat'
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - kernel
+    - configuration
+
+- name: Set SELinux policy and mode
+  block:
+    - name: Set SELinux policy type
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: "^SELINUX="
+        line: "SELINUX={{ selinux_mode | default('enforcing') }}"
+        state: present
+      register: selinux_mode_change
+
+    - name: Set SELinux policy
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: "^SELINUXTYPE="
+        line: "SELINUXTYPE={{ selinux_policy | default('targeted') }}"
+        state: present
+      register: selinux_policy_change
+
+    - name: Disable SELinux temporarily (for immediate effect without reboot)
+      ansible.builtin.command: setenforce 0
+      when:
+        - selinux_mode_change is changed or selinux_policy_change is changed
+        - not selinux_reboot_required | default(false) | bool
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - configuration
+
+- name: Configure SELinux file contexts
+  block:
+    - name: Restore SELinux contexts for system directories
+      ansible.builtin.command: "restorecon -Rv /{{ item }}"
+      loop:
+        - boot
+        - etc
+        - root
+      when: selinux_restore_contexts | default(true) | bool
+      changed_when: false
+      failed_when: false
+
+    - name: Configure SELinux file context for custom directories
+      ansible.builtin.command: "semanage fcontext -a -t {{ item.type }} '{{ item.path }}'"
+      loop: "{{ selinux_custom_contexts | default([]) }}"
+      when: selinux_custom_contexts is defined
+      changed_when: false
+      failed_when: false
+
+    - name: Apply SELinux file contexts
+      ansible.builtin.command: "restorecon -Rv {{ item.path }}"
+      loop: "{{ selinux_custom_contexts | default([]) }}"
+      when: selinux_custom_contexts is defined
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - contexts
+    - configuration
+
+- name: Configure SELinux boolean settings
+  block:
+    - name: Set SELinux booleans for common services
+      ansible.builtin.seboolean:
+        name: "{{ item.name }}"
+        state: "{{ item.state }}"
+        persistent: yes
+      loop: "{{ selinux_booleans | default([]) }}"
+      when: selinux_booleans is defined
+
+    - name: Enable common SELinux booleans
+      ansible.builtin.seboolean:
+        name: "{{ item }}"
+        state: yes
+        persistent: yes
+      loop:
+        - httpd_can_network_connect
+        - httpd_can_network_relay
+        - httpd_use_nfs
+        - allow_user_tcp_ports
+      when: selinux_enable_common_booleans | default(true) | bool
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - booleans
+    - configuration
+
+- name: Configure SELinux user mappings
+  block:
+    - name: Create custom SELinux user mappings
+      ansible.builtin.command: "semanage user -a -R '{{ item.role }}' -s {{ item.level | default('s0-s0:c0.c1023') }} '{{ item.username }}'"
+      loop: "{{ selinux_user_mappings | default([]) }}"
+      when: selinux_user_mappings is defined
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - users
+    - configuration
+
+- name: Enable SELinux audit logging
+  block:
+    - name: Configure auditd for SELinux
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/selinux.rules
+        state: present
+        create: yes
+        line: "-w /etc/selinux/ -p wa -k selinux_changes"
+        owner: root
+        group: root
+        mode: '0640'
+      notify: restart auditd
+
+    - name: Enable SELinux denial logging
+      ansible.builtin.lineinfile:
+        path: /etc/audit/rules.d/selinux.rules
+        insertafter: "selinux_changes"
+        line: "-a always,exit -F arch=b64 -S execve -F uid!=0 -F auid!=-1 -F auid!=4294967295 -k selinux_execve"
+        state: present
+      notify: restart auditd
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - audit
+    - logging
+
+- name: Create SELinux policy modules
+  block:
+    - name: Create SELinux policy directory
+      ansible.builtin.file:
+        path: /usr/share/selinux/custom
+        owner: root
+        group: root
+        mode: '0755'
+        state: directory
+
+    - name: Deploy custom SELinux policies
+      ansible.builtin.copy:
+        dest: "/usr/share/selinux/custom/{{ item.name }}.te"
+        content: "{{ item.policy }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ selinux_custom_policies | default([]) }}"
+      when: selinux_custom_policies is defined
+
+    - name: Compile and load custom policies
+      ansible.builtin.shell: |
+        cd /usr/share/selinux/custom
+        checkmodule -M -m -o {{ item.name }}.mod {{ item.name }}.te
+        semodule_package -o {{ item.name }}.pp -m {{ item.name }}.mod
+        semodule -i {{ item.name }}.pp
+      loop: "{{ selinux_custom_policies | default([]) }}"
+      when: selinux_custom_policies is defined
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - policies
+    - configuration
+
+- name: Verify SELinux configuration
+  block:
+    - name: Check SELinux status
+      ansible.builtin.command: getenforce
+      register: selinux_status
+      changed_when: false
+
+    - name: Get SELinux policy information
+      ansible.builtin.command: semodule -l
+      register: selinux_modules
+      changed_when: false
+
+    - name: Display SELinux status
+      ansible.builtin.debug:
+        msg: "SELinux Status: {{ selinux_status.stdout }}"
+
+    - name: Check for SELinux denials
+      ansible.builtin.shell: ausearch -k selinux_denials 2>/dev/null | tail -5
+      register: selinux_denials
+      changed_when: false
+      failed_when: false
+
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - validate
+
+- name: Configure SELinux log rotation
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/selinux
+    content: |
+      /var/log/audit/audit.log {
+        daily
+        rotate 30
+        missingok
+        notifempty
+        compress
+        delaycompress
+        copytruncate
+        create 0640 root root
+      }
+    owner: root
+    group: root
+    mode: '0644'
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - logging
+
+- name: Display SELinux configuration summary
+  ansible.builtin.debug:
+    msg: |
+      SELinux Configuration:
+      =====================
+      Status: {{ 'Enabled' if selinux_enabled | bool else 'Disabled' }}
+      Mode: {{ selinux_mode | default('enforcing') }}
+      Policy Type: {{ selinux_policy | default('targeted') }}
+      Audit Logging: {{ 'Enabled' if selinux_enabled else 'Disabled' }}
+
+      SELinux Features:
+      - Mandatory Access Control (MAC)
+      - Role-based access control (RBAC)
+      - Type enforcement
+      - Multi-level security (if MLS policy)
+      - Audit logging via auditd
+
+      Policy Locations:
+      - Main policy: /etc/selinux/
+      - Modules: /usr/share/selinux/
+      - Custom policies: /usr/share/selinux/custom/
+      - Configuration: /etc/selinux/config
+
+      Verification Commands:
+      - Status: getenforce
+      - Config: cat /etc/selinux/config
+      - Modules: semodule -l
+      - Audit logs: ausearch -k selinux_denials
+      - Denials: semodule -D (debug mode)
+    verbosity: 1
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+

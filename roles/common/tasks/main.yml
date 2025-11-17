@@ -27,6 +27,8 @@
     - sudo_hardening.yml
     - vault.yml
     - backup.yml
+    - apparmor.yml
+    - selinux.yml
 
 - name: Display role completion summary
   debug:
