@@ -67,15 +67,11 @@ provisioner:
     converge: converge.yml
     prepare: prepare.yml
     verify: verify.yml
-  config_options:
-    defaults:
-      # Enable pipelining for faster execution
-      pipelining: true
-      # Use more aggressive facts caching
-      gather_facts: smart
-      fact_caching: jsonfile
-      fact_caching_connection: /tmp/molecule/ansible_facts
-      fact_caching_timeout: 86400
+  ansible_args:
+    - --extra-vars
+    - ansible_python_interpreter=/usr/bin/python3
+  env:
+    ANSIBLE_PIPELINING: "True"
   inventory:
     group_vars:
       all:
