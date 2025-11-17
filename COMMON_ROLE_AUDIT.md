@@ -13,8 +13,8 @@ The common role has a three-phase architecture:
 - **PHASE 2 & 3** (Mostly disabled): Advanced features
 
 **Total Tasks**: 21 main tasks + 45+ wrapper tasks
-**Default Enabled**: 12 core + 8 PHASE 1 = ~20 tasks enabled by default
-**Disabled by Default**: ~25 advanced tasks requiring explicit enablement
+**Default Enabled**: 13 core + 6 PHASE 1 = ~19 tasks enabled by default (lightweight foundation)
+**Disabled by Default**: ~26 advanced tasks requiring explicit enablement
 
 ---
 
@@ -64,9 +64,9 @@ These tasks run conditionally based on enable flags:
 | Task | Enable Flag | Default | Time | Status | Comment |
 |------|-------------|---------|------|--------|---------|
 | Metrics (node_exporter) | `metrics_enabled` | **true** | 3 min | Enabled | Port 9100 (Prometheus format) |
-| Prometheus Wrapper | `monitoring_prometheus_enabled` | **true** | 5 min | Enabled | Full Prometheus stack |
-| Grafana Wrapper | `monitoring_grafana_enabled` | **true** | 8 min | Enabled | Visualization on port 3000 |
-| AlertManager Wrapper | `monitoring_alertmanager_enabled` | **true** | 5 min | Enabled | Alert aggregation on port 9093 |
+| Prometheus Wrapper | `monitoring_prometheus_enabled` | false | 5 min | Disabled | Full Prometheus stack |
+| Grafana Wrapper | `monitoring_grafana_enabled` | false | 8 min | Disabled | Visualization on port 3000 |
+| AlertManager Wrapper | `monitoring_alertmanager_enabled` | false | 5 min | Disabled | Alert aggregation on port 9093 |
 
 ### Optional Services
 
@@ -95,14 +95,14 @@ Already counted above in PHASE 1 (Prometheus/Grafana/AlertManager)
 
 | Task | Enable Flag | Default | Time | Status | Comment |
 |------|-------------|---------|------|--------|---------|
-| Docker Installation | `container_docker_enabled` | **true** | 10 min | Enabled | Latest Docker version |
-| Docker Compose | `container_docker_compose_enabled` | **true** | 3 min | Enabled | Multi-container orchestration |
-| Docker Security | (integrated) | **true** | N/A | Enabled | AppArmor, seccomp, capabilities |
+| Docker Installation | `container_docker_enabled` | false | 10 min | Disabled | Latest Docker version |
+| Docker Compose | `container_docker_compose_enabled` | false | 3 min | Disabled | Multi-container orchestration |
+| Docker Security | (integrated) | N/A | N/A | N/A | AppArmor, seccomp, capabilities (enabled when Docker is) |
 
 **PHASE 2.B Summary**:
 - Total tasks: 3
-- Enabled by default: 3
-- Ready for container workloads immediately
+- Enabled by default: 0
+- Requires explicit enablement for container workloads
 
 ---
 
@@ -191,23 +191,26 @@ Already counted above in PHASE 1 (Prometheus/Grafana/AlertManager)
 
 ### Enabled by Default (Can Disable)
 ```yaml
-# Security & Monitoring (enabled by default)
+# Security & Monitoring (enabled by default - lightweight)
 firewall_enabled: true                          # Firewall
 fail2ban_enabled: true                          # Intrusion prevention
 sudo_hardening_enabled: true                    # Sudo hardening
 common_chrony_enabled: true                     # Time sync
 common_enable_audit: true                       # Audit daemon
-metrics_enabled: true                           # Prometheus metrics
-monitoring_prometheus_enabled: true             # Prometheus server
-monitoring_grafana_enabled: true                # Grafana UI
-monitoring_alertmanager_enabled: true           # AlertManager
-monitoring_node_exporter_enabled: true          # Node metrics
-container_docker_enabled: true                  # Docker
-container_docker_compose_enabled: true          # Docker Compose
+metrics_enabled: true                           # Prometheus metrics (node_exporter only)
 ```
 
 ### Disabled by Default (Must Enable)
 ```yaml
+# Monitoring Stack (disabled by default - enable if needed)
+monitoring_prometheus_enabled: false            # Prometheus server
+monitoring_grafana_enabled: false               # Grafana UI
+monitoring_alertmanager_enabled: false          # AlertManager
+
+# Containers (disabled by default - enable if needed)
+container_docker_enabled: false                 # Docker
+container_docker_compose_enabled: false         # Docker Compose
+
 # Enterprise Features (disabled by default)
 apparmor_enabled: false                         # AppArmor (Ubuntu/Debian)
 selinux_enabled: false                          # SELinux (RHEL/CentOS)

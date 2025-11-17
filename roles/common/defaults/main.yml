@@ -319,7 +319,7 @@ selinux_mode: "enforcing"                 # enforcing, permissive, disabled
 ################################################################################
 
 ## Prometheus Configuration
-monitoring_prometheus_enabled: true
+monitoring_prometheus_enabled: false
 monitoring_prometheus_version: "2.48.1"
 monitoring_prometheus_port: 9090
 monitoring_prometheus_install_dir: "/usr/local/bin"
@@ -345,7 +345,7 @@ monitoring_prometheus_custom_rules: []
 monitoring_prometheus_tls_config: {}
 
 ## Grafana Configuration
-monitoring_grafana_enabled: true
+monitoring_grafana_enabled: false
 monitoring_grafana_version: "10.2.2"
 monitoring_grafana_port: 3000
 monitoring_grafana_domain: "localhost"
@@ -361,7 +361,7 @@ monitoring_grafana_custom_dashboards: []
 monitoring_grafana_auth_type: "basic"  # Options: basic, oauth2, ldap
 
 ## AlertManager Configuration
-monitoring_alertmanager_enabled: true
+monitoring_alertmanager_enabled: false
 monitoring_alertmanager_version: "0.26.0"
 monitoring_alertmanager_port: 9093
 monitoring_alertmanager_install_dir: "/usr/local/bin"
@@ -417,9 +417,9 @@ monitoring_remote_write_max_samples: 500
 # ============================================================================
 
 ## Docker Installation & Runtime
-container_docker_enabled: true
+container_docker_enabled: false
 container_docker_version: "latest"
-container_docker_compose_enabled: true
+container_docker_compose_enabled: false
 container_docker_data_root: "/var/lib/docker"
 container_docker_storage_driver: "overlay2"
 container_docker_live_restore: true

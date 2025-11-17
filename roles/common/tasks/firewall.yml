@@ -52,12 +52,14 @@
       changed_when: false
       when: firewall_allow_icmp | default(true)
 
-    - name: Add custom firewall rules
+    - name: Add custom firewall rules (ports and IPs)
       community.general.ufw:
         rule: "{{ item.rule }}"
         port: "{{ item.port | default(omit) }}"
         proto: "{{ item.proto | default('tcp') }}"
         direction: "{{ item.direction | default('in') }}"
+        from_ip: "{{ item.from_ip | default(omit) }}"
+        to_ip: "{{ item.to_ip | default(omit) }}"
         comment: "{{ item.comment | default('') }}"
       loop: "{{ firewall_custom_rules | default([]) }}"
       when: firewall_custom_rules is defined and firewall_custom_rules | length > 0
@@ -137,6 +139,16 @@
         timeout: "{{ item.timeout | default(0) }}"
       loop: "{{ firewall_ports | default([]) }}"
       when: firewall_ports is defined and firewall_ports | length > 0
+      notify: restart firewalld
+
+    - name: Add IP-based filtering rules (rich rules)
+      ansible.posix.firewalld:
+        rich_rule: "{{ item }}"
+        permanent: yes
+        state: enabled
+        zone: "{{ firewall_zone | default('public') }}"
+      loop: "{{ firewall_rich_rules | default([]) }}"
+      when: firewall_rich_rules is defined and firewall_rich_rules | length > 0
       notify: restart firewalld
 
     - name: Enable ICMP (ping) with rate limiting
