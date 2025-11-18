@@ -28,6 +28,7 @@
   homebrew:
     update_homebrew: yes
   when: ansible_os_family == "Darwin"
+  failed_when: false
   tags:
     - packages
     - system-update
