@@ -1,0 +1,451 @@
+---
+# Cloudflare Integration - Drift Detection Playbook
+# Detects manual changes in Cloudflare that differ from Ansible state
+# Prevents configuration drift and unauthorized changes
+#
+# Usage:
+#   ansible-playbook examples/cloudflare_drift_detection.yml --ask-vault-pass
+
+- name: Cloudflare Configuration Drift Detection
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    cloudflare_api_token: "{{ vault_cloudflare_api_token | default('') }}"
+    cloudflare_domain: "{{ vault_cloudflare_domain | default('example.com') }}"
+    drift_report_dir: "reports/cloudflare/drift"
+
+  pre_tasks:
+    - name: Display drift detection purpose
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Configuration Drift Detection
+          =========================================
+
+          This playbook detects manual changes in Cloudflare that differ from
+          what Ansible expects to deploy.
+
+          Drift = Unexpected differences between code and live configuration
+
+          Examples of drift:
+          - DNS record modified in dashboard without code change
+          - WAF rule disabled manually
+          - SSL/TLS mode changed in dashboard
+          - Cache settings adjusted by someone else
+          - Security policy updated via UI
+
+          Result: Report showing what changed and who might have changed it
+      tags:
+        - drift_detection
+        - always
+
+    - name: Create drift report directory
+      ansible.builtin.file:
+        path: "{{ drift_report_dir }}"
+        state: directory
+        mode: '0755'
+      tags:
+        - drift_detection
+
+  tasks:
+    # ========================================================================
+    # Get Current Cloudflare State
+    # ========================================================================
+
+    - name: Get zone ID
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones?name={{ cloudflare_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: zone_lookup
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+
+    - name: Set zone ID fact
+      ansible.builtin.set_fact:
+        zone_id: "{{ zone_lookup.json.result[0].id }}"
+      tags:
+        - drift_detection
+
+    # ========================================================================
+    # Compare DNS Records
+    # ========================================================================
+
+    - name: Get current DNS records from Cloudflare
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ zone_id }}/dns_records?per_page=500"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: current_dns_records
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+        - dns
+
+    - name: Get expected DNS records from variables
+      ansible.builtin.set_fact:
+        expected_dns_records: "{{ cloudflare_dns_records | default([]) }}"
+      tags:
+        - drift_detection
+        - dns
+
+    - name: Detect DNS record drift
+      ansible.builtin.set_fact:
+        dns_drift: []
+      tags:
+        - drift_detection
+        - dns
+
+    - name: Check for DNS records not in code (manual additions)
+      ansible.builtin.set_fact:
+        dns_drift: "{{ dns_drift + [item] }}"
+      loop: "{{ current_dns_records.json.result }}"
+      when: |
+        item.name not in (expected_dns_records | map(attribute='record') |
+                         map('regex_replace', '^@$', cloudflare_domain) |
+                         map('regex_replace', '^(.+)$', '\1.' + cloudflare_domain) | list)
+      tags:
+        - drift_detection
+        - dns
+
+    - name: Display DNS drift
+      ansible.builtin.debug:
+        msg: |
+          DNS Record Drift Detected!
+
+          Records in Cloudflare but NOT in code ({{ dns_drift | length }}):
+          {% for record in dns_drift %}
+          - {{ record.name }} ({{ record.type }}) → {{ record.content }}
+            Created: {{ record.created_on }}
+            Modified: {{ record.modified_on }}
+          {% endfor %}
+      when: dns_drift | length > 0
+      tags:
+        - drift_detection
+        - dns
+
+    # ========================================================================
+    # Compare WAF Settings
+    # ========================================================================
+
+    - name: Get current WAF sensitivity
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ zone_id }}/settings/security_level"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: current_waf_sensitivity
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+        - waf
+
+    - name: Check WAF sensitivity drift
+      ansible.builtin.assert:
+        that:
+          - current_waf_sensitivity.json.result.value == cloudflare_waf_sensitivity_level | default('medium')
+        fail_msg: |
+          WAF SENSITIVITY DRIFT DETECTED!
+
+          Current in Cloudflare: {{ current_waf_sensitivity.json.result.value }}
+          Expected in Code: {{ cloudflare_waf_sensitivity_level | default('medium') }}
+
+          Someone may have changed this manually in the dashboard.
+        success_msg: "WAF sensitivity matches code ✓"
+      tags:
+        - drift_detection
+        - waf
+      ignore_errors: true
+      register: waf_drift_check
+
+    # ========================================================================
+    # Compare DDoS Settings
+    # ========================================================================
+
+    - name: Get current DDoS status
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ zone_id }}/settings/advanced_ddos"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: current_ddos_status
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+        - ddos
+
+    - name: Check DDoS status drift
+      ansible.builtin.assert:
+        that:
+          - (current_ddos_status.json.result.value == 'on') == cloudflare_ddos_protection_enabled | default(false)
+        fail_msg: |
+          DDoS PROTECTION DRIFT DETECTED!
+
+          Current in Cloudflare: {{ current_ddos_status.json.result.value }}
+          Expected in Code: {{ 'on' if cloudflare_ddos_protection_enabled | default(false) else 'off' }}
+
+          DDoS protection status doesn't match code configuration.
+        success_msg: "DDoS protection status matches code ✓"
+      tags:
+        - drift_detection
+        - ddos
+      ignore_errors: true
+      register: ddos_drift_check
+
+    # ========================================================================
+    # Compare SSL/TLS Settings
+    # ========================================================================
+
+    - name: Get current SSL/TLS mode
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ zone_id }}/settings/ssl"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: current_ssl_mode
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+        - ssl
+
+    - name: Check SSL/TLS mode drift
+      ansible.builtin.assert:
+        that:
+          - current_ssl_mode.json.result.value == cloudflare_ssl_tls_mode | default('flexible')
+        fail_msg: |
+          SSL/TLS MODE DRIFT DETECTED!
+
+          Current in Cloudflare: {{ current_ssl_mode.json.result.value }}
+          Expected in Code: {{ cloudflare_ssl_tls_mode | default('flexible') }}
+
+          SSL/TLS mode doesn't match code configuration.
+        success_msg: "SSL/TLS mode matches code ✓"
+      tags:
+        - drift_detection
+        - ssl
+      ignore_errors: true
+      register: ssl_drift_check
+
+    # ========================================================================
+    # Compare Cache Settings
+    # ========================================================================
+
+    - name: Get current browser cache TTL
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ zone_id }}/settings/browser_cache_ttl"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+      register: current_cache_ttl
+      changed_when: false
+      no_log: true
+      tags:
+        - drift_detection
+        - cache
+
+    - name: Check cache TTL drift
+      ansible.builtin.assert:
+        that:
+          - (current_cache_ttl.json.result.value | int) == (cloudflare_cache_browser_ttl | default(30) * 60)
+        fail_msg: |
+          CACHE TTL DRIFT DETECTED!
+
+          Current in Cloudflare: {{ current_cache_ttl.json.result.value }} seconds
+          Expected in Code: {{ cloudflare_cache_browser_ttl | default(30) * 60 }} seconds
+
+          Cache TTL doesn't match code configuration.
+        success_msg: "Cache TTL matches code ✓"
+      tags:
+        - drift_detection
+        - cache
+      ignore_errors: true
+      register: cache_drift_check
+
+  post_tasks:
+    - name: Generate drift detection report
+      ansible.builtin.copy:
+        content: |
+          # Cloudflare Configuration Drift Detection Report
+          Generated: {{ ansible_date_time.iso8601 }}
+          Domain: {{ cloudflare_domain }}
+          Zone ID: {{ zone_id }}
+
+          ## Summary
+
+          | Component | Status | Details |
+          |-----------|--------|---------|
+          | DNS Records | {{ "⚠️ DRIFT" if dns_drift | length > 0 else "✓ OK" }} | {{ dns_drift | length }} manual additions |
+          | WAF Sensitivity | {{ "⚠️ DRIFT" if waf_drift_check.failed else "✓ OK" }} | {{ current_waf_sensitivity.json.result.value if waf_drift_check.failed else cloudflare_waf_sensitivity_level | default('medium') }} |
+          | DDoS Protection | {{ "⚠️ DRIFT" if ddos_drift_check.failed else "✓ OK" }} | {{ current_ddos_status.json.result.value if ddos_drift_check.failed else ('on' if cloudflare_ddos_protection_enabled | default(false) else 'off') }} |
+          | SSL/TLS Mode | {{ "⚠️ DRIFT" if ssl_drift_check.failed else "✓ OK" }} | {{ current_ssl_mode.json.result.value if ssl_drift_check.failed else cloudflare_ssl_tls_mode | default('flexible') }} |
+          | Cache TTL | {{ "⚠️ DRIFT" if cache_drift_check.failed else "✓ OK" }} | {{ current_cache_ttl.json.result.value if cache_drift_check.failed else (cloudflare_cache_browser_ttl | default(30) * 60) }} seconds |
+
+          ## DNS Record Drift Details
+
+          {% if dns_drift | length > 0 %}
+          Found {{ dns_drift | length }} DNS record(s) not in code:
+
+          {% for record in dns_drift %}
+          ### {{ record.name }} ({{ record.type }})
+          - Value: {{ record.content }}
+          - TTL: {{ record.ttl }}
+          - Proxied: {{ record.proxied }}
+          - Created: {{ record.created_on }}
+          - Last Modified: {{ record.modified_on }}
+
+          **Action Required**: Either add to code or remove from Cloudflare
+          {% endfor %}
+          {% else %}
+          No DNS record drift detected ✓
+          {% endif %}
+
+          ## WAF Configuration Status
+
+          Current: {{ current_waf_sensitivity.json.result.value }}
+          Expected: {{ cloudflare_waf_sensitivity_level | default('medium') }}
+
+          {% if waf_drift_check.failed %}
+          ⚠️ MISMATCH - Someone may have changed this manually
+          {% else %}
+          ✓ Settings match code
+          {% endif %}
+
+          ## DDoS Protection Status
+
+          Current: {{ current_ddos_status.json.result.value }}
+          Expected: {{ 'on' if cloudflare_ddos_protection_enabled | default(false) else 'off' }}
+
+          {% if ddos_drift_check.failed %}
+          ⚠️ MISMATCH - Someone may have changed this manually
+          {% else %}
+          ✓ Settings match code
+          {% endif %}
+
+          ## SSL/TLS Configuration
+
+          Current: {{ current_ssl_mode.json.result.value }}
+          Expected: {{ cloudflare_ssl_tls_mode | default('flexible') }}
+
+          {% if ssl_drift_check.failed %}
+          ⚠️ MISMATCH - Someone may have changed this manually
+          {% else %}
+          ✓ Settings match code
+          {% endif %}
+
+          ## Cache Configuration
+
+          Current: {{ current_cache_ttl.json.result.value }} seconds
+          Expected: {{ cloudflare_cache_browser_ttl | default(30) * 60 }} seconds
+
+          {% if cache_drift_check.failed %}
+          ⚠️ MISMATCH - Someone may have changed this manually
+          {% else %}
+          ✓ Settings match code
+          {% endif %}
+
+          ## Recommendations
+
+          {% if waf_drift_check.failed or ddos_drift_check.failed or ssl_drift_check.failed %}
+          1. **Configuration Mismatch Detected**
+             - Review changes in Cloudflare dashboard
+             - Determine if manual changes are approved
+             - Update code to match or revert dashboard changes
+
+          2. **Approve Changes**
+             - If changes are approved:
+               - Update defaults/main.yml with new values
+               - Commit to git with explanation
+               - Re-run deployment to sync state
+             - If changes should be reverted:
+               - Use Ansible to restore to code state
+               - Update dashboard to match code
+
+          3. **Prevent Future Drift**
+             - Schedule regular drift detection runs
+             - Set up CI/CD to check for drift on pull requests
+             - Require code review before manual Cloudflare changes
+             - Train team: "Change in code, not in dashboard"
+          {% endif %}
+
+          {% if dns_drift | length > 0 %}
+          1. **Manual DNS Records Detected**
+             - Document these records and their purpose
+             - Either add to cloudflare_dns_records or remove from Cloudflare
+             - Ensure all DNS is managed by code
+
+          2. **To Add These Records to Code:**
+             ```yaml
+             cloudflare_dns_records:
+             {% for record in dns_drift %}
+               - zone: "{{ cloudflare_domain }}"
+                 record: "{{ record.name | replace('.' + cloudflare_domain, '') }}"
+                 type: "{{ record.type }}"
+                 value: "{{ record.content }}"
+                 ttl: {{ record.ttl }}
+                 proxied: {{ record.proxied | lower }}
+             {% endfor %}
+             ```
+          {% endif %}
+
+          ## Next Steps
+
+          1. Run this report monthly: `ansible-playbook examples/cloudflare_drift_detection.yml`
+          2. Review drift report for unauthorized changes
+          3. Update code or Cloudflare to match (never both different)
+          4. Document decisions in change log
+          5. Commit changes to git
+        dest: "{{ drift_report_dir }}/drift_report_{{ ansible_date_time.date }}.md"
+        mode: '0644'
+      tags:
+        - drift_detection
+        - always
+
+    - name: Display drift detection summary
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+          Drift Detection Complete
+          ================================================
+
+          Report saved to: {{ drift_report_dir }}/drift_report_{{ ansible_date_time.date }}.md
+
+          Drift Summary:
+          - DNS Records: {{ "⚠️ " ~ dns_drift | length ~ " manual additions" if dns_drift | length > 0 else "✓ No drift" }}
+          - WAF: {{ "⚠️ DRIFT" if waf_drift_check.failed else "✓ OK" }}
+          - DDoS: {{ "⚠️ DRIFT" if ddos_drift_check.failed else "✓ OK" }}
+          - SSL/TLS: {{ "⚠️ DRIFT" if ssl_drift_check.failed else "✓ OK" }}
+          - Cache: {{ "⚠️ DRIFT" if cache_drift_check.failed else "✓ OK" }}
+
+          {% if waf_drift_check.failed or ddos_drift_check.failed or ssl_drift_check.failed or dns_drift | length > 0 %}
+          ⚠️ DRIFT DETECTED - Review report and take corrective action
+          {% else %}
+          ✓ NO DRIFT - Configuration matches code
+          {% endif %}
+      tags:
+        - drift_detection
+        - always
+
+    - name: Schedule regular drift checks
+      ansible.builtin.debug:
+        msg: |
+          Recommended: Run drift detection weekly via cron or CI/CD
+
+          Example cron job (run every Monday at 08:00 UTC):
+          0 8 * * 1 ansible-playbook examples/cloudflare_drift_detection.yml \
+            --ask-vault-pass >> /var/log/cloudflare/drift_detection.log 2>&1
+
+          Or in CI/CD (GitHub Actions, GitLab CI, etc.):
+          - Run drift detection on pull requests
+          - Alert if drift detected
+          - Block merge if unauthorized drift found
+      tags:
+        - drift_detection
+        - always
