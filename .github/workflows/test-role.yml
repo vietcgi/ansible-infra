@@ -209,15 +209,15 @@ jobs:
             echo "❌ Molecule tests failed"
             exit 1
           fi
-          echo "✅ All tests passed!"
+          echo " All tests passed!"
 
       - name: Report status
         run: |
           echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Syntax: ${{ needs.syntax.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Molecule: ${{ needs.molecule.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Documentation: ${{ needs.documentation.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Coverage: ${{ needs.coverage.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Syntax: ${{ needs.syntax.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Molecule: ${{ needs.molecule.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Security: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Documentation: ${{ needs.documentation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo " Coverage: ${{ needs.coverage.result }}" >> $GITHUB_STEP_SUMMARY

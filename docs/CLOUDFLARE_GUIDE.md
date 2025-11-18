@@ -620,7 +620,7 @@ curl -X PATCH \
 body:
   value: high  # String, not number
 
-# ✅ CORRECT
+#  CORRECT
 body:
   value: "high"
 ```
@@ -696,7 +696,7 @@ cloudflare_dns_records:
     record: "www"
     type: "A"
     value: "192.0.2.1"
-    ttl: 3600  # ✅ Valid
+    ttl: 3600  #  Valid
     proxied: true  # If true, must use specific values (60, 120, 300, 1800, 3600)
 ```
 
@@ -904,13 +904,13 @@ curl -H "Authorization: Bearer TOKEN" \
 
 #### When to Backup
 
-✅ **MUST DO** before:
+ **MUST DO** before:
 - First Cloudflare automation deployment
 - Major version upgrades of the framework
 - Large configuration changes (WAF rule overhaul, SSL/TLS mode change)
 - DNS migration to new registrar
 
-✅ **SHOULD DO** before:
+ **SHOULD DO** before:
 - Regular deployments (monthly is reasonable)
 - Significant updates to vars
 - Team changes (new ops person taking over)
@@ -1427,7 +1427,7 @@ git status
 
 ## Success Indicators
 
-✅ **Deployment is successful when**:
+ **Deployment is successful when**:
 
 1. Pre-flight validation passes all checks
 2. Playbook runs without errors

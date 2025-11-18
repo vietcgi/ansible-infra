@@ -192,7 +192,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ Cloudflare deployment successful!\n\nDomain: ${{ secrets.CLOUDFLARE_DOMAIN }}\nBackup created\nValidation passed'
+              body: ' Cloudflare deployment successful!\n\nDomain: ${{ secrets.CLOUDFLARE_DOMAIN }}\nBackup created\nValidation passed'
             })
 
       - name: Create deployment failure notification
@@ -265,7 +265,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '✅ Cloudflare configuration validation passed\n\n- Syntax check: OK\n- Linting: OK\n- Ready for dry-run'
+              body: ' Cloudflare configuration validation passed\n\n- Syntax check: OK\n- Linting: OK\n- Ready for dry-run'
             })
 ```
 
@@ -513,7 +513,7 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "✅ Pipeline completed successfully"
+            echo " Pipeline completed successfully"
         }
         failure {
             echo "❌ Pipeline failed - check logs"
@@ -584,7 +584,7 @@ Send notifications on success/failure:
         issue_number: context.issue.number,
         owner: context.repo.owner,
         repo: context.repo.repo,
-        body: '✅ Deployment successful!'
+        body: ' Deployment successful!'
       })
 ```
 
@@ -600,7 +600,7 @@ Send notifications on success/failure:
 # ❌ WRONG
 cloudflare_api_token: "abc123def456"
 
-# ✅ RIGHT
+#  RIGHT
 cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 ```
 

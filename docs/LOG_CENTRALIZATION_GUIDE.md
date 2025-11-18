@@ -10,10 +10,10 @@
 
 Log shipping and centralization is **now enabled by default** in the common role. This provides:
 
-✅ **Local log collection** (always active) - collects system logs, auth logs, audit logs
-✅ **Central log aggregation** (optional) - ships logs to Elasticsearch/Logstash if configured
-✅ **Graceful fallback** - works fine without external log server, stores locally
-✅ **Zero disruption** - existing deployments can enable without outages
+ **Local log collection** (always active) - collects system logs, auth logs, audit logs
+ **Central log aggregation** (optional) - ships logs to Elasticsearch/Logstash if configured
+ **Graceful fallback** - works fine without external log server, stores locally
+ **Zero disruption** - existing deployments can enable without outages
 
 ---
 
@@ -111,7 +111,7 @@ log_shipping_buffer_size: "4096"        # Buffer before sending
 
 ### Scenario 1: Basic Deployment (Local Logs Only)
 
-✅ **Best for**: Small deployments, testing, development
+ **Best for**: Small deployments, testing, development
 
 ```yaml
 # defaults/main.yml or group_vars/all
@@ -127,7 +127,7 @@ log_shipping_enabled: true
 
 ### Scenario 2: Central Log Aggregation
 
-✅ **Best for**: Production, multiple systems, compliance
+ **Best for**: Production, multiple systems, compliance
 
 **Prerequisites:**
 1. Elasticsearch cluster (or Logstash) deployed
@@ -172,7 +172,7 @@ curl http://logs.example.com:9200/_cat/indices
 
 ### Scenario 3: Hybrid (Local + Central with Fallback)
 
-✅ **Best for**: High-reliability requirements
+ **Best for**: High-reliability requirements
 
 ```yaml
 log_shipping_enabled: true
@@ -364,11 +364,11 @@ systemctl restart filebeat
 - System configuration (kernel logs)
 
 **Recommendations:**
-- ✅ Use TLS for log shipping to ES
-- ✅ Restrict access to log server
-- ✅ Implement log retention policies
-- ✅ Encrypt logs at rest in Elasticsearch
-- ✅ Redact sensitive patterns before shipping
+-  Use TLS for log shipping to ES
+-  Restrict access to log server
+-  Implement log retention policies
+-  Encrypt logs at rest in Elasticsearch
+-  Redact sensitive patterns before shipping
 
 ### Authentication to Elasticsearch
 
@@ -385,7 +385,7 @@ log_shipping_elasticsearch_tls_enabled: true
 **Elasticsearch should NOT be publicly accessible:**
 
 ```bash
-# ✅ Good: Firewall blocks external access
+#  Good: Firewall blocks external access
 firewall-cmd --add-rich-rule='rule family="ipv4"
   source address="10.0.0.0/8" port protocol="tcp" port="9200" accept'
 
@@ -473,7 +473,7 @@ log_shipping_filebeat_version: "8.12.0"
 
 ## Best Practices
 
-### ✅ DO
+###  DO
 
 1. **Enable log centralization for production** - Needed for compliance
 2. **Use dedicated log server** - Don't run on application servers

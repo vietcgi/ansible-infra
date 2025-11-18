@@ -313,7 +313,7 @@ ansible-playbook ../../playbooks/client_onboarding.yml \
 
 ## Security
 
-- **NEVER commit vault files to git** ✅ .gitignore configured
+- **NEVER commit vault files to git**  .gitignore configured
 - **NEVER share vault password via email**
 - **Store vault password in password manager**
 - **Rotate Auth0 secrets every 90 days**

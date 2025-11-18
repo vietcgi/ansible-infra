@@ -641,26 +641,26 @@ ls -la /var/log/ansible-changes/
 ## Security Considerations
 
 ### Hostname
-- ✅ Public information (appears in logs, DNS)
-- ✅ Can contain environment info (dev, staging, prod)
+-  Public information (appears in logs, DNS)
+-  Can contain environment info (dev, staging, prod)
 - ⚠️ Don't expose sensitive information in hostname
 
 ### Swap
-- ✅ Encryption available via LUKS
+-  Encryption available via LUKS
 - ⚠️ Unencrypted swap = readable memory dumps
-- ✅ Swappiness tuning improves performance
+-  Swappiness tuning improves performance
 
 ### Encryption at Rest
-- ✅ Protects data from physical access
+-  Protects data from physical access
 - ⚠️ Does NOT protect data in memory
 - ⚠️ Key management is critical
-- ✅ LUKS2 is cryptographically sound
+-  LUKS2 is cryptographically sound
 
 ### Change Tracking
-- ✅ Detects unauthorized modifications
-- ✅ Creates audit trail for compliance
+-  Detects unauthorized modifications
+-  Creates audit trail for compliance
 - ⚠️ Requires secure storage of baseline/reports
-- ✅ Validates configuration integrity
+-  Validates configuration integrity
 
 ---
 
