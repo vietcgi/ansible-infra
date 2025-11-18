@@ -64,6 +64,17 @@
 
 - name: Configure domain name (systemd-resolved)
   block:
+    - name: Create systemd-resolved config directory
+      ansible.builtin.file:
+        path: /etc/systemd/resolved.conf.d
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      when:
+        - common_domain is defined
+        - common_domain | length > 0
+
     - name: Create systemd-resolved domain config
       ansible.builtin.template:
         src: systemd_resolved_domains.j2
@@ -78,10 +89,11 @@
       ansible.builtin.systemd:
         daemon_reload: yes
         name: systemd-resolved
-        state: reloaded
+        state: restarted
       when:
         - common_domain is defined
         - common_domain | length > 0
+      ignore_errors: yes  # systemd-resolved may not support reload on all systems
   when:
     - ansible_os_family == 'Debian'
     - ansible_service_mgr == 'systemd'

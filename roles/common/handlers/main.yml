@@ -67,3 +67,91 @@
     daemon_reload: yes
   become: yes
   listen: restart keepalived
+
+- name: restart rsyslog
+  systemd:
+    name: rsyslog
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  listen: restart rsyslog
+
+- name: daemon reload
+  systemd:
+    daemon_reload: yes
+  become: yes
+  listen: daemon reload
+
+- name: restart ufw
+  systemd:
+    name: ufw
+    state: restarted
+  become: yes
+  listen: restart ufw
+  ignore_errors: yes
+
+- name: restart firewalld
+  systemd:
+    name: firewalld
+    state: restarted
+  become: yes
+  listen: restart firewalld
+  ignore_errors: yes
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+  listen: reload systemd
+
+- name: reload systemd settings
+  systemd:
+    daemon_reload: yes
+  become: yes
+  listen: reload systemd settings
+
+- name: reload sysctl
+  command: sysctl -p
+  become: yes
+  listen: reload sysctl
+  ignore_errors: yes
+
+- name: reload apparmor
+  command: systemctl reload apparmor
+  become: yes
+  listen: reload apparmor
+  ignore_errors: yes
+
+- name: restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  become: yes
+  listen: restart systemd-resolved
+  ignore_errors: yes
+
+- name: reload vault
+  command: systemctl reload vault
+  become: yes
+  listen: reload vault
+  ignore_errors: yes
+
+- name: reload prometheus
+  command: systemctl reload prometheus
+  become: yes
+  listen: "reload prometheus"
+  ignore_errors: yes
+
+- name: reload alertmanager
+  command: systemctl reload alertmanager
+  become: yes
+  listen: "reload alertmanager"
+  ignore_errors: yes
+
+- name: restart grafana
+  systemd:
+    name: grafana-server
+    state: restarted
+  become: yes
+  listen: "restart grafana"
+  ignore_errors: yes

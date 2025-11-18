@@ -41,10 +41,9 @@
       when: firewall_allow_ssh | default(true)
 
     - name: Allow ICMP (ping)
-      community.general.ufw:
-        rule: allow
-        protocol: icmp
-        comment: "Allow ICMP"
+      ansible.builtin.shell: |
+        ufw allow in icmpv4-echo-request comment "Allow ICMP ping requests" || ufw allow in 8 || true
+      changed_when: false
       when: firewall_allow_icmp | default(true)
 
     - name: Rate limit ICMP to prevent DoS
@@ -52,6 +51,7 @@
         ufw insert 1 limit proto icmp from any to any comment "Rate limit ICMP"
       changed_when: false
       when: firewall_allow_icmp | default(true)
+      ignore_errors: yes
 
     - name: Configure IPv6 ICMP rate limiting
       ansible.builtin.shell: |
@@ -60,6 +60,7 @@
       when:
         - firewall_allow_icmp | default(true)
         - ansible_all_ipv6_addresses is defined and ansible_all_ipv6_addresses | length > 0
+      ignore_errors: yes
 
     - name: Add DDoS protection with connection rate limiting
       community.general.ufw:
@@ -76,16 +77,16 @@
     - name: Configure egress filtering rules
       ansible.builtin.shell: |
         # Allow essential outbound services
-        ufw allow out 53 proto tcp comment "DNS over TCP"
-        ufw allow out 53 proto udp comment "DNS over UDP"
-        ufw allow out 123 proto udp comment "NTP"
-        ufw allow out 25 proto tcp comment "SMTP"
-        ufw allow out 587 proto tcp comment "SMTP TLS"
-        ufw allow out 465 proto tcp comment "SMTP SSL"
-        ufw allow out 110 proto tcp comment "POP3"
-        ufw allow out 995 proto tcp comment "POP3 SSL"
-        ufw allow out 143 proto tcp comment "IMAP"
-        ufw allow out 993 proto tcp comment "IMAP SSL"
+        ufw allow out 53/tcp comment "DNS over TCP" || true
+        ufw allow out 53/udp comment "DNS over UDP" || true
+        ufw allow out 123/udp comment "NTP" || true
+        ufw allow out 25/tcp comment "SMTP" || true
+        ufw allow out 587/tcp comment "SMTP TLS" || true
+        ufw allow out 465/tcp comment "SMTP SSL" || true
+        ufw allow out 110/tcp comment "POP3" || true
+        ufw allow out 995/tcp comment "POP3 SSL" || true
+        ufw allow out 143/tcp comment "IMAP" || true
+        ufw allow out 993/tcp comment "IMAP SSL" || true
       changed_when: false
       when: firewall_enable_egress_filtering | default(true)
 
@@ -176,10 +177,9 @@
     - name: Enable masquerading for NAT (if needed)
       ansible.posix.firewalld:
         zone: "{{ firewall_zone | default('public') }}"
-        state: enabled
         masquerade: "{{ firewall_enable_masquerading | default(false) }}"
         permanent: yes
-        state: enabled
+        state: present
 
     - name: Allow SSH service
       ansible.posix.firewalld:

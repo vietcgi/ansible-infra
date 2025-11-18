@@ -1113,10 +1113,8 @@ monitoring_kibana_memory: "512Mi"
 monitoring_kibana_cpu: "250m"
 
 ## Metrics Collection Configuration
-monitoring_prometheus_enabled: true
 monitoring_metrics_scrape_interval: "15s"
 monitoring_metrics_evaluation_interval: "15s"
-monitoring_metrics_retention_days: 30
 
 ## Alerting Configuration
 monitoring_alerting_enabled: true
@@ -1125,11 +1123,6 @@ monitoring_critical_alert_email: "on-call@example.com"
 monitoring_smtp_host: "smtp.example.com:587"
 monitoring_error_rate_threshold: 0.05
 monitoring_latency_threshold: 1
-
-## Grafana Visualization
-monitoring_grafana_enabled: true
-monitoring_grafana_memory: "512Mi"
-monitoring_grafana_cpu: "250m"
 
 ## OpenTelemetry Collector
 monitoring_otel_collector_enabled: true
@@ -1151,7 +1144,6 @@ monitoring_visualization_backend: "grafana"
 ## Observability Retention Policies
 monitoring_trace_retention_days: 7
 monitoring_log_retention_days: 30
-monitoring_metrics_retention_days: 30
 
 ## Service Level Objectives (SLOs)
 monitoring_slo_availability_target: 0.99
@@ -1183,7 +1175,6 @@ password_warn_days: 7
 password_deny_attempts: 5
 password_lockout_time: 900  # 15 minutes
 password_reuse_history: 5
-sudo_require_tty: true
 sudo_log_enabled: true
 
 ## ===== PHASE 1.A: Storage Hardening =====
@@ -1331,10 +1322,8 @@ common_configure_hosts_file: true
 # NEW: Swap Management
 # ============================================================================
 common_swap_size: 4  # Size in GB (0 = disabled)
-common_disable_swap: false  # Set true to remove all swap
 common_swap_swappiness: 30  # 0-100: lower = prefer RAM, higher = prefer swap
 common_swap_vfs_cache_pressure: 50  # 0-100: memory pressure on cache
-common_encrypt_swap: false  # Enable swap encryption (requires LUKS setup)
 common_swap_device: ""  # Device for encrypted swap (e.g., /dev/sdb1)
 
 # ============================================================================
@@ -1343,7 +1332,6 @@ common_swap_device: ""  # Device for encrypted swap (e.g., /dev/sdb1)
 common_encryption_enabled: false  # Master switch for encryption
 common_encrypt_home: false  # Encrypt /home directory
 common_encrypt_logs: false  # Encrypt /var/log
-common_encrypt_swap: false  # Encrypt swap space
 common_encryption_home_size: 20  # Size in GB for /home
 common_encryption_log_size: 5   # Size in GB for /var/log
 common_encryption_log_retention: 90  # Days to keep encrypted logs
@@ -1470,3 +1458,24 @@ network_keepalived_virtual_servers: []  # Virtual server definitions for load ba
 #      - ip: 192.168.1.11
 #        port: 80
 #        weight: 1
+
+################################################################################
+# USER MANAGEMENT - SSH ACCESS CONTROL
+################################################################################
+
+## Access Systems Configuration - Controls SSH user management
+access_systems_enabled:
+  ssh:
+    enabled: false  # SSH user management enabled/disabled
+    config_loaded: true
+
+## Managed Users - Dictionary of SSH users to create and manage
+managed_users: {}  # Empty by default, can be populated from inventory
+
+## SSH Access Configuration
+ssh_config:
+  enabled: false  # SSH user management is disabled by default
+  config_loaded: true
+
+## SSH Key Management
+ssh_public_key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
