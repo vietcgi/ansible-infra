@@ -49,7 +49,7 @@
     state: restarted
     daemon_reload: yes
   become: yes
-  when: chronyd_load_state.stdout != 'not-found'
+  when: chronyd_load_state.rc | default(0) == 0 and chronyd_load_state.stdout | default('not-found') != 'not-found'
   failed_when: false
   listen: restart chronyd
 
@@ -176,7 +176,8 @@
     state: restarted
     daemon_reload: yes
   become: yes
-  when: prometheus_load_state.stdout != 'not-found'
+  when: prometheus_load_state.rc | default(0) == 0 and prometheus_load_state.stdout | default('not-found') != 'not-found'
+  failed_when: false
   listen: restart prometheus
 
 - name: reload alertmanager
@@ -198,7 +199,8 @@
     state: restarted
     daemon_reload: yes
   become: yes
-  when: node_exporter_load_state.stdout != 'not-found'
+  when: node_exporter_load_state.rc | default(0) == 0 and node_exporter_load_state.stdout | default('not-found') != 'not-found'
+  failed_when: false
   listen: restart node_exporter
 
 - name: Check filebeat service status

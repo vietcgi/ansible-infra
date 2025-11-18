@@ -63,6 +63,7 @@
     group: root
     mode: '0640'
   notify: restart auditd
+  failed_when: false
   tags:
     - sudo_hardening
     - audit
