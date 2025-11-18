@@ -81,6 +81,7 @@
     mode: '0640'
   notify: restart auditd
   when: common_enable_audit | default(true)
+  failed_when: false
   tags:
     - sudo_hardening
     - audit
