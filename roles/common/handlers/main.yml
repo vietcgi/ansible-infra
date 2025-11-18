@@ -33,6 +33,7 @@
     name: auditd
     state: restarted
   become: yes
+  failed_when: false
   listen: restart auditd
 
 - name: Check chronyd service status

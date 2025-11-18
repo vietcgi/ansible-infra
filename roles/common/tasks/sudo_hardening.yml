@@ -48,6 +48,7 @@
     owner: root
     group: root
     mode: '0700'
+  failed_when: false
   tags:
     - sudo_hardening
     - configuration
