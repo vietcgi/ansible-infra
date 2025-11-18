@@ -286,45 +286,31 @@
 - name: Docker installation health check
   block:
     - name: Test Docker daemon connectivity
-      community.docker.docker_ping:
+      ansible.builtin.shell: docker info
       register: docker_ping_result
       tags:
         - docker
         - health
 
     - name: Retrieve Docker system information
-      community.docker.docker_host_info:
+      ansible.builtin.shell: docker version --format='{{.Server.Version}}'
       register: docker_system_info
       tags:
         - docker
-        - health
+  when: container_docker_enabled | default(false)
+  tags:
+    - health
 
-    - name: Log Docker installation completion
-      ansible.builtin.debug:
-        msg: |
-          ✓ Docker Installation Complete:
-          - Version: {{ docker_system_info.host_info.ServerVersion | default('unknown') }}
-          - Storage Driver: {{ docker_system_info.host_info.Driver | default('unknown') }}
-          - Running Containers: {{ docker_system_info.host_info.Containers | default(0) }}
-          - Images Count: {{ docker_system_info.host_info.Images | default(0) }}
-          - Status: {{ docker_system_info.host_info.ServerVersion is defined | ternary('Healthy', 'Warning') }}
-      tags:
-        - docker
-        - health
-        - summary
-
-  rescue:
-    - name: Handle Docker installation errors
-      ansible.builtin.debug:
-        msg: |
-          ⚠ Docker health check incomplete:
-          - Container runtime may not be fully initialized
-          - Please verify manually: docker ps
-          - Log output: journalctl -u docker -n 50
-      tags:
-        - docker
-        - health
-        - error
+- name: Log Docker installation completion
+  ansible.builtin.debug:
+    msg: |
+      ✓ Docker Installation Complete:
+          - Docker Status: Health check performed
+  tags:
+    - docker
+    - health
+    - summary
+  when: container_docker_enabled | default(false)
 
 # Final status message
 - name: Docker installation task completion
