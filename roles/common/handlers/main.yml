@@ -160,6 +160,22 @@
   listen: "reload prometheus"
   ignore_errors: yes
 
+- name: Check prometheus service status
+  ansible.builtin.command: systemctl show -p LoadState --value prometheus.service
+  changed_when: false
+  register: prometheus_load_state
+  failed_when: false
+  listen: restart prometheus
+
+- name: Restart prometheus if service is loaded
+  systemd:
+    name: prometheus
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  when: prometheus_load_state.stdout != 'not-found'
+  listen: restart prometheus
+
 - name: reload alertmanager
   command: systemctl reload alertmanager
   become: yes
