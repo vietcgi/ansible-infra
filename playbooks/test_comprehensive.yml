@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    common_hostname: "test-host"
+    common_domain: "example.com"
+    common_enable_audit: true
+    logging_enabled: true
+    logging_enable_tls: true
+    logging_enable_encryption: true
+    logging_enable_integrity_check: true
+    performance_enable_cpu_affinity: true
+  roles:
+    - role: common

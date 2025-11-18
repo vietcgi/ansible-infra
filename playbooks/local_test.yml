@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  vars:
+    # Enable all major features
+    common_ssh_hardening_enabled: true
+    common_automatic_security_updates: true
+    common_fail2ban_enabled: true
+    common_ufw_enabled: true
+    common_firewall_rules_enabled: true
+    common_ntp_enabled: true
+    common_sysctl_hardening_enabled: true
+    common_kernel_hardening_enabled: true
+    common_sudo_hardening_enabled: true
+    common_ssl_tls_hardening_enabled: true
+    common_file_integrity_monitoring_enabled: true
+    common_audit_logging_enabled: true
+    common_enable_audit: true
+    common_aide_enabled: true
+    common_apparmor_enabled: true
+    common_selinux_enabled: false
+    common_disable_uncommon_filesystems_enabled: true
+    common_disable_uncommon_network_protocols_enabled: true
+    common_restrict_kernel_module_loading_enabled: true
+    common_restrict_usb_storage_enabled: true
+    common_restrict_wireless_enabled: true
+    common_restrict_bluetooth_enabled: true
+    log_shipping_enabled: true
+    log_shipping_use_filebeat: false
+    log_shipping_elasticsearch_host: localhost
+    log_shipping_logstash_host: localhost
+    metrics_enabled: true
+    metrics_listen_port: 9100
+    metrics_prometheus_enabled: true
+    sudo_require_tty: true
+    sudo_use_pty: true
+    sudo_log_input: true
+    sudo_log_output: true
+  roles:
+    - role: common
