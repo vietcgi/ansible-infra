@@ -93,6 +93,7 @@
   systemd:
     daemon_reload: yes
   become: yes
+  failed_when: false
   listen: daemon reload
 
 - name: restart ufw

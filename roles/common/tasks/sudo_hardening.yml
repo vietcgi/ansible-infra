@@ -93,6 +93,7 @@
     owner: root
     group: root
     mode: '0600'
+  failed_when: false
   tags:
     - sudo_hardening
     - configuration
