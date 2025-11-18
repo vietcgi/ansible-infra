@@ -38,10 +38,14 @@
   systemd:
     name: chronyd
     state: restarted
+    daemon_reload: yes
   become: yes
   listen: restart chronyd
   register: chronyd_restart_result
-  ignore_errors: yes
+  failed_when:
+    - chronyd_restart_result.failed
+    - "'not running' not in chronyd_restart_result.msg | default('')"
+    - "'No such file or directory' not in chronyd_restart_result.msg | default('')"
 
 - name: apply netplan
   command: netplan apply

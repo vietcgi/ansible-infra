@@ -49,6 +49,16 @@
       tags:
         - encryption_at_rest
 
+    - name: Check if log encryption key exists
+      ansible.builtin.stat:
+        path: /etc/crypt_var_log.key
+      register: log_key_exists
+      when:
+        - common_encrypt_logs | bool
+        - ansible_os_family != 'Darwin'
+      tags:
+        - encryption_at_rest
+
     - name: Set restricted permissions on log encryption key
       ansible.builtin.file:
         path: /etc/crypt_var_log.key
@@ -57,6 +67,8 @@
         group: root
       when:
         - common_encrypt_logs | bool
+        - ansible_os_family != 'Darwin'
+        - log_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
 
@@ -70,6 +82,8 @@
         mode: '0600'
       when:
         - common_encrypt_logs | bool
+        - ansible_os_family != 'Darwin'
+        - log_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
   when:
