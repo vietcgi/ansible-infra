@@ -166,6 +166,22 @@
   listen: "reload alertmanager"
   ignore_errors: yes
 
+- name: Check node_exporter service status
+  ansible.builtin.command: systemctl show -p LoadState --value node_exporter.service
+  changed_when: false
+  register: node_exporter_load_state
+  failed_when: false
+  listen: restart node_exporter
+
+- name: Restart node_exporter if service is loaded
+  systemd:
+    name: node_exporter
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  when: node_exporter_load_state.stdout != 'not-found'
+  listen: restart node_exporter
+
 - name: restart grafana
   systemd:
     name: grafana-server
