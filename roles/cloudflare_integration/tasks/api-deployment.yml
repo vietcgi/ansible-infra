@@ -1,0 +1,371 @@
+---
+# Cloudflare API Deployment Tasks
+# Actual API calls to deploy WAF, DDoS, SSL/TLS, and cache configurations
+# Uses curl for direct API interaction with proper idempotency and error handling
+
+# ============================================================================
+# WAF Rules Deployment
+# ============================================================================
+
+- name: Deploy WAF rules via Cloudflare API
+  when: cloudflare_waf_enabled | default(false)
+  block:
+    - name: Get zone ID for WAF deployment
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones?name={{ cloudflare_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: zone_lookup
+      changed_when: false
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_waf
+
+    - name: Extract zone ID
+      ansible.builtin.set_fact:
+        cloudflare_zone_id_fact: "{{ zone_lookup.json.result[0].id }}"
+      when: zone_lookup.json.result | length > 0
+      tags:
+        - cloudflare
+        - cloudflare_waf
+
+    - name: Configure WAF sensitivity level
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/security_level"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ cloudflare_waf_sensitivity_level }}"
+        status_code: 200
+      register: waf_sensitivity_result
+      changed_when: "'success' in waf_sensitivity_result.json and waf_sensitivity_result.json.success"
+      failed_when: "not waf_sensitivity_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_waf
+
+    - name: Enable managed WAF rules
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/waf"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ 'on' if cloudflare_waf_enable_managed_rules else 'off' }}"
+        status_code: 200
+      register: waf_managed_result
+      changed_when: "'success' in waf_managed_result.json and waf_managed_result.json.success"
+      failed_when: "not waf_managed_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_waf
+
+    - name: Configure WAF rate limiting
+      when: cloudflare_waf_rate_limit_enabled | default(true)
+      block:
+        - name: Create rate limit rule
+          ansible.builtin.uri:
+            url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/rate_limit"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ cloudflare_api_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              match:
+                request:
+                  url:
+                    path_contains: ""
+              action:
+                mode: "{{ cloudflare_waf_rate_limit_action }}"
+              threshold: "{{ cloudflare_waf_rate_limit_threshold }}"
+              period: "{{ cloudflare_waf_rate_limit_period }}"
+              description: "Ansible-managed WAF rate limit"
+            status_code: [200, 400]  # 400 if rule exists
+          register: rate_limit_result
+          changed_when: "rate_limit_result.status == 200"
+          no_log: true
+          tags:
+            - cloudflare
+            - cloudflare_waf
+
+    - name: Display WAF deployment status
+      ansible.builtin.debug:
+        msg: |
+          WAF Configuration Deployed:
+          - Sensitivity: {{ cloudflare_waf_sensitivity_level }}
+          - Managed Rules: {{ 'ENABLED' if cloudflare_waf_enable_managed_rules else 'DISABLED' }}
+          - Rate Limiting: {{ 'ENABLED' if cloudflare_waf_rate_limit_enabled else 'DISABLED' }}
+      tags:
+        - cloudflare
+        - cloudflare_waf
+
+# ============================================================================
+# DDoS Protection Deployment
+# ============================================================================
+
+- name: Deploy DDoS protection via Cloudflare API
+  when: cloudflare_ddos_protection_enabled | default(false)
+  block:
+    - name: Ensure zone ID is available
+      ansible.builtin.assert:
+        that:
+          - cloudflare_zone_id_fact is defined
+        fail_msg: "Zone ID not found. Run WAF deployment first or manually set cloudflare_zone_id"
+      tags:
+        - cloudflare
+        - cloudflare_ddos
+
+    - name: Configure DDoS sensitivity
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/advanced_ddos"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ 'on' if cloudflare_ddos_protection_enabled else 'off' }}"
+        status_code: 200
+      register: ddos_result
+      changed_when: "'success' in ddos_result.json and ddos_result.json.success"
+      failed_when: "not ddos_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_ddos
+
+    - name: Set DDoS sensitivity level
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/ddos_sensitivity"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ cloudflare_ddos_sensitivity }}"
+        status_code: 200
+      register: ddos_sensitivity_result
+      changed_when: "'success' in ddos_sensitivity_result.json and ddos_sensitivity_result.json.success"
+      failed_when: "not ddos_sensitivity_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_ddos
+
+    - name: Display DDoS deployment status
+      ansible.builtin.debug:
+        msg: |
+          DDoS Protection Deployed:
+          - Status: ENABLED
+          - Sensitivity: {{ cloudflare_ddos_sensitivity }}
+      tags:
+        - cloudflare
+        - cloudflare_ddos
+
+# ============================================================================
+# SSL/TLS Configuration Deployment
+# ============================================================================
+
+- name: Deploy SSL/TLS configuration via Cloudflare API
+  when: cloudflare_ssl_tls_enabled | default(false)
+  block:
+    - name: Ensure zone ID is available
+      ansible.builtin.assert:
+        that:
+          - cloudflare_zone_id_fact is defined
+        fail_msg: "Zone ID not found"
+      tags:
+        - cloudflare
+        - cloudflare_ssl
+
+    - name: Configure SSL/TLS mode
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/ssl"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ cloudflare_ssl_tls_mode }}"
+        status_code: 200
+      register: ssl_mode_result
+      changed_when: "'success' in ssl_mode_result.json and ssl_mode_result.json.success"
+      failed_when: "not ssl_mode_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_ssl
+
+    - name: Configure minimum TLS version
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/min_tls_version"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ cloudflare_ssl_tls_minimum_version }}"
+        status_code: 200
+      register: tls_version_result
+      changed_when: "'success' in tls_version_result.json and tls_version_result.json.success"
+      failed_when: "not tls_version_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_ssl
+
+    - name: Configure HSTS
+      when: cloudflare_hsts_enabled | default(true)
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/hsts"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "on"
+        status_code: 200
+      register: hsts_result
+      changed_when: "'success' in hsts_result.json and hsts_result.json.success"
+      failed_when: "not hsts_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_ssl
+
+    - name: Display SSL/TLS deployment status
+      ansible.builtin.debug:
+        msg: |
+          SSL/TLS Configuration Deployed:
+          - Mode: {{ cloudflare_ssl_tls_mode }}
+          - Min TLS Version: {{ cloudflare_ssl_tls_minimum_version }}
+          - HSTS: {{ 'ENABLED' if cloudflare_hsts_enabled else 'DISABLED' }}
+      tags:
+        - cloudflare
+        - cloudflare_ssl
+
+# ============================================================================
+# Cache Configuration Deployment
+# ============================================================================
+
+- name: Deploy cache configuration via Cloudflare API
+  when: cloudflare_edge_cache_enabled | default(false)
+  block:
+    - name: Ensure zone ID is available
+      ansible.builtin.assert:
+        that:
+          - cloudflare_zone_id_fact is defined
+        fail_msg: "Zone ID not found"
+      tags:
+        - cloudflare
+        - cloudflare_cache
+
+    - name: Configure browser cache TTL
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/browser_cache_ttl"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ cloudflare_cache_browser_ttl * 60 }}"  # Convert minutes to seconds
+        status_code: 200
+      register: browser_cache_result
+      changed_when: "'success' in browser_cache_result.json and browser_cache_result.json.success"
+      failed_when: "not browser_cache_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_cache
+
+    - name: Configure minification
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/minify"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value:
+            css: "{{ 'on' if cloudflare_enable_minification else 'off' }}"
+            html: "{{ 'on' if cloudflare_enable_minification else 'off' }}"
+            js: "{{ 'on' if cloudflare_enable_minification else 'off' }}"
+        status_code: 200
+      register: minify_result
+      changed_when: "'success' in minify_result.json and minify_result.json.success"
+      failed_when: "not minify_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_cache
+
+    - name: Enable HTTP/3 (QUIC)
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id_fact }}/settings/http3"
+        method: PATCH
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          value: "{{ 'on' if cloudflare_enable_http3 else 'off' }}"
+        status_code: 200
+      register: http3_result
+      changed_when: "'success' in http3_result.json and http3_result.json.success"
+      failed_when: "not http3_result.json.success"
+      no_log: true
+      tags:
+        - cloudflare
+        - cloudflare_cache
+
+    - name: Display cache deployment status
+      ansible.builtin.debug:
+        msg: |
+          Edge Cache Configuration Deployed:
+          - Browser TTL: {{ cloudflare_cache_browser_ttl }} minutes
+          - Minification: {{ 'ENABLED' if cloudflare_enable_minification else 'DISABLED' }}
+          - HTTP/3: {{ 'ENABLED' if cloudflare_enable_http3 else 'DISABLED' }}
+      tags:
+        - cloudflare
+        - cloudflare_cache
+
+# ============================================================================
+# Deployment Complete
+# ============================================================================
+
+- name: Display overall deployment summary
+  ansible.builtin.debug:
+    msg: |
+      ✓ Cloudflare Configuration Deployment Complete
+      ================================================
+      Domain: {{ cloudflare_domain }}
+      Zone ID: {{ cloudflare_zone_id_fact }}
+
+      Deployed Features:
+      - WAF: {{ 'ENABLED' if cloudflare_waf_enabled else 'DISABLED' }}
+      - DDoS Protection: {{ 'ENABLED' if cloudflare_ddos_protection_enabled else 'DISABLED' }}
+      - SSL/TLS: {{ 'ENABLED' if cloudflare_ssl_tls_enabled else 'DISABLED' }}
+      - Edge Caching: {{ 'ENABLED' if cloudflare_edge_cache_enabled else 'DISABLED' }}
+
+      Run health check to validate: /usr/local/bin/cloudflare-health-check
+  tags:
+    - cloudflare
+    - always
