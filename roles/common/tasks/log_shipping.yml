@@ -98,6 +98,8 @@
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)
+    - log_centralization_available | default(false)
+  failed_when: false
   tags:
     - log_shipping
     - services
@@ -129,6 +131,20 @@
   tags:
     - log_shipping
     - services
+
+- name: Create Filebeat modules.d directory
+  ansible.builtin.file:
+    path: /etc/filebeat/modules.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - configuration
 
 - name: Configure log parsing rules for Filebeat
   ansible.builtin.copy:
