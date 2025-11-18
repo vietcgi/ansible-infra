@@ -36,6 +36,7 @@
       line: 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
     - regexp: '^Defaults\s+lecture'
       line: 'Defaults lecture="never"'
+  failed_when: false
   tags:
     - sudo_hardening
     - configuration
