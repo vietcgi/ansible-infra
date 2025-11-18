@@ -15,6 +15,7 @@
     - /var/lib/ansible-baseline/packages
     - /var/lib/ansible-baseline/security
     - /var/log/ansible-changes
+  failed_when: false
   tags:
     - change_tracking
 
