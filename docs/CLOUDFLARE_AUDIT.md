@@ -4,6 +4,8 @@
 **Status**: Production Integration Complete
 **Auditor Analysis**: Strategic evaluation of Cloudflare automation approach
 
+> **Note**: This is a historical decision record documenting the Cloudflare implementation approach and technology choices made during initial development.
+
 ---
 
 ## Executive Summary

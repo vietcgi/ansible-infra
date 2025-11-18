@@ -4,6 +4,8 @@
 **Purpose**: Integrate Cloudflare automation safely into CI/CD pipelines
 **Platforms**: GitHub Actions, GitLab CI, Jenkins, Azure DevOps
 
+> **See Also**: [CLOUDFLARE_GUIDE.md](CLOUDFLARE_GUIDE.md) for comprehensive operations, troubleshooting, and backup procedures.
+
 ---
 
 ## Overview
