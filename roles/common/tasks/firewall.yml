@@ -48,19 +48,27 @@
 
     - name: Rate limit ICMP to prevent DoS
       ansible.builtin.shell: |
-        ufw insert 1 limit proto icmp from any to any comment "Rate limit ICMP"
+        # Check if rule already exists to avoid duplicates
+        if ! ufw status numbered | grep -q "Rate limit ICMP"; then
+          ufw insert 1 limit in on eth0 proto icmp comment "Rate limit ICMP" || \
+          ufw insert 1 limit in proto icmp comment "Rate limit ICMP" || \
+          true
+        fi
       changed_when: false
       when: firewall_allow_icmp | default(true)
-      ignore_errors: yes
 
     - name: Configure IPv6 ICMP rate limiting
       ansible.builtin.shell: |
-        ufw insert 2 limit proto icmpv6 from any to any comment "Rate limit ICMPv6"
+        # Check if rule already exists to avoid duplicates
+        if ! ufw status numbered | grep -q "Rate limit ICMPv6"; then
+          ufw insert 2 limit in on eth0 proto ipv6-icmp comment "Rate limit ICMPv6" || \
+          ufw insert 2 limit in proto ipv6-icmp comment "Rate limit ICMPv6" || \
+          true
+        fi
       changed_when: false
       when:
         - firewall_allow_icmp | default(true)
         - ansible_all_ipv6_addresses is defined and ansible_all_ipv6_addresses | length > 0
-      ignore_errors: yes
 
     - name: Add DDoS protection with connection rate limiting
       community.general.ufw:
