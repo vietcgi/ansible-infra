@@ -46,6 +46,7 @@ common_supported_distributions:
   - rocky
   - almalinux
   - macos
+  - macosx
 
 # Version constraints
 common_min_versions:
