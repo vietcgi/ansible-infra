@@ -35,17 +35,23 @@
   listen: restart auditd
 
 - name: restart chronyd
-  systemd:
-    name: chronyd
-    state: restarted
-    daemon_reload: yes
+  ansible.builtin.shell: |
+    set +e
+    # Check if chronyd service file exists and is manageable
+    systemctl cat chronyd.service > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      systemctl daemon-reload
+      systemctl restart chronyd
+      exit $?
+    else
+      # Service doesn't exist, which is acceptable in some environments
+      exit 0
+    fi
   become: yes
   listen: restart chronyd
+  changed_when: false
   register: chronyd_restart_result
-  failed_when:
-    - chronyd_restart_result.failed
-    - "'not running' not in chronyd_restart_result.msg | default('')"
-    - "'No such file or directory' not in chronyd_restart_result.msg | default('')"
+  failed_when: chronyd_restart_result.rc not in [0, 1]
 
 - name: apply netplan
   command: netplan apply

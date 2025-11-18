@@ -115,6 +115,16 @@
       tags:
         - encryption_at_rest
 
+    - name: Check if home encryption key exists
+      ansible.builtin.stat:
+        path: /etc/crypt_home.key
+      register: home_key_exists
+      when:
+        - common_encrypt_home | bool
+        - ansible_os_family != 'Darwin'
+      tags:
+        - encryption_at_rest
+
     - name: Set restricted permissions on home encryption key
       ansible.builtin.file:
         path: /etc/crypt_home.key
@@ -123,6 +133,8 @@
         group: root
       when:
         - common_encrypt_home | bool
+        - ansible_os_family != 'Darwin'
+        - home_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
 
@@ -136,6 +148,8 @@
         mode: '0600'
       when:
         - common_encrypt_home | bool
+        - ansible_os_family != 'Darwin'
+        - home_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
   when:
