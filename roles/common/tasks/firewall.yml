@@ -147,7 +147,7 @@
       community.general.ufw:
         state: enabled
         direction: incoming
-        policy: drop
+        policy: deny
       when: firewall_enabled | default(true)
 
   when:
