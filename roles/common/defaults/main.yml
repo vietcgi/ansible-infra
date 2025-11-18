@@ -1362,3 +1362,111 @@ common_track_configuration_changes: true
 common_track_security_changes: true
 common_track_service_changes: true
 common_change_tracking_retention_days: 90  # Keep change reports for N days
+
+# ============================================================================
+# NEW: Network Management (Static IPs, Bonding, HA Virtual IP with keepalived)
+# ============================================================================
+
+## Static IP Configuration
+network_static_ips: []  # List of static IP configurations
+# Example:
+#  - interface: eth0
+#    address: 192.168.1.10
+#    netmask: 24
+#    gateway: 192.168.1.1
+#    dns:
+#      - 8.8.8.8
+#      - 8.8.4.4
+
+## Network Bonding Configuration
+network_bonding_enabled: false  # Master switch for network bonding
+network_bonds: []  # List of bond configurations
+# Example:
+#  - name: bond0
+#    interfaces:
+#      - eth0
+#      - eth1
+#    mode: active-backup  # Options: active-backup, balance-alb, balance-xor, 802.3ad, balance-rr
+#    mii_monitor_interval: 100
+#    primary_interface: eth0  # (optional) for active-backup mode
+#    xmit_hash_policy: layer3+4  # (optional) for balance-xor
+#    lacp_rate: slow  # (optional) for 802.3ad
+#    up_delay: 200  # (optional)
+#    down_delay: 200  # (optional)
+
+## VLAN Configuration (optional, used with bonding or static IPs)
+network_vlans: []  # List of VLAN configurations
+# Example:
+#  - name: vlan100
+#    id: 100
+#    link: bond0
+#    address: 10.0.0.10
+#    netmask: 24
+
+## keepalived for Virtual IP (HA Failover)
+network_keepalived_enabled: false  # Master switch for keepalived
+network_vip: ""  # Virtual IP address (e.g., 192.168.1.5)
+network_vip_interface: "eth0"  # Interface to bind virtual IP
+network_vip_netmask: 24  # Netmask for virtual IP
+network_keepalived_priority: 100  # Priority (100 = MASTER if > 50, else BACKUP)
+network_keepalived_vrid: 51  # Virtual Router ID (1-255, must be same on MASTER and BACKUP)
+network_keepalived_auth_pass: ""  # (optional) Authentication password for VRRP
+
+## keepalived Health Checks
+network_keepalived_checks: []  # Health check configurations
+# Example for HTTP check:
+#  - name: http_check
+#    check_type: http  # Options: http, tcp, script
+#    check_host: 127.0.0.1
+#    check_port: 80
+#    check_path: /health
+#    interval: 2
+#    timeout: 3
+#    fall_count: 3
+#    rise_count: 2
+#    weight: -2  # (optional) Priority adjustment
+# Example for TCP check:
+#  - name: tcp_check
+#    check_type: tcp
+#    check_host: 127.0.0.1
+#    check_port: 3306
+#    interval: 2
+#    timeout: 3
+#    fall_count: 3
+#    rise_count: 2
+# Example for custom script:
+#  - name: custom_check
+#    check_type: script
+#    check_script: "systemctl is-active myservice"
+#    interval: 5
+#    timeout: 3
+#    fall_count: 3
+#    rise_count: 2
+
+## keepalived Track Interfaces
+network_keepalived_track_services: []  # Interfaces to monitor (track_interface)
+# Example:
+#  - eth0
+#  - eth1
+
+## keepalived Notification Scripts
+network_keepalived_notify_master: false  # Execute script when becoming MASTER
+network_keepalived_notify_backup: false  # Execute script when becoming BACKUP
+network_keepalived_notify_fault: false   # Execute script when fault occurs
+
+## keepalived Virtual Server Configuration (optional - for load balancing)
+network_keepalived_virtual_servers: []  # Virtual server definitions for load balancing
+# Example:
+#  - vip: 192.168.1.5
+#    port: 80
+#    protocol: TCP
+#    delay_loop: 6
+#    lb_algo: rr  # round-robin
+#    lb_kind: NAT
+#    real_servers:
+#      - ip: 192.168.1.10
+#        port: 80
+#        weight: 1
+#      - ip: 192.168.1.11
+#        port: 80
+#        weight: 1

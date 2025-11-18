@@ -24,6 +24,7 @@
     - swap_management.yml
     - encryption_at_rest.yml
     - change_tracking.yml
+    - network_management.yml
 
     # PHASE 1: Security, Monitoring, and Backup
     - firewall.yml

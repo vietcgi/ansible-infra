@@ -1,0 +1,370 @@
+---
+# Network Interface Management & High Availability
+# Configures network bonding, static IPs, and virtual IP failover via keepalived
+# Enables redundant network paths and automatic failover for critical systems
+
+- name: Install network management tools
+  ansible.builtin.package:
+    name:
+      - net-tools
+      - iproute2
+      - ethtool
+      - bridge-utils
+    state: present
+  when: ansible_os_family != 'Darwin'
+  tags:
+    - network_management
+    - packages
+
+- name: Get current network interface information
+  ansible.builtin.setup:
+    filter: ansible_interfaces
+  tags:
+    - network_management
+    - always
+
+- name: Display available network interfaces
+  ansible.builtin.debug:
+    msg: |
+      Available Network Interfaces:
+      {% for iface in ansible_interfaces %}
+      - {{ iface }}
+      {% endfor %}
+
+      Current IP Configuration:
+      {% for iface in ansible_interfaces %}
+      {{ iface }}: {{ hostvars[inventory_hostname]['ansible_' + iface]['ipv4']['address'] | default('N/A') }}
+      {% endfor %}
+  tags:
+    - network_management
+    - always
+
+# ========================================================================
+# Static IP Configuration
+# ========================================================================
+
+- name: Configure static IP addresses (Netplan - Ubuntu 18.04+)
+  ansible.builtin.template:
+    src: netplan_static_ip.j2
+    dest: /etc/netplan/99-static-ips.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_distribution_version is version('18.04', '>=')
+    - network_static_ips is defined
+    - network_static_ips | length > 0
+  notify: apply netplan
+  tags:
+    - network_management
+    - static_ip
+
+- name: Configure static IP addresses (traditional interfaces file)
+  ansible.builtin.template:
+    src: network_interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_distribution_version is version('18.04', '<')
+    - network_static_ips is defined
+    - network_static_ips | length > 0
+  notify: restart networking
+  tags:
+    - network_management
+    - static_ip
+
+- name: Configure static IP addresses (RHEL/CentOS via nmcli)
+  block:
+    - name: Create network config files for RHEL/CentOS
+      ansible.builtin.template:
+        src: rhel_network_config.j2
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.interface }}"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      loop: "{{ network_static_ips | default([]) }}"
+      when: network_static_ips is defined
+      notify: restart network service
+
+  when:
+    - ansible_os_family == 'RedHat'
+    - network_static_ips is defined
+    - network_static_ips | length > 0
+  tags:
+    - network_management
+    - static_ip
+
+# ========================================================================
+# Network Bonding Configuration
+# ========================================================================
+
+- name: Install bonding kernel module (Linux)
+  ansible.builtin.modprobe:
+    name: bonding
+    state: present
+  when:
+    - ansible_os_family != 'Darwin'
+    - network_bonding_enabled | default(false) | bool
+  tags:
+    - network_management
+    - bonding
+
+- name: Configure network bonding (Netplan)
+  ansible.builtin.template:
+    src: netplan_bonding.j2
+    dest: /etc/netplan/99-bonding.yaml
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_distribution_version is version('18.04', '>=')
+    - network_bonding_enabled | default(false) | bool
+    - network_bonds is defined
+    - network_bonds | length > 0
+  notify: apply netplan
+  tags:
+    - network_management
+    - bonding
+
+- name: Configure network bonding (traditional interfaces)
+  ansible.builtin.template:
+    src: bonding_interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_distribution_version is version('18.04', '<')
+    - network_bonding_enabled | default(false) | bool
+    - network_bonds is defined
+    - network_bonds | length > 0
+  notify: restart networking
+  tags:
+    - network_management
+    - bonding
+
+- name: Configure bonding for RHEL/CentOS
+  block:
+    - name: Create bonding module configuration
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/bonding.conf
+        content: |
+          # Bonding module configuration
+          # Defines virtual bonded interface aliases
+          {% for bond in network_bonds | default([]) %}
+          alias {{ bond.name }} bonding
+          {% endfor %}
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create bond interface configurations
+      ansible.builtin.template:
+        src: rhel_bonding_config.j2
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.name }}"
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      loop: "{{ network_bonds | default([]) }}"
+      notify: restart network service
+
+    - name: Create slave interface configurations
+      ansible.builtin.copy:
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item[1] }}"
+        content: |
+          DEVICE={{ item[1] }}
+          ONBOOT=yes
+          MASTER={{ item[0].name }}
+          SLAVE=yes
+          NM_CONTROLLED=no
+        owner: root
+        group: root
+        mode: '0644'
+      loop: "{{ query('nested', network_bonds | default([]), wantjson=False) }}"
+      when: item[0].interfaces is defined
+      notify: restart network service
+
+  when:
+    - ansible_os_family == 'RedHat'
+    - network_bonding_enabled | default(false) | bool
+    - network_bonds is defined
+  tags:
+    - network_management
+    - bonding
+
+# ========================================================================
+# keepalived for Virtual IP (VIP) & HA Failover
+# ========================================================================
+
+- name: Install keepalived for virtual IP failover
+  ansible.builtin.package:
+    name: keepalived
+    state: present
+  when:
+    - ansible_os_family != 'Darwin'
+    - network_keepalived_enabled | default(false) | bool
+  tags:
+    - network_management
+    - keepalived
+    - ha_failover
+
+- name: Configure keepalived for HA virtual IP
+  ansible.builtin.template:
+    src: keepalived_config.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  when:
+    - ansible_os_family != 'Darwin'
+    - network_keepalived_enabled | default(false) | bool
+    - network_vip is defined
+    - network_vip_interface is defined
+  notify: restart keepalived
+  tags:
+    - network_management
+    - keepalived
+    - ha_failover
+
+- name: Create keepalived health check scripts
+  ansible.builtin.copy:
+    dest: "/usr/local/bin/keepalived_{{ item.name }}_check.sh"
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      # Health check for {{ item.name }}
+      # Called by keepalived to verify service is healthy
+
+      {% if item.check_type == 'http' %}
+      # HTTP health check
+      curl -sf http://{{ item.check_host }}:{{ item.check_port }}{{ item.check_path | default('/') }} > /dev/null
+      exit $?
+      {% elif item.check_type == 'tcp' %}
+      # TCP port check
+      timeout 2 bash -c "echo > /dev/tcp/{{ item.check_host }}/{{ item.check_port }}"
+      exit $?
+      {% elif item.check_type == 'script' %}
+      # Custom script check
+      # Execute custom check: {{ item.check_script }}
+      bash -c "{{ item.check_script }}"
+      exit $?
+      {% endif %}
+  loop: "{{ network_keepalived_checks | default([]) }}"
+  when:
+    - ansible_os_family != 'Darwin'
+    - network_keepalived_enabled | default(false) | bool
+    - network_keepalived_checks is defined
+  tags:
+    - network_management
+    - keepalived
+    - ha_failover
+
+- name: Enable and start keepalived service
+  ansible.builtin.systemd:
+    name: keepalived
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when:
+    - ansible_os_family != 'Darwin'
+    - network_keepalived_enabled | default(false) | bool
+  tags:
+    - network_management
+    - keepalived
+    - ha_failover
+
+# ========================================================================
+# Network Health Checks & Monitoring
+# ========================================================================
+
+- name: Verify network configuration
+  ansible.builtin.shell: |
+    set -e
+
+    echo "=== Network Interfaces ==="
+    ip link show
+
+    echo ""
+    echo "=== IP Addresses ==="
+    ip addr show
+
+    echo ""
+    echo "=== Routing Table ==="
+    ip route show
+
+    {% if network_bonding_enabled | default(false) | bool %}
+    echo ""
+    echo "=== Bond Status ==="
+    cat /proc/net/bonding/* 2>/dev/null || echo "No bonds found"
+    {% endif %}
+
+    {% if network_keepalived_enabled | default(false) | bool %}
+    echo ""
+    echo "=== Keepalived Status ==="
+    systemctl status keepalived || echo "Keepalived not running"
+
+    echo ""
+    echo "=== Virtual IP Status ==="
+    ip addr show | grep {{ network_vip | default('N/A') }} || echo "Virtual IP not assigned"
+    {% endif %}
+  changed_when: false
+  tags:
+    - network_management
+    - validate
+
+- name: Display network configuration summary
+  ansible.builtin.debug:
+    msg: |
+      Network Configuration Summary
+      =============================
+
+      Static IP Configuration:
+      - Enabled: {{ network_static_ips is defined and network_static_ips | length > 0 }}
+      - Interfaces: {{ network_static_ips | length if network_static_ips is defined else 0 }}
+
+      Network Bonding:
+      - Enabled: {{ network_bonding_enabled | default(false) }}
+      - Bonds: {{ network_bonds | length if network_bonds is defined else 0 }}
+      {% if network_bonds is defined %}
+      {% for bond in network_bonds %}
+      - {{ bond.name }}: {{ bond.interfaces | join(', ') }} (mode: {{ bond.mode | default('active-backup') }})
+      {% endfor %}
+      {% endif %}
+
+      High Availability (keepalived):
+      - Enabled: {{ network_keepalived_enabled | default(false) }}
+      - Virtual IP: {{ network_vip | default('Not configured') }}
+      - Interface: {{ network_vip_interface | default('Not configured') }}
+      - Priority: {{ network_keepalived_priority | default('100') }} (higher = preferred)
+      - Health Checks: {{ network_keepalived_checks | length if network_keepalived_checks is defined else 0 }}
+
+      Bonding Modes:
+      - active-backup (recommended) - One active, others standby
+      - balance-alb - Adaptive load balancing
+      - balance-xor - XOR policy
+      - 802.3ad (LACP) - Link aggregation protocol (requires switch support)
+      - balance-rr - Round-robin
+
+      Next Steps:
+      1. Verify network connectivity: ping {{ network_vip if network_vip is defined else 'your-vip' }}
+      2. Check bond status: cat /proc/net/bonding/bond*
+      3. Test failover: Unplug one cable, verify traffic continues
+      4. Monitor logs: journalctl -u keepalived -f
+      5. Verify VIP: ip addr show | grep {{ network_vip if network_vip is defined else 'your-vip' }}
+  tags:
+    - network_management
+    - summary
+    - always
