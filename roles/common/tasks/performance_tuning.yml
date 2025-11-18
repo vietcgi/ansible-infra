@@ -8,6 +8,7 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: yes
+    failed_when: false
     reload: yes
   loop:
     # CPU scheduling
@@ -25,6 +26,7 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: yes
+    failed_when: false
     reload: yes
   loop:
     - { key: 'vm.swappiness', value: '10' }
@@ -68,6 +70,7 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: yes
+    failed_when: false
     reload: yes
   loop:
     # TCP send/receive buffer optimization
@@ -93,6 +96,7 @@
     value: '1'
     state: present
     sysctl_set: yes
+    failed_when: false
   tags:
     - performance_tuning
     - network

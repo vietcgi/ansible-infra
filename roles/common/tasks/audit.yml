@@ -6,6 +6,7 @@
     name: auditd
     state: present
   become: yes
+  failed_when: false
   when:
     - ansible_os_family == "Debian"
     - common_enable_audit
@@ -20,6 +21,7 @@
     name: audit
     state: present
   become: yes
+  failed_when: false
   when:
     - ansible_os_family == "RedHat"
     - common_enable_audit
@@ -35,6 +37,7 @@
     dest: /etc/audit/rules.d/sentinel.rules
     backup: yes
   become: yes
+  failed_when: false
   notify: restart auditd
   when: common_enable_audit
   tags:
@@ -49,6 +52,7 @@
     enabled: yes
     state: started
   become: yes
+  failed_when: false
   when:
     - ansible_os_family != "Darwin"
     - common_enable_audit

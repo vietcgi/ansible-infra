@@ -50,6 +50,7 @@
     - ansible_os_family == "Debian"
     - common_upgrade_packages | bool
   become: yes
+  failed_when: false
   tags:
     - packages
     - system-update

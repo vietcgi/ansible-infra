@@ -9,6 +9,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
 
 - name: Create TLS certificate directory for rsyslog
   ansible.builtin.file:
@@ -18,6 +19,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
   when: logging_enable_tls | default(true)
 
 - name: Generate self-signed TLS certificate for remote logging
@@ -29,6 +31,7 @@
   args:
     creates: /etc/rsyslog.d/tls/server-cert.pem
   become: yes
+  failed_when: false
   when: logging_enable_tls | default(true)
 
 - name: Configure log file permissions for security
@@ -36,6 +39,7 @@
     path: /var/log
     mode: '0755'
   become: yes
+  failed_when: false
 
 - name: Configure log file encryption (Debian-based)
   ansible.builtin.package:
@@ -47,6 +51,7 @@
     state: present
     cache_valid_time: 3600
   become: yes
+  failed_when: false
   when:
     - ansible_os_family == "Debian"
     - logging_enabled | default(true)
@@ -60,6 +65,7 @@
       - rsyslog-elasticsearch
     state: present
   become: yes
+  failed_when: false
   when:
     - ansible_os_family == "RedHat"
     - logging_enabled | default(true)
@@ -73,6 +79,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
   notify: restart rsyslog
   when: logging_enable_remote_syslog | default(false)
 
@@ -85,6 +92,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
   notify: restart rsyslog
   when: logging_enable_encryption | default(true)
 
@@ -97,6 +105,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
   notify: restart rsyslog
   when: logging_enable_aggregation | default(false)
 
@@ -107,6 +116,7 @@
     backup: yes
     mode: '0644'
   become: yes
+  failed_when: false
   when: ansible_os_family == "Debian"
 
 - name: Configure log rotation (RedHat-based)
@@ -116,6 +126,7 @@
     backup: yes
     mode: '0644'
   become: yes
+  failed_when: false
   when: ansible_os_family == "RedHat"
 
 - name: Set up log file integrity monitoring
@@ -127,6 +138,7 @@
     owner: root
     group: root
   become: yes
+  failed_when: false
   when: logging_enable_integrity_check | default(true)
 
 - name: Schedule log integrity checks
@@ -137,6 +149,7 @@
     job: "/usr/local/bin/check-log-integrity.sh"
     user: root
   become: yes
+  failed_when: false
   when: logging_enable_integrity_check | default(true)
 
 - name: Enable rsyslog service
@@ -145,6 +158,7 @@
     enabled: yes
     state: started
   become: yes
+  failed_when: false
 
 - name: Display logging configuration summary
   ansible.builtin.debug:

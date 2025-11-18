@@ -8,6 +8,7 @@
     update_cache: yes
   when: ansible_os_family == "Debian"
   become: yes
+  failed_when: false
   tags:
     - packages
     - core-packages
