@@ -7,6 +7,7 @@
     state: restarted
     daemon_reload: yes
   become: yes
+  failed_when: false
   listen: restart sshd
 
 - name: restart sshd macos
