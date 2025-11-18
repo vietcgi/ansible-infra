@@ -176,7 +176,7 @@
       fail2ban Configuration Complete:
       ================================
       Service: fail2ban IPS (Intrusion Prevention System)
-      Status: {{ ansible_facts.services['fail2ban'].state if 'fail2ban' in ansible_facts.services else 'unknown' }}
+      Status: {{ ansible_facts.get('services', {}).get('fail2ban', {}).get('state', 'unknown') }}
 
       Protected Services:
       - SSH: bantime={{ fail2ban_bantime_ssh | default(3600) }}s ({{ fail2ban_findtime_ssh | default(600) }}s window)
