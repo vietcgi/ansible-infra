@@ -1,6 +1,6 @@
 ---
 name: Security Report
-about: Report a security vulnerability (PLEASE READ SECURITY.md FIRST)
+about: Report a security vulnerability
 title: "[SECURITY] "
 labels: security
 assignees: ''
@@ -21,8 +21,6 @@ Please follow our responsible disclosure policy:
  - Suggested fix (if available)
  - Your contact information
 4. Allow 48 hours for response before public disclosure
-
-For more information, see: [SECURITY.md](../../SECURITY.md)
 
 ---
 

@@ -40,7 +40,7 @@ Infrastructure as Code for example-project using Ansible.
 ## Documentation
 
 - See [`../../README.md`](../../README.md) for framework overview
-- See [`../../../docs/NEW_PROJECT_QUICKSTART.md`](../../../docs/NEW_PROJECT_QUICKSTART.md) for detailed guide
+- See [`../../../docs/ONBOARDING.md`](../../../docs/ONBOARDING.md) for deployment guide
 - See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) for technical details
 
 ## Variables
@@ -58,4 +58,4 @@ Override any variable in:
 ## Support
 
 - Questions? See the main [README](../../README.md)
-- Issues? Check [TROUBLESHOOTING.md](../../../docs/TROUBLESHOOTING.md)
+- Issues? Check [OPERATIONAL_RUNBOOKS.md](../../../docs/OPERATIONAL_RUNBOOKS.md)

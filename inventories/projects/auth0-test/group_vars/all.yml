@@ -1,4 +1,17 @@
 ---
+# ⚠️ TEST PROJECT - LOCAL TESTING ONLY
+#
+# This is a mock Auth0 configuration for testing against a local mock Auth0 API
+# running on localhost:19080. These are NOT real credentials and should NEVER be
+# used with actual Auth0 or production systems.
+#
+# DO NOT use these credentials in production. This configuration is only for:
+# - Local development testing
+# - CI/CD pipeline testing
+# - Mock API validation
+#
+# All credentials here are intentionally fake test values.
+
 # Auth0 Integration Test Configuration
 # Tests against mock Auth0 API running on localhost:19080
 

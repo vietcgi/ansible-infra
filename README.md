@@ -42,9 +42,9 @@ ansible-playbook playbooks/provision.yml -i inventories/projects/my-project
 **Choose your entry point:**
 
 - **[START_HERE.md](START_HERE.md)** - Quick orientation (5 min)
-- **[docs/NEW_PROJECT_QUICKSTART.md](docs/NEW_PROJECT_QUICKSTART.md)** - Deploy your first project (15 min)
+- **[docs/ONBOARDING.md](docs/ONBOARDING.md)** - Deploy your first project & train your team (15-60 min)
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Understand the design (30 min)
-- **[docs/TEAM_ONBOARDING.md](docs/TEAM_ONBOARDING.md)** - Train your team (1 hour)
+- **[docs/PROJECT_REUSABILITY_GUIDE.md](docs/PROJECT_REUSABILITY_GUIDE.md)** - Advanced patterns (45 min)
 
 ---
 
@@ -90,10 +90,10 @@ ansible-infra/
 ├── MULTI_PROJECT_IMPLEMENTATION_PLAN.md ← Enterprise roadmap
 │
 ├── docs/
-│ ├── NEW_PROJECT_QUICKSTART.md ← Deploy in 15 minutes
+│ ├── ONBOARDING.md ← Team & project onboarding
 │ ├── ARCHITECTURE.md ← Technical design
 │ ├── PROJECT_REUSABILITY_GUIDE.md ← Advanced patterns
-│ └── TEAM_ONBOARDING.md ← Team training
+│ └── (see docs/ directory for all guides)
 │
 ├── scripts/
 │ └── scaffold-project.sh ← Create new projects
