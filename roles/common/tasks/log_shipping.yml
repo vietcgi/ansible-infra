@@ -2,19 +2,30 @@
 # Log Shipping & Centralization
 # Forwards system logs to centralized Elasticsearch/Logstash cluster
 # Supports both Filebeat (modern) and rsyslog (fallback) backends
+# Gracefully falls back to local-only logging if centralization unavailable
 
-- name: Ensure log shipping is configured
-  ansible.builtin.assert:
-    that:
-      - log_shipping_elasticsearch_host is defined
-      - log_shipping_elasticsearch_port | int > 0
-    fail_msg: "log_shipping_elasticsearch_host and port must be defined"
+- name: Detect if Elasticsearch/Logstash available
+  ansible.builtin.set_fact:
+    log_centralization_available: "{{ log_shipping_elasticsearch_host != 'localhost' or
+                                       log_shipping_logstash_host != 'localhost' }}"
   when: log_shipping_enabled | bool
   tags:
     - log_shipping
     - always
 
-- name: Install Filebeat for log shipping (modern approach)
+- name: Display log shipping mode
+  ansible.builtin.debug:
+    msg: |
+      Log Shipping Configuration:
+      - Enabled: {{ log_shipping_enabled | bool }}
+      - Mode: {{ 'Local + Centralized' if log_centralization_available else 'Local Only (Fallback)' }}
+      - Elasticsearch: {{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}
+  when: log_shipping_enabled | bool
+  tags:
+    - log_shipping
+    - always
+
+- name: Install Filebeat for log shipping (only if centralization enabled)
   block:
     - name: Add Elasticsearch GPG key
       ansible.builtin.apt_key:
@@ -43,6 +54,7 @@
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)
+    - log_centralization_available | default(false)
   tags:
     - log_shipping
     - packages

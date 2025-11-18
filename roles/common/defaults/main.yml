@@ -32,6 +32,7 @@ common_core_packages:
   - tmux
   - unzip
   - net-tools
+  - rsync
 
 # Python Requirements
 common_python_packages:
@@ -114,7 +115,6 @@ common_log_retention_days: 30
 # DNS Resolution
 common_dns_servers:
   - 8.8.8.8
-  - 8.8.4.4
   - 1.1.1.1
 
 # Miscellaneous
@@ -319,14 +319,29 @@ metrics_drop_high_cardinality: false      # Drop high-cardinality metrics
 metrics_cpu_quota: "100%"                 # CPU quota for node_exporter
 metrics_memory_limit: "256M"              # Memory limit for node_exporter
 
-## Log Shipping & Centralization (Placeholder for PHASE 1.B)
-log_shipping_enabled: false
-log_shipping_elasticsearch_host: "localhost"
+## Log Shipping & Centralization
+log_shipping_enabled: true                   # ENABLED BY DEFAULT - collects local logs + ships if ES available
+log_shipping_use_filebeat: true              # Use Filebeat (modern) vs rsyslog (fallback)
+log_shipping_elasticsearch_host: "localhost" # Set to external ES server to enable centralization
 log_shipping_elasticsearch_port: 9200
-log_shipping_logstash_host: "localhost"
+log_shipping_logstash_host: "localhost"      # Set to external Logstash server for alternative
 log_shipping_logstash_port: 5000
 log_shipping_filebeat_version: "8.12.0"
 log_shipping_buffer_size: "4096"
+log_shipping_environment: "{{ common_hostname_environment | default('production') }}"
+log_shipping_retention_days: 30              # Local log retention
+
+# Log Collection (what gets shipped)
+log_shipping_collect_syslog: true
+log_shipping_collect_auth: true
+log_shipping_collect_audit: true
+log_shipping_collect_kern: true
+log_shipping_collect_systemd: true
+
+# Index Configuration
+log_shipping_index_prefix: "logs"            # Index name prefix: logs-YYYY.MM.DD
+log_shipping_index_lifecycle_enabled: true   # Enable ILM (index lifecycle management)
+log_shipping_index_lifecycle_policy: "logs"  # ILM policy name
 
 ## HashiCorp Vault Integration (Placeholder for PHASE 1.B)
 vault_enabled: false
