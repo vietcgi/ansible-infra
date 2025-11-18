@@ -62,7 +62,7 @@
     group: root
     mode: '0644'
     backup: yes
-  when: "'postfix' in ansible_facts.packages or fail2ban_enable_postfix | default(false)"
+  when: "'postfix' in ansible_facts.get('packages', {}) or fail2ban_enable_postfix | default(false)"
   notify: restart fail2ban
   tags:
     - fail2ban
@@ -75,7 +75,7 @@
     group: root
     mode: '0644'
     backup: yes
-  when: "'nginx' in ansible_facts.packages or fail2ban_enable_nginx | default(false)"
+  when: "'nginx' in ansible_facts.get('packages', {}) or fail2ban_enable_nginx | default(false)"
   notify: restart fail2ban
   tags:
     - fail2ban
@@ -88,7 +88,7 @@
     group: root
     mode: '0644'
     backup: yes
-  when: "'apache2' in ansible_facts.packages or 'httpd' in ansible_facts.packages or fail2ban_enable_apache | default(false)"
+  when: "('apache2' in ansible_facts.get('packages', {}) or 'httpd' in ansible_facts.get('packages', {})) or fail2ban_enable_apache | default(false)"
   notify: restart fail2ban
   tags:
     - fail2ban
