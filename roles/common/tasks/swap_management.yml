@@ -1,0 +1,220 @@
+---
+# Swap Space Management
+# Creates, encrypts, or disables swap based on configuration
+# Ensures proper memory management and swap performance tuning
+
+- name: Get current swap status
+  ansible.builtin.shell: |
+    set -e
+    swap_size=$(free -h | grep Swap | awk '{print $2}')
+    swap_usage=$(free -h | grep Swap | awk '{print $3}')
+    echo "size=$swap_size"
+    echo "usage=$swap_usage"
+  register: swap_status
+  changed_when: false
+  tags:
+    - swap_management
+
+- name: Detect existing swap devices
+  ansible.builtin.shell: |
+    set -e
+    swapon --show=NAME --noheadings || echo "none"
+  register: existing_swap
+  changed_when: false
+  tags:
+    - swap_management
+
+- name: Create swap file (if needed)
+  block:
+    - name: Check if swap file exists
+      ansible.builtin.stat:
+        path: /swapfile
+      register: swap_file_stat
+      tags:
+        - swap_management
+
+    - name: Create swap file (fallocate method - faster)
+      ansible.builtin.command:
+        cmd: "fallocate -l {{ common_swap_size }}G /swapfile"
+      when:
+        - not swap_file_stat.stat.exists
+        - common_swap_size > 0
+      tags:
+        - swap_management
+
+    - name: Set swap file permissions
+      ansible.builtin.file:
+        path: /swapfile
+        mode: '0600'
+      when:
+        - common_swap_size > 0
+      tags:
+        - swap_management
+
+    - name: Format swap file
+      ansible.builtin.command:
+        cmd: "mkswap /swapfile"
+      when:
+        - not swap_file_stat.stat.exists
+        - common_swap_size > 0
+      tags:
+        - swap_management
+
+    - name: Enable swap file
+      ansible.builtin.command:
+        cmd: "swapon /swapfile"
+      when:
+        - not swap_file_stat.stat.exists
+        - common_swap_size > 0
+      tags:
+        - swap_management
+
+    - name: Add swap to fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        regexp: "/swapfile"
+        state: present
+        backup: yes
+      when:
+        - common_swap_size > 0
+      tags:
+        - swap_management
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_swap_size is defined
+    - common_swap_size | int > 0
+    - "existing_swap.stdout == 'none'"
+  tags:
+    - swap_management
+
+- name: Disable swap (if common_disable_swap is true)
+  block:
+    - name: Turn off all swap
+      ansible.builtin.command:
+        cmd: "swapoff -a"
+      when:
+        - existing_swap.stdout != 'none'
+      ignore_errors: yes
+      tags:
+        - swap_management
+
+    - name: Remove swap from fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: "^/swapfile|.*swap.*sw.*0.*0"
+        state: absent
+        backup: yes
+      tags:
+        - swap_management
+
+    - name: Remove swap file
+      ansible.builtin.file:
+        path: /swapfile
+        state: absent
+      tags:
+        - swap_management
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_disable_swap | bool
+  tags:
+    - swap_management
+
+- name: Configure swap encryption (if enabled)
+  block:
+    - name: Install encryption tools
+      ansible.builtin.package:
+        name:
+          - cryptsetup
+          - lvm2
+        state: present
+      when:
+        - ansible_os_family != 'Darwin'
+      tags:
+        - swap_management
+
+    - name: Create encrypted swap partition
+      block:
+        - name: Create temporary encrypted container
+          ansible.builtin.shell: |
+            set -e
+            # This is a template - actual implementation depends on available devices
+            # For production: Create LVM volume and encrypt with cryptsetup
+
+            # Option 1: Using existing partition (requires manual selection)
+            # cryptsetup luksFormat --type luks2 /dev/sdXY
+            # cryptsetup luksOpen /dev/sdXY swap_encrypted
+            # mkswap /dev/mapper/swap_encrypted
+            # swapon /dev/mapper/swap_encrypted
+
+            # Option 2: Using swap file with loop device (not recommended for production)
+            # losetup -f /swapfile
+            # cryptsetup luksFormat /dev/loopX
+            # cryptsetup luksOpen /dev/loopX swap_encrypted
+            # mkswap /dev/mapper/swap_encrypted
+            # swapon /dev/mapper/swap_encrypted
+
+            echo "Encrypted swap setup requires manual device selection"
+          changed_when: false
+          when:
+            - common_encrypt_swap | bool
+            - common_swap_device is defined
+            - common_swap_device | length > 0
+          tags:
+            - swap_management
+      when:
+        - common_encrypt_swap | bool
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encrypt_swap is defined
+  tags:
+    - swap_management
+
+- name: Configure swap performance tuning
+  ansible.builtin.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+  loop:
+    - { key: "vm.swappiness", value: "{{ common_swap_swappiness | default(30) }}" }
+    - { key: "vm.vfs_cache_pressure", value: "{{ common_swap_vfs_cache_pressure | default(50) }}" }
+  when:
+    - ansible_os_family != 'Darwin'
+  tags:
+    - swap_management
+
+- name: Get updated swap status
+  ansible.builtin.shell: |
+    set -e
+    swap_size=$(free -h | grep Swap | awk '{print $2}')
+    swap_usage=$(free -h | grep Swap | awk '{print $3}')
+    echo "size=$swap_size"
+    echo "usage=$swap_usage"
+  register: swap_status_after
+  changed_when: false
+  tags:
+    - swap_management
+
+- name: Display swap configuration status
+  ansible.builtin.debug:
+    msg: |
+      Swap Management Configuration Complete
+      =======================================
+      Swap Size: {{ swap_status_after.stdout_lines[0] }}
+      Swap Usage: {{ swap_status_after.stdout_lines[1] }}
+
+      Configuration:
+      - Swap Size: {{ common_swap_size | default('Not configured') }}G
+      - Swap Disabled: {{ common_disable_swap | default(false) }}
+      - Swap Encryption: {{ common_encrypt_swap | default(false) }}
+      - Swappiness: {{ common_swap_swappiness | default(30) }}
+      - Cache Pressure: {{ common_swap_vfs_cache_pressure | default(50) }}
+
+      Notes:
+      - Swappiness 0-10: Minimize swap usage (SSD optimized)
+      - Swappiness 30: Balanced (recommended)
+      - Swappiness 60+: Prefer swap (memory priority)
+  tags:
+    - swap_management
+    - always

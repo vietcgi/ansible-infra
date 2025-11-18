@@ -19,6 +19,12 @@
     - dns.yml
     - logging.yml
 
+    # Core foundation additions (recently added high-priority gaps)
+    - hostname_domain.yml
+    - swap_management.yml
+    - encryption_at_rest.yml
+    - change_tracking.yml
+
     # PHASE 1: Security, Monitoring, and Backup
     - firewall.yml
     - fail2ban.yml

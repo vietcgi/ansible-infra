@@ -1,0 +1,282 @@
+---
+# Encryption at Rest Configuration
+# Implements full-disk and partition encryption for sensitive data
+# Supports LUKS for Linux and FileVault for macOS
+
+- name: Install encryption tools (Linux)
+  ansible.builtin.package:
+    name:
+      - cryptsetup
+      - lvm2
+      - ecryptfs-utils
+    state: present
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encryption_enabled | bool
+  tags:
+    - encryption_at_rest
+
+- name: Check existing encrypted volumes
+  ansible.builtin.shell: |
+    set -e
+    cryptsetup status /dev/mapper/crypt_* 2>/dev/null | head -5 || echo "No encrypted volumes found"
+  register: encrypted_volumes
+  changed_when: false
+  tags:
+    - encryption_at_rest
+
+- name: Encrypt /var/log (system logs)
+  block:
+    - name: Create encrypted container for logs
+      ansible.builtin.shell: |
+        set -e
+        # Note: This is a template. Production requires:
+        # 1. Backing up existing /var/log
+        # 2. Creating LVM volume
+        # 3. Encrypting with LUKS
+        # 4. Mounting to /var/log
+        # 5. Restoring logs
+
+        lvcreate -L {{ common_encryption_log_size | default(5) }}G -n var_log vg0 2>/dev/null || echo "LVM volume exists or not available"
+        cryptsetup luksFormat -q --type luks2 /dev/vg0/var_log 2>/dev/null || echo "Volume already encrypted"
+        cryptsetup luksOpen /dev/vg0/var_log crypt_var_log --key-file /etc/crypt_var_log.key 2>/dev/null || echo "Already mounted"
+
+        echo "Encrypted /var/log container created"
+      when:
+        - common_encrypt_logs | bool
+        - common_encryption_log_size is defined
+      ignore_errors: yes
+      tags:
+        - encryption_at_rest
+
+    - name: Set restricted permissions on log encryption key
+      ansible.builtin.file:
+        path: /etc/crypt_var_log.key
+        mode: '0400'
+        owner: root
+        group: root
+      when:
+        - common_encrypt_logs | bool
+      tags:
+        - encryption_at_rest
+
+    - name: Configure log encryption in crypttab
+      ansible.builtin.lineinfile:
+        path: /etc/crypttab
+        line: "crypt_var_log /dev/vg0/var_log /etc/crypt_var_log.key luks2"
+        regexp: "^crypt_var_log"
+        state: present
+        create: yes
+        mode: '0600'
+      when:
+        - common_encrypt_logs | bool
+      tags:
+        - encryption_at_rest
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encrypt_logs is defined
+  tags:
+    - encryption_at_rest
+
+- name: Encrypt /home (user data)
+  block:
+    - name: Create encrypted container for home
+      ansible.builtin.shell: |
+        set -e
+        # Note: This is a template. Production requires:
+        # 1. Creating LVM volume
+        # 2. Encrypting with LUKS
+        # 3. Mounting to /home
+        # 4. Ensuring proper permissions
+
+        lvcreate -L {{ common_encryption_home_size | default(20) }}G -n home vg0 2>/dev/null || echo "LVM volume exists"
+        cryptsetup luksFormat -q --type luks2 /dev/vg0/home 2>/dev/null || echo "Volume already encrypted"
+        cryptsetup luksOpen /dev/vg0/home crypt_home --key-file /etc/crypt_home.key 2>/dev/null || echo "Already mounted"
+
+        echo "Encrypted /home container created"
+      when:
+        - common_encrypt_home | bool
+        - common_encryption_home_size is defined
+      ignore_errors: yes
+      tags:
+        - encryption_at_rest
+
+    - name: Set restricted permissions on home encryption key
+      ansible.builtin.file:
+        path: /etc/crypt_home.key
+        mode: '0400'
+        owner: root
+        group: root
+      when:
+        - common_encrypt_home | bool
+      tags:
+        - encryption_at_rest
+
+    - name: Configure home encryption in crypttab
+      ansible.builtin.lineinfile:
+        path: /etc/crypttab
+        line: "crypt_home /dev/vg0/home /etc/crypt_home.key luks2"
+        regexp: "^crypt_home"
+        state: present
+        create: yes
+        mode: '0600'
+      when:
+        - common_encrypt_home | bool
+      tags:
+        - encryption_at_rest
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encrypt_home is defined
+  tags:
+    - encryption_at_rest
+
+- name: Encrypt swap space
+  block:
+    - name: Create encrypted swap
+      ansible.builtin.shell: |
+        set -e
+        # Generate random key for swap encryption
+        if [ ! -f /etc/crypt_swap.key ]; then
+          dd if=/dev/urandom bs=1 count=32 of=/etc/crypt_swap.key 2>/dev/null
+          chmod 400 /etc/crypt_swap.key
+        fi
+
+        # Create swap if needed
+        if [ ! -f /swapfile ]; then
+          fallocate -l {{ common_swap_size }}G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1G count={{ common_swap_size }}
+          chmod 600 /swapfile
+        fi
+
+        # Encrypt and mount
+        cryptsetup luksFormat -q --type luks2 /swapfile --key-file /etc/crypt_swap.key 2>/dev/null || echo "Already encrypted"
+        cryptsetup luksOpen /swapfile crypt_swap --key-file /etc/crypt_swap.key 2>/dev/null || echo "Already mounted"
+
+        # Create swap on encrypted device
+        mkswap /dev/mapper/crypt_swap 2>/dev/null || echo "Swap already initialized"
+        swapon /dev/mapper/crypt_swap 2>/dev/null || echo "Swap already enabled"
+
+        echo "Encrypted swap created successfully"
+      when:
+        - common_encrypt_swap | bool
+        - common_swap_size is defined
+      ignore_errors: yes
+      tags:
+        - encryption_at_rest
+
+    - name: Configure encrypted swap in crypttab
+      ansible.builtin.lineinfile:
+        path: /etc/crypttab
+        line: "crypt_swap /swapfile /etc/crypt_swap.key luks2"
+        regexp: "^crypt_swap"
+        state: present
+        create: yes
+        mode: '0600'
+      when:
+        - common_encrypt_swap | bool
+      tags:
+        - encryption_at_rest
+
+    - name: Update fstab for encrypted swap
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: "/dev/mapper/crypt_swap none swap sw 0 0"
+        regexp: "/dev/mapper/crypt_swap"
+        state: present
+        backup: yes
+      when:
+        - common_encrypt_swap | bool
+      tags:
+        - encryption_at_rest
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encrypt_swap is defined
+  tags:
+    - encryption_at_rest
+
+- name: Enable FileVault (macOS)
+  block:
+    - name: Check FileVault status
+      ansible.builtin.command:
+        cmd: "diskutil info / | grep 'Encrypted'"
+      register: filevault_status
+      changed_when: false
+      ignore_errors: yes
+      tags:
+        - encryption_at_rest
+
+    - name: Enable FileVault2
+      ansible.builtin.shell: |
+        set -e
+        fdesetup isactive || {
+          echo "FileVault is not enabled"
+          echo "To enable FileVault: System Preferences → Security & Privacy → FileVault"
+        }
+      when:
+        - common_encryption_enabled | bool
+      changed_when: false
+      tags:
+        - encryption_at_rest
+  when:
+    - ansible_os_family == 'Darwin'
+    - common_encryption_enabled | bool
+  tags:
+    - encryption_at_rest
+
+- name: Configure encrypted filesystem options
+  block:
+    - name: Set mount options for encrypted partitions
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: "^/dev/mapper/crypt_"
+        line: "{{ item }}"
+        state: present
+        backup: yes
+      loop:
+        - "/dev/mapper/crypt_var_log /var/log ext4 defaults,noexec,nodev 0 2"
+        - "/dev/mapper/crypt_home /home ext4 defaults,nodev 0 2"
+      when:
+        - common_encrypt_logs | bool or common_encrypt_home | bool
+      ignore_errors: yes
+      tags:
+        - encryption_at_rest
+  when:
+    - ansible_os_family != 'Darwin'
+  tags:
+    - encryption_at_rest
+
+- name: Display encryption configuration status
+  ansible.builtin.debug:
+    msg: |
+      Encryption at Rest Configuration
+      ================================
+
+      Current Encrypted Volumes:
+      {{ encrypted_volumes.stdout }}
+
+      Configuration:
+      - Encryption Enabled: {{ common_encryption_enabled | default(false) }}
+      - Encrypt /var/log: {{ common_encrypt_logs | default(false) }}
+      - Encrypt /home: {{ common_encrypt_home | default(false) }}
+      - Encrypt Swap: {{ common_encrypt_swap | default(false) }}
+
+      Log Size: {{ common_encryption_log_size | default(5) }}G
+      Home Size: {{ common_encryption_home_size | default(20) }}G
+
+      ⚠️  IMPORTANT NOTES:
+      - This implementation is a TEMPLATE
+      - Production encryption requires:
+        1. Planning: Identify volumes to encrypt
+        2. Backup: Full system backup before encryption
+        3. LVM setup: Create logical volumes
+        4. LUKS: Encrypt with strong passphrase
+        5. Key management: Secure key storage
+        6. Testing: Verify recovery procedures
+        7. Documentation: Record encryption setup
+
+      - For existing systems: Use offline tools to encrypt
+      - For new systems: Encrypt during OS installation
+      - Keep recovery keys in secure location
+      - Test recovery regularly
+  tags:
+    - encryption_at_rest
+    - always

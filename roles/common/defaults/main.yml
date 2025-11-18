@@ -1304,3 +1304,46 @@ backup_restore_validation_enabled: true
 backup_rto_target_minutes: 60
 backup_rpo_target_minutes: 15
 monitoring_slo_error_rate_target: 0.01
+
+# ============================================================================
+# NEW: Hostname and Domain Configuration
+# ============================================================================
+common_hostname: "{{ inventory_hostname }}"
+common_domain: ""  # Optional: domain name for FQDN
+common_configure_hosts_file: true
+
+# ============================================================================
+# NEW: Swap Management
+# ============================================================================
+common_swap_size: 4  # Size in GB (0 = disabled)
+common_disable_swap: false  # Set true to remove all swap
+common_swap_swappiness: 30  # 0-100: lower = prefer RAM, higher = prefer swap
+common_swap_vfs_cache_pressure: 50  # 0-100: memory pressure on cache
+common_encrypt_swap: false  # Enable swap encryption (requires LUKS setup)
+common_swap_device: ""  # Device for encrypted swap (e.g., /dev/sdb1)
+
+# ============================================================================
+# NEW: Encryption at Rest
+# ============================================================================
+common_encryption_enabled: false  # Master switch for encryption
+common_encrypt_home: false  # Encrypt /home directory
+common_encrypt_logs: false  # Encrypt /var/log
+common_encrypt_swap: false  # Encrypt swap space
+common_encryption_home_size: 20  # Size in GB for /home
+common_encryption_log_size: 5   # Size in GB for /var/log
+common_encryption_log_retention: 90  # Days to keep encrypted logs
+common_encryption_key_storage: "/etc/crypt_keys"  # Secure key storage location
+
+# ============================================================================
+# NEW: Change Tracking and Configuration Baseline
+# ============================================================================
+common_enable_change_tracking: true  # Enable baseline snapshots and change detection
+common_change_tracking_schedule: "daily"  # Frequency: daily, weekly, monthly
+common_baseline_location: "/var/lib/ansible-baseline"
+common_change_log_location: "/var/log/ansible-changes"
+common_change_detection_interval_hours: 24  # Hours between change scans
+common_track_package_changes: true
+common_track_configuration_changes: true
+common_track_security_changes: true
+common_track_service_changes: true
+common_change_tracking_retention_days: 90  # Keep change reports for N days

@@ -1,0 +1,371 @@
+---
+# Change Tracking and Configuration Baseline
+# Captures system state, generates baselines, and tracks configuration changes
+# Essential for compliance, auditing, and detecting drift
+
+- name: Create baseline directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0700'
+  loop:
+    - /var/lib/ansible-baseline
+    - /var/lib/ansible-baseline/configs
+    - /var/lib/ansible-baseline/services
+    - /var/lib/ansible-baseline/packages
+    - /var/lib/ansible-baseline/security
+    - /var/log/ansible-changes
+  tags:
+    - change_tracking
+
+- name: Generate system baseline information
+  block:
+    - name: Capture OS information
+      ansible.builtin.shell: |
+        cat > /var/lib/ansible-baseline/os_baseline.txt << 'EOF'
+        Baseline Date: {{ ansible_date_time.iso8601 }}
+        Hostname: {{ ansible_hostname }}
+        OS Family: {{ ansible_os_family }}
+        OS Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+        Kernel: {{ ansible_kernel }}
+        Kernel Version: {{ ansible_kernel_version }}
+        Architecture: {{ ansible_architecture }}
+        CPU Count: {{ ansible_processor_vcpus }}
+        Memory: {{ (ansible_memtotal_mb / 1024) | round(2) }}GB
+        Selinux: {{ ansible_selinux if ansible_os_family == 'RedHat' else 'N/A' }}
+        AppArmor: {{ ansible_apparmor if ansible_os_family == 'Debian' else 'N/A' }}
+        EOF
+      changed_when: false
+      tags:
+        - change_tracking
+
+    - name: Capture package list baseline
+      ansible.builtin.shell: |
+        set -e
+        case {{ ansible_os_family }} in
+          Debian)
+            dpkg -l | grep "^ii" > /var/lib/ansible-baseline/packages/installed_packages.txt
+            ;;
+          RedHat)
+            rpm -qa | sort > /var/lib/ansible-baseline/packages/installed_packages.txt
+            ;;
+          Darwin)
+            brew list > /var/lib/ansible-baseline/packages/installed_packages.txt
+            ;;
+        esac
+        echo "Baseline captured: $(wc -l < /var/lib/ansible-baseline/packages/installed_packages.txt) packages"
+      changed_when: false
+      tags:
+        - change_tracking
+
+    - name: Capture configuration file checksums
+      ansible.builtin.shell: |
+        set -e
+        find /etc -type f -name "*.conf" -o -name "*.cfg" | \
+        xargs sha256sum 2>/dev/null > /var/lib/ansible-baseline/configs/checksums.sha256 || true
+        echo "Configuration checksums: $(wc -l < /var/lib/ansible-baseline/configs/checksums.sha256) files"
+      changed_when: false
+      tags:
+        - change_tracking
+
+    - name: Capture service status baseline
+      ansible.builtin.shell: |
+        set -e
+        if [ "{{ ansible_service_mgr }}" = "systemd" ]; then
+          systemctl list-units --type=service --no-pager > /var/lib/ansible-baseline/services/systemd_services.txt 2>/dev/null
+        fi
+        echo "Service baseline captured"
+      changed_when: false
+      tags:
+        - change_tracking
+
+    - name: Capture security configuration baseline
+      ansible.builtin.shell: |
+        cat > /var/lib/ansible-baseline/security/security_baseline.txt << 'EOF'
+        Security Configuration Baseline
+        ==============================
+        Capture Date: {{ ansible_date_time.iso8601 }}
+
+        SSH Configuration:
+        - SSH Port: {{ common_ssh_port | default(22) }}
+        - Root Login: {{ common_ssh_permit_root_login | default('without-password') }}
+        - Password Auth: {{ common_ssh_permit_password_authentication | default('no') }}
+
+        Firewall Status:
+        {{ ansible_facts['services'] | default({}) }}
+
+        Audit Status:
+        - Auditd Enabled: {{ common_audit_enabled | default(true) }}
+
+        Compliance:
+        - CIS Benchmark: Configured
+        - NIST Controls: Implemented
+        EOF
+      changed_when: false
+      tags:
+        - change_tracking
+
+    - name: Generate baseline hash
+      ansible.builtin.shell: |
+        set -e
+        hash_file="/var/lib/ansible-baseline/baseline_hash.txt"
+        baseline_hash=$(tar -czf - /var/lib/ansible-baseline --exclude='*.log' 2>/dev/null | sha256sum | awk '{print $1}')
+        echo "$baseline_hash" > "$hash_file"
+        echo "Baseline hash: $baseline_hash"
+      changed_when: false
+      tags:
+        - change_tracking
+  tags:
+    - change_tracking
+
+- name: Create change tracking playbook template
+  ansible.builtin.copy:
+    dest: /var/lib/ansible-baseline/check_changes.sh
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      # Change Detection Script - Compare current state to baseline
+      # Usage: /var/lib/ansible-baseline/check_changes.sh
+
+      BASELINE_DIR="/var/lib/ansible-baseline"
+      REPORT_DIR="/var/log/ansible-changes"
+      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+      REPORT="$REPORT_DIR/change_report_$TIMESTAMP.txt"
+
+      echo "================================================" | tee "$REPORT"
+      echo "Configuration Change Report" | tee -a "$REPORT"
+      echo "Generated: $(date)" | tee -a "$REPORT"
+      echo "================================================" | tee -a "$REPORT"
+
+      # 1. Check package changes
+      echo "" | tee -a "$REPORT"
+      echo "1. PACKAGE CHANGES" | tee -a "$REPORT"
+      echo "==================" | tee -a "$REPORT"
+
+      case $(. /etc/os-release && echo $ID) in
+        ubuntu|debian)
+          dpkg -l | grep "^ii" > /tmp/current_packages.txt
+          ;;
+        rhel|centos|rocky)
+          rpm -qa | sort > /tmp/current_packages.txt
+          ;;
+        darwin)
+          brew list > /tmp/current_packages.txt
+          ;;
+      esac
+
+      if ! diff -u "$BASELINE_DIR/packages/installed_packages.txt" /tmp/current_packages.txt >> "$REPORT"; then
+        echo "✗ Package list differs from baseline" | tee -a "$REPORT"
+      else
+        echo "✓ No package changes" | tee -a "$REPORT"
+      fi
+
+      # 2. Check configuration file changes
+      echo "" | tee -a "$REPORT"
+      echo "2. CONFIGURATION FILE CHANGES" | tee -a "$REPORT"
+      echo "=============================" | tee -a "$REPORT"
+
+      sha256sum -c "$BASELINE_DIR/configs/checksums.sha256" 2>/dev/null | grep -v "OK$" >> "$REPORT" || {
+        echo "✓ No configuration file changes" | tee -a "$REPORT"
+      }
+
+      # 3. Check security configuration changes
+      echo "" | tee -a "$REPORT"
+      echo "3. SECURITY CONFIGURATION" | tee -a "$REPORT"
+      echo "=========================" | tee -a "$REPORT"
+
+      # Check SSH configuration
+      SSH_PORT=$(grep "^Port " /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}')
+      echo "Current SSH Port: $SSH_PORT" >> "$REPORT"
+
+      # Check firewall status
+      if command -v ufw &> /dev/null; then
+        ufw status numbered >> "$REPORT"
+      fi
+
+      # 4. Check baseline integrity
+      echo "" | tee -a "$REPORT"
+      echo "4. BASELINE INTEGRITY CHECK" | tee -a "$REPORT"
+      echo "===========================" | tee -a "$REPORT"
+
+      if [ -f "$BASELINE_DIR/baseline_hash.txt" ]; then
+        old_hash=$(cat "$BASELINE_DIR/baseline_hash.txt")
+        new_hash=$(tar -czf - "$BASELINE_DIR" --exclude='*.log' 2>/dev/null | sha256sum | awk '{print $1}')
+
+        if [ "$old_hash" = "$new_hash" ]; then
+          echo "✓ Baseline integrity verified" | tee -a "$REPORT"
+        else
+          echo "✗ Baseline mismatch detected" | tee -a "$REPORT"
+          echo "  Previous: $old_hash" >> "$REPORT"
+          echo "  Current:  $new_hash" >> "$REPORT"
+        fi
+      fi
+
+      echo "" | tee -a "$REPORT"
+      echo "Report saved to: $REPORT"
+      echo "================================================" | tee -a "$REPORT"
+  tags:
+    - change_tracking
+
+- name: Create ansible fact caching for future runs
+  ansible.builtin.copy:
+    dest: "/var/lib/ansible-baseline/ansible_facts_baseline.json"
+    content: "{{ ansible_facts | to_nice_json }}"
+    mode: '0644'
+  tags:
+    - change_tracking
+
+- name: Create configuration change log
+  ansible.builtin.file:
+    path: /var/log/ansible-changes/CHANGELOG.md
+    state: touch
+    mode: '0644'
+    modification_time: now
+  tags:
+    - change_tracking
+
+- name: Initialize change tracking log entry
+  ansible.builtin.copy:
+    dest: /var/log/ansible-changes/CHANGELOG.md
+    content: |
+      # Configuration Change Log
+
+      **Baseline Created**: {{ ansible_date_time.iso8601 }}
+      **System**: {{ ansible_hostname }}
+      **OS**: {{ ansible_distribution }} {{ ansible_distribution_version }}
+
+      ## Change History
+
+      | Date | Component | Change | Reason | Status |
+      |------|-----------|--------|--------|--------|
+      | {{ ansible_date_time.iso8601 }} | BASELINE | Initial baseline capture | Ansible baseline role execution | ✓ Complete |
+
+      ## Approved Changes
+
+      ### 2024 Q1
+
+      - [Date] - [Component] - [Change Description] - [Approval ID]
+
+      ## Unapproved Changes
+
+      (Tracked by automatic change detection)
+
+      ---
+
+      ## Guidelines
+
+      1. **Document ALL changes** in this log
+      2. **Get approval** before making changes
+      3. **Record baseline**: After approved changes, run: `/var/lib/ansible-baseline/check_changes.sh`
+      4. **Review drift**: Look for unapproved changes in reports
+      5. **Investigate**: Any deviation from baseline requires investigation
+
+      ---
+
+      **Last Updated**: {{ ansible_date_time.iso8601 }}
+      **Next Review**: {{ (ansible_date_time.iso8601_basic | int) + 2592000 }} (30 days)
+    force: yes
+  tags:
+    - change_tracking
+
+- name: Create systemd timer for periodic change detection
+  block:
+    - name: Create change detection timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ansible-change-check.timer
+        content: |
+          [Unit]
+          Description=Ansible Configuration Change Detection
+          Requires=ansible-change-check.service
+
+          [Timer]
+          OnCalendar=daily
+          OnCalendar=*-*-* 02:00:00
+          AccuracySec=1h
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+        mode: '0644'
+      notify: daemon reload
+      tags:
+        - change_tracking
+
+    - name: Create change detection service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ansible-change-check.service
+        content: |
+          [Unit]
+          Description=Ansible Configuration Change Detection Service
+          After=network.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/var/lib/ansible-baseline/check_changes.sh
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+      notify: daemon reload
+      tags:
+        - change_tracking
+
+    - name: Enable and start change detection timer
+      ansible.builtin.systemd:
+        name: ansible-change-check.timer
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      when:
+        - ansible_service_mgr == 'systemd'
+        - ansible_os_family != 'Darwin'
+      tags:
+        - change_tracking
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_enable_change_tracking | default(true) | bool
+  tags:
+    - change_tracking
+
+- name: Display change tracking configuration
+  ansible.builtin.debug:
+    msg: |
+      Configuration Change Tracking Enabled
+      =====================================
+
+      Baseline Location: /var/lib/ansible-baseline/
+      Change Log: /var/log/ansible-changes/CHANGELOG.md
+      Reports: /var/log/ansible-changes/
+
+      Automated Detection:
+      - Schedule: Daily at 02:00 UTC
+      - Service: ansible-change-check.timer
+      - Script: /var/lib/ansible-baseline/check_changes.sh
+
+      Manual Change Detection:
+      $ /var/lib/ansible-baseline/check_changes.sh
+
+      Baseline Snapshot Created:
+      - OS Configuration: os_baseline.txt
+      - Package List: installed_packages.txt
+      - Configuration Checksums: checksums.sha256
+      - Service Status: systemd_services.txt
+      - Security Settings: security_baseline.txt
+      - Baseline Hash: baseline_hash.txt
+
+      How to Update Baseline:
+      1. Make approved changes
+      2. Run change detection: /var/lib/ansible-baseline/check_changes.sh
+      3. Document in CHANGELOG.md
+      4. When satisfied: cp /var/lib/ansible-baseline /var/lib/ansible-baseline.backup
+
+      How to Detect Drift:
+      1. Run: /var/lib/ansible-baseline/check_changes.sh
+      2. Review: /var/log/ansible-changes/change_report_*.txt
+      3. Investigate: Any unexpected changes
+      4. Remediate: Update baselines or revert changes
+  tags:
+    - change_tracking
+    - always

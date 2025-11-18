@@ -1,0 +1,134 @@
+---
+# Hostname and Domain Configuration
+# Sets system hostname, domain name, and /etc/hosts entries
+# Critical for multi-system deployments, DNS resolution, and service discovery
+
+- name: Set hostname (Linux)
+  ansible.builtin.hostname:
+    name: "{{ common_hostname }}"
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_hostname is defined
+    - common_hostname | length > 0
+  tags:
+    - hostname_domain
+
+- name: Set hostname (macOS)
+  ansible.builtin.command:
+    cmd: "scutil --set HostName {{ common_hostname }}"
+  when:
+    - ansible_os_family == 'Darwin'
+    - common_hostname is defined
+    - common_hostname | length > 0
+  changed_when: false
+  tags:
+    - hostname_domain
+
+- name: Persist hostname (Debian/Ubuntu)
+  ansible.builtin.copy:
+    content: "{{ common_hostname }}"
+    dest: /etc/hostname
+    mode: '0644'
+  when:
+    - ansible_os_family == 'Debian'
+    - common_hostname is defined
+    - common_hostname | length > 0
+  tags:
+    - hostname_domain
+
+- name: Configure /etc/hosts with hostname
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^127\\.0\\.0\\.1\\s+"
+    line: "127.0.0.1\t{{ common_hostname }} localhost"
+    state: present
+    backup: yes
+  when:
+    - common_hostname is defined
+    - common_hostname | length > 0
+  tags:
+    - hostname_domain
+
+- name: Add IPv6 localhost entry to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^::1\\s+"
+    line: "::1\t{{ common_hostname }} localhost"
+    state: present
+    backup: yes
+  when:
+    - common_hostname is defined
+    - common_hostname | length > 0
+  tags:
+    - hostname_domain
+
+- name: Configure domain name (systemd-resolved)
+  block:
+    - name: Create systemd-resolved domain config
+      ansible.builtin.template:
+        src: systemd_resolved_domains.j2
+        dest: /etc/systemd/resolved.conf.d/domains.conf
+        mode: '0644'
+        backup: yes
+      when:
+        - common_domain is defined
+        - common_domain | length > 0
+
+    - name: Reload systemd-resolved
+      ansible.builtin.systemd:
+        daemon_reload: yes
+        name: systemd-resolved
+        state: reloaded
+      when:
+        - common_domain is defined
+        - common_domain | length > 0
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_service_mgr == 'systemd'
+  tags:
+    - hostname_domain
+
+- name: Verify hostname is set correctly
+  ansible.builtin.command:
+    cmd: "hostname"
+  register: hostname_check
+  changed_when: false
+  tags:
+    - hostname_domain
+
+- name: Display hostname configuration
+  ansible.builtin.debug:
+    msg: |
+      Hostname Configuration Complete
+      ================================
+      Current Hostname: {{ hostname_check.stdout }}
+      {% if common_domain is defined %}
+      Domain: {{ common_domain }}
+      {% endif %}
+      FQDN: {{ ansible_fqdn }}
+      IPv4: {{ ansible_default_ipv4.address | default('Not configured') }}
+      IPv6: {{ ansible_default_ipv6.address | default('Not configured') }}
+  tags:
+    - hostname_domain
+    - always
+
+- name: Validate hostname resolution
+  ansible.builtin.shell: |
+    set -e
+    hostname_short=$(hostname -s)
+    hostname_fqdn=$(hostname -f)
+
+    if [ -z "$hostname_short" ]; then
+      echo "ERROR: No short hostname configured"
+      exit 1
+    fi
+
+    if [ -z "$hostname_fqdn" ]; then
+      echo "ERROR: No FQDN configured"
+      exit 1
+    fi
+
+    echo "Hostname validation: OK"
+  changed_when: false
+  tags:
+    - hostname_domain
