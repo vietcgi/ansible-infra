@@ -35,31 +35,13 @@
   listen: restart auditd
 
 - name: restart chronyd
-  block:
-    - name: Attempt chronyd restart with graceful fallback
-      systemd:
-        name: chronyd
-        state: restarted
-      become: yes
-      register: chronyd_restart_result
-      ignore_errors: yes
-
-    - name: If restart fails, try to start the service
-      systemd:
-        name: chronyd
-        state: started
-      become: yes
-      when: chronyd_restart_result is failed
-      ignore_errors: yes
-
-    - name: Verify chronyd configuration if restart failed
-      shell: |
-        # Check if chronyd can validate its config
-        chronyd -Q 2>/dev/null || echo "Chronyd validation completed"
-      changed_when: false
-      when: chronyd_restart_result is failed
-      ignore_errors: yes
+  systemd:
+    name: chronyd
+    state: restarted
+  become: yes
   listen: restart chronyd
+  register: chronyd_restart_result
+  ignore_errors: yes
 
 - name: apply netplan
   command: netplan apply
