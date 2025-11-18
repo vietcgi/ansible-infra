@@ -199,6 +199,23 @@
   when: node_exporter_load_state.stdout != 'not-found'
   listen: restart node_exporter
 
+- name: Check filebeat service status
+  ansible.builtin.command: systemctl show -p LoadState --value filebeat.service
+  changed_when: false
+  register: filebeat_load_state
+  failed_when: false
+  listen: restart filebeat
+
+- name: Restart filebeat if service is loaded
+  systemd:
+    name: filebeat
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  when: filebeat_load_state.stdout != 'not-found'
+  failed_when: false
+  listen: restart filebeat
+
 - name: restart grafana
   systemd:
     name: grafana-server
