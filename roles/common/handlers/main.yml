@@ -48,6 +48,7 @@
     daemon_reload: yes
   become: yes
   when: chronyd_load_state.stdout != 'not-found'
+  failed_when: false
   listen: restart chronyd
 
 - name: apply netplan
