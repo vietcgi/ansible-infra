@@ -34,21 +34,20 @@
   become: yes
   listen: restart auditd
 
-- name: restart chronyd
-  block:
-    - name: Check chronyd service status
-      ansible.builtin.command: systemctl show -p LoadState --value chronyd.service
-      changed_when: false
-      register: chronyd_load_state
-      failed_when: false
+- name: Check chronyd service status
+  ansible.builtin.command: systemctl show -p LoadState --value chronyd.service
+  changed_when: false
+  register: chronyd_load_state
+  failed_when: false
+  listen: restart chronyd
 
-    - name: Restart chronyd if service is loaded
-      systemd:
-        name: chronyd
-        state: restarted
-        daemon_reload: yes
-      become: yes
-      when: chronyd_load_state.stdout != 'not-found'
+- name: Restart chronyd if service is loaded
+  systemd:
+    name: chronyd
+    state: restarted
+    daemon_reload: yes
+  become: yes
+  when: chronyd_load_state.stdout != 'not-found'
   listen: restart chronyd
 
 - name: apply netplan
