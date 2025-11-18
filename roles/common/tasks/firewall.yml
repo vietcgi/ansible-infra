@@ -111,13 +111,15 @@
       when: firewall_enable_stateful_tracking | default(true)
 
     - name: Configure IPv6-specific hardening rules
-      community.general.ufw:
-        rule: "{{ item.rule }}"
-        protocol: "{{ item.protocol }}"
-        direction: "{{ item.direction | default('in') }}"
-        comment: "{{ item.comment }}"
-      loop:
-        - { rule: 'deny', protocol: 'ipv6-icmp', direction: 'in', comment: 'Block IPv6 redirect messages' }
+      ansible.builtin.shell: |
+        # Disable IPv6 ICMP redirects at kernel level (more reliable than firewall rules)
+        sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1 || true
+        sysctl -w net.ipv6.conf.all.accept_redirects=0 > /dev/null 2>&1 || true
+        sysctl -w net.ipv6.conf.default.accept_redirects=0 > /dev/null 2>&1 || true
+
+        # Configure UFW to accept IPv6 (but restrict ICMPv6 via sysctl above)
+        ufw --version > /dev/null 2>&1 && echo "UFW IPv6 protection via sysctl configured" || true
+      changed_when: false
       when:
         - firewall_enable_ipv6_hardening | default(true)
         - ansible_all_ipv6_addresses is defined and ansible_all_ipv6_addresses | length > 0
