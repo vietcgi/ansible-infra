@@ -132,6 +132,20 @@
     - metrics
     - services
 
+- name: Create Prometheus scrape_configs directory
+  ansible.builtin.file:
+    path: /etc/prometheus/scrape_configs
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - metrics_enabled | bool
+    - metrics_prometheus_enabled | default(true)
+  tags:
+    - metrics
+    - prometheus
+
 - name: Configure Prometheus scrape configuration for node_exporter
   ansible.builtin.template:
     src: prometheus_scrape_config.j2
