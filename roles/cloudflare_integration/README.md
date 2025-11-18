@@ -13,7 +13,14 @@ This role provides complete Cloudflare integration by:
 2. **Extending it** with direct Cloudflare API calls for advanced features (WAF, DDoS, SSL/TLS, caching, etc.)
 3. **Providing health checks** to validate everything works correctly
 
-**Design Philosophy**: Build on official, well-maintained modules and extend them with API calls for advanced features. Avoid risky third-party dependencies.
+**Implementation Approach**:
+- DNS records: `community.general.cloudflare_dns` module (official, well-maintained)
+- Advanced features: Direct `ansible.builtin.uri` calls to Cloudflare API
+- No external/unmaintained collections: 100% supported by Cloudflare and Ansible core
+- Idempotent operations: Proper `changed_when` and `failed_when` conditions
+- Full error handling: API response validation and assertion checks
+
+**Design Philosophy**: Build on official, well-maintained modules and extend them with direct API calls for 100% feature coverage. Avoid risky third-party dependencies.
 
 ---
 
@@ -285,19 +292,26 @@ ansible-playbook playbooks/cloudflare_setup.yml \
 ```
 roles/cloudflare_integration/
 ├── tasks/
-│   └── main.yml                    # Main integration tasks
+│   ├── main.yml                    # Main integration orchestration
+│   └── api-deployment.yml          # Actual Cloudflare API calls via ansible.builtin.uri
 ├── templates/
-│   ├── cloudflare_waf_rules.json.j2      # WAF configuration
-│   ├── cloudflare_ddos_config.json.j2    # DDoS settings
-│   ├── cloudflare_ssl_config.json.j2     # SSL/TLS config
-│   ├── cloudflare_cache_rules.json.j2    # Cache rules
-│   └── cloudflare_health_check.sh.j2     # Health monitoring
+│   ├── cloudflare_waf_rules.json.j2      # Reference config (documentation)
+│   ├── cloudflare_ddos_config.json.j2    # Reference config (documentation)
+│   ├── cloudflare_ssl_config.json.j2     # Reference config (documentation)
+│   ├── cloudflare_cache_rules.json.j2    # Reference config (documentation)
+│   └── cloudflare_health_check.sh.j2     # Health check script
 ├── defaults/
-│   └── main.yml                    # All configuration variables
+│   └── main.yml                    # All configuration variables (200+)
 ├── handlers/
 │   └── main.yml                    # Event handlers
 └── README.md                        # This file
 ```
+
+**Key Implementation Details**:
+- **api-deployment.yml**: Contains actual working Cloudflare API calls using `ansible.builtin.uri` module
+- **Templates**: Reference/documentation only - real deployment uses direct API calls, not template files
+- **Zone ID Management**: Dynamically fetched via API, cached with `set_fact` across tasks
+- **Error Handling**: Proper `changed_when` and `failed_when` conditions for idempotency
 
 ---
 
