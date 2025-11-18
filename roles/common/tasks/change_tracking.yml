@@ -57,6 +57,7 @@
         esac
         echo "Baseline captured: $(wc -l < /var/lib/ansible-baseline/packages/installed_packages.txt) packages"
       changed_when: false
+      failed_when: false
       tags:
         - change_tracking
 
@@ -67,6 +68,7 @@
         xargs sha256sum 2>/dev/null > /var/lib/ansible-baseline/configs/checksums.sha256 || true
         echo "Configuration checksums: $(wc -l < /var/lib/ansible-baseline/configs/checksums.sha256) files"
       changed_when: false
+      failed_when: false
       tags:
         - change_tracking
 
@@ -78,6 +80,7 @@
         fi
         echo "Service baseline captured"
       changed_when: false
+      failed_when: false
       tags:
         - change_tracking
 
@@ -104,6 +107,7 @@
         - NIST Controls: Implemented
         EOF
       changed_when: false
+      failed_when: false
       tags:
         - change_tracking
 
@@ -115,6 +119,7 @@
         echo "$baseline_hash" > "$hash_file"
         echo "Baseline hash: $baseline_hash"
       changed_when: false
+      failed_when: false
       tags:
         - change_tracking
   tags:
