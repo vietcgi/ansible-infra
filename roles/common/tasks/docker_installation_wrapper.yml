@@ -61,7 +61,7 @@
   vars:
     docker_install_compose: "{{ container_docker_compose_enabled | default(true) }}"
     docker_daemon_json: "{{ container_docker_daemon_config | default({}) }}"
-  become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - installation

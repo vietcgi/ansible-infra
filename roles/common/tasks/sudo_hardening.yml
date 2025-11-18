@@ -29,7 +29,7 @@
     - regexp: '^Defaults\s+log_output'
       line: 'Defaults log_output={{ sudo_log_output | default("true") }}'
     - regexp: '^Defaults\s+requiretty'
-      line: 'Defaults requiretty' if sudo_require_tty | default(true) else ''
+      line: "{{ 'Defaults requiretty' if sudo_require_tty | default(true) else '' }}"
     - regexp: '^Defaults\s+use_pty'
       line: 'Defaults use_pty={{ sudo_use_pty | default("true") }}'
     - regexp: '^Defaults\s+env_reset'
