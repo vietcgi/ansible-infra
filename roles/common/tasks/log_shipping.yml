@@ -59,6 +59,20 @@
     - log_shipping
     - packages
 
+- name: Create Filebeat configuration directory
+  ansible.builtin.file:
+    path: /etc/filebeat
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+  tags:
+    - log_shipping
+    - configuration
+
 - name: Configure Filebeat for log forwarding
   ansible.builtin.template:
     src: filebeat_config.j2
