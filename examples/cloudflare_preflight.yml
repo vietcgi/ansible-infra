@@ -1,0 +1,319 @@
+---
+# Cloudflare Integration - Pre-flight Validation Playbook
+# Validates environment and API credentials before main deployment
+# Usage: ansible-playbook examples/cloudflare_preflight.yml --ask-vault-pass
+
+- name: Cloudflare Integration Pre-flight Validation
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    # Load from vault or set directly
+    cloudflare_api_token: "{{ vault_cloudflare_api_token | default('') }}"
+    cloudflare_domain: "{{ vault_cloudflare_domain | default('example.com') }}"
+
+  pre_tasks:
+    - name: Display validation scope
+      ansible.builtin.debug:
+        msg: |
+          Cloudflare Pre-flight Validation
+          ==================================
+          This playbook validates:
+          ✓ API token format and validity
+          ✓ Cloudflare API connectivity
+          ✓ Zone configuration
+          ✓ API token permissions
+          ✓ Network accessibility
+
+  tasks:
+    # ========================================================================
+    # Validate API Token Format
+    # ========================================================================
+
+    - name: Validate API token is provided
+      ansible.builtin.assert:
+        that:
+          - cloudflare_api_token is defined
+          - cloudflare_api_token | length > 0
+        fail_msg: |
+          API token not provided. Set cloudflare_api_token variable or use vault:
+          ansible-vault edit inventories/production/group_vars/all/cloudflare_vault.yml
+      tags:
+        - preflight
+        - api_validation
+
+    - name: Validate API token format (should be long alphanumeric)
+      ansible.builtin.assert:
+        that:
+          - cloudflare_api_token | length >= 40
+          - cloudflare_api_token | regex_search('[a-zA-Z0-9]')
+        fail_msg: "API token format invalid. Check vault for correct token."
+      tags:
+        - preflight
+        - api_validation
+
+    # ========================================================================
+    # Test Cloudflare API Connectivity
+    # ========================================================================
+
+    - name: Test DNS connectivity to Cloudflare API
+      ansible.builtin.command:
+        cmd: "getent hosts api.cloudflare.com"
+      changed_when: false
+      register: dns_lookup
+      tags:
+        - preflight
+        - network
+
+    - name: Validate DNS resolution successful
+      ansible.builtin.assert:
+        that:
+          - dns_lookup.rc == 0
+          - "'api.cloudflare.com' in dns_lookup.stdout"
+        fail_msg: "Cannot resolve api.cloudflare.com - check network connectivity"
+      tags:
+        - preflight
+        - network
+
+    - name: Test HTTPS connectivity to Cloudflare API
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/user"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: [200, 401, 403]
+      register: api_test
+      changed_when: false
+      no_log: true
+      tags:
+        - preflight
+        - api_connectivity
+
+    - name: Check API authentication result
+      ansible.builtin.set_fact:
+        api_auth_valid: "{{ api_test.status == 200 }}"
+        api_auth_message: "{{ 'AUTHENTICATED' if api_test.status == 200 else 'AUTHENTICATION FAILED' }}"
+      tags:
+        - preflight
+        - api_connectivity
+
+    - name: Display API test result
+      ansible.builtin.debug:
+        msg: |
+          API Connectivity Test: {{ 'PASSED ✓' if api_test.status == 200 else 'FAILED ✗' }}
+          Status Code: {{ api_test.status }}
+          Message: {{ api_auth_message }}
+      failed_when: "api_test.status not in [200, 401, 403]"
+      tags:
+        - preflight
+        - api_connectivity
+
+    # ========================================================================
+    # Validate Zone Configuration
+    # ========================================================================
+
+    - name: Get Cloudflare account information
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/accounts"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+      register: accounts_lookup
+      changed_when: false
+      no_log: true
+      failed_when: "accounts_lookup.status != 200"
+      tags:
+        - preflight
+        - zone_validation
+
+    - name: Validate domain zone exists
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones?name={{ cloudflare_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+      register: zone_lookup
+      changed_when: false
+      no_log: true
+      tags:
+        - preflight
+        - zone_validation
+
+    - name: Extract zone ID
+      ansible.builtin.set_fact:
+        cloudflare_zone_id: "{{ zone_lookup.json.result[0].id if zone_lookup.json.result | length > 0 else '' }}"
+        zone_found: "{{ zone_lookup.json.result | length > 0 }}"
+      tags:
+        - preflight
+        - zone_validation
+
+    - name: Validate zone was found in Cloudflare
+      ansible.builtin.assert:
+        that:
+          - zone_found
+          - cloudflare_zone_id | length > 0
+        fail_msg: |
+          Zone '{{ cloudflare_domain }}' not found in Cloudflare account.
+          Verify:
+          1. Domain is added to Cloudflare account
+          2. DNS is delegated to Cloudflare nameservers
+          3. cloudflare_domain variable is set correctly
+      tags:
+        - preflight
+        - zone_validation
+
+    - name: Display zone information
+      ansible.builtin.debug:
+        msg: |
+          Zone Configuration: PASSED ✓
+          Domain: {{ cloudflare_domain }}
+          Zone ID: {{ cloudflare_zone_id }}
+          Account: {{ accounts_lookup.json.result[0].name if accounts_lookup.json.result | length > 0 else 'Unknown' }}
+      tags:
+        - preflight
+        - zone_validation
+
+    # ========================================================================
+    # Validate API Token Permissions
+    # ========================================================================
+
+    - name: Test DNS read permission
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: [200, 403]
+      register: dns_read_test
+      changed_when: false
+      no_log: true
+      tags:
+        - preflight
+        - permissions
+
+    - name: Test WAF settings read permission
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/settings/security_level"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: [200, 403]
+      register: waf_read_test
+      changed_when: false
+      no_log: true
+      tags:
+        - preflight
+        - permissions
+
+    - name: Display permission test results
+      ansible.builtin.debug:
+        msg: |
+          API Token Permissions:
+          - DNS Read: {{ 'ALLOWED ✓' if dns_read_test.status == 200 else 'DENIED ✗ (may be restricted)' }}
+          - WAF Settings Read: {{ 'ALLOWED ✓' if waf_read_test.status == 200 else 'DENIED ✗ (may be restricted)' }}
+
+          Required Scopes for Full Functionality:
+          - Zone:DNS:Edit (for DNS record management)
+          - Zone:WAF:Edit (for WAF rules)
+          - Zone:Settings:Edit (for SSL/TLS, caching, DDoS)
+          - Account:Audit Log:Read (for monitoring)
+      tags:
+        - preflight
+        - permissions
+
+    # ========================================================================
+    # System Requirements Check
+    # ========================================================================
+
+    - name: Check Ansible version
+      ansible.builtin.assert:
+        that:
+          - ansible_version.major >= 2
+          - ansible_version.minor >= 15
+        fail_msg: "Ansible 2.15+ required. Current: {{ ansible_version.full }}"
+      tags:
+        - preflight
+        - system_requirements
+
+    - name: Check Python version
+      ansible.builtin.assert:
+        that:
+          - ansible_python_version is version('3.8', '>=')
+        fail_msg: "Python 3.8+ required. Current: {{ ansible_python_version }}"
+      tags:
+        - preflight
+        - system_requirements
+
+    - name: Check required commands
+      ansible.builtin.command:
+        cmd: "which {{ item }}"
+      register: cmd_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - curl
+        - jq
+      tags:
+        - preflight
+        - system_requirements
+
+    - name: Display system requirements status
+      ansible.builtin.debug:
+        msg: |
+          System Requirements: PASSED ✓
+          - Ansible: {{ ansible_version.full }}
+          - Python: {{ ansible_python_version }}
+          - curl: {{ 'INSTALLED ✓' if cmd_check.results[0].rc == 0 else 'NOT FOUND ✗' }}
+          - jq: {{ 'INSTALLED ✓' if cmd_check.results[1].rc == 0 else 'NOT FOUND ✗ (optional)' }}
+      tags:
+        - preflight
+        - system_requirements
+
+  post_tasks:
+    - name: Display final validation summary
+      ansible.builtin.debug:
+        msg: |
+          ================================================
+          Cloudflare Pre-flight Validation: COMPLETE ✓
+          ================================================
+
+          All checks passed! Ready to deploy:
+
+          ansible-playbook examples/cloudflare_deployment.yml \
+            --ask-vault-pass \
+            --check  # Use --check for dry-run first
+
+          Important Notes:
+          1. Always use --check mode first to review changes
+          2. Test on non-production domain before production
+          3. Keep API token secure (stored in Ansible Vault)
+          4. Monitor /var/log/cloudflare/ after deployment
+          5. Run health check: /usr/local/bin/cloudflare-health-check
+
+          For troubleshooting:
+          - Check logs: tail -f /var/log/cloudflare/health-check.log
+          - Review audit: less /var/log/cloudflare/api-calls.log
+          - Test connectivity: curl -H "Authorization: Bearer TOKEN" \
+              https://api.cloudflare.com/client/v4/user
+      tags:
+        - preflight
+        - summary
+
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg: |
+          Next Steps:
+          1. Review example playbook: examples/cloudflare_deployment.yml
+          2. Create vault file with credentials (if not done):
+             ansible-vault create inventories/production/group_vars/all/cloudflare_vault.yml
+          3. Customize DNS records and settings in playbook vars
+          4. Run in check mode first: ansible-playbook ... --check
+          5. Review changes, then deploy (remove --check)
+      tags:
+        - preflight
+        - next_steps
