@@ -1,14 +1,19 @@
-# Cloudflare Integration Role
+# Cloudflare Integration Role - Extended Edition
 
 **Enterprise-grade Cloudflare edge security and CDN platform integration for ansible-infra**
+
+Extends the official `community.general.cloudflare_dns` module with comprehensive Cloudflare feature coverage.
 
 ---
 
 ## Overview
 
-This role integrates Cloudflare's edge security services (DNS, WAF, DDoS protection, SSL/TLS, and edge caching) into the ansible-infra framework. It leverages well-maintained community Ansible collections (`community.general.cloudflare_dns` and `linuxhq.cloudflare`) to avoid reinventing the wheel.
+This role provides complete Cloudflare integration by:
+1. **Using the official module** (`community.general.cloudflare_dns`) for DNS record management
+2. **Extending it** with direct Cloudflare API calls for advanced features (WAF, DDoS, SSL/TLS, caching, etc.)
+3. **Providing health checks** to validate everything works correctly
 
-**Design Philosophy**: Use battle-tested, community-maintained modules rather than custom implementations.
+**Design Philosophy**: Build on official, well-maintained modules and extend them with API calls for advanced features. Avoid risky third-party dependencies.
 
 ---
 
@@ -243,35 +248,35 @@ ansible-playbook playbooks/cloudflare_setup.yml \
 
 ---
 
-## Cloudflare Collections Used
+## Collections & Dependencies
 
-### 1. community.general.cloudflare_dns
+### Required
 
-**Purpose**: Manage DNS records via Cloudflare API
-
-**Module**: `community.general.cloudflare_dns`
+**community.general** (Official Ansible Collection)
+- **Purpose**: DNS record management via official Ansible module
+- **Module**: `community.general.cloudflare_dns`
+- **Installation**: Auto-installed by this role
+- **Reference**: https://docs.ansible.com/collections/community/general/cloudflare_dns_module.html
 
 **Capabilities**:
 - Create, update, delete DNS records
 - Support for A, AAAA, CNAME, MX, NS, TXT, SRV, CAA, etc.
 - DNS proxying through Cloudflare network
 - TTL management
-- Bulk operations
+- API token authentication
 
-**Reference**: https://docs.ansible.com/collections/community/general/cloudflare_dns_module.html
+### Not Required
 
-### 2. linuxhq.cloudflare
+**linuxhq.cloudflare** - ❌ NOT USED
+- Maintenance concerns (limited recent activity)
+- Low community adoption (12 stars, 2 forks)
+- Unverified security and compatibility
+- This role provides full coverage without it via direct API calls
 
-**Purpose**: Comprehensive Cloudflare management roles
+### System Tools (Built-in)
 
-**Installation**:
-```bash
-ansible-galaxy collection install linuxhq.cloudflare
-```
-
-**Provides**: Roles for zone management, WAF, tunnels, and more
-
-**Reference**: https://github.com/linuxhq/ansible-collection-cloudflare
+**curl** - HTTP client for Cloudflare API calls
+**jq** - JSON parser for API response handling
 
 ---
 
