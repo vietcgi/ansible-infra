@@ -18,16 +18,16 @@
 # SERVICE CREDENTIALS
 # ============================================================================
 
-vault_grafana_admin_password: "changeme"
-vault_prometheus_scrape_token: "changeme"
-vault_loki_api_key: "changeme"
+vault_grafana_admin_password: ""
+vault_prometheus_scrape_token: ""
+vault_loki_api_key: ""
 
 # ============================================================================
 # DATABASE CREDENTIALS
 # ============================================================================
 
-vault_database_root_password: "changeme"
-vault_database_replication_password: "changeme"
+vault_database_root_password: ""
+vault_database_replication_password: ""
 
 # ============================================================================
 # SSH KEYS
@@ -58,24 +58,24 @@ vault_tls_cert: |
 # API TOKENS AND KEYS
 # ============================================================================
 
-vault_api_token: "changeme"
-vault_api_secret: "changeme"
+vault_api_token: ""
+vault_api_secret: ""
 
 # ============================================================================
 # THIRD-PARTY SERVICE CREDENTIALS
 # ============================================================================
 
-vault_github_token: "changeme"
-vault_gitlab_token: "changeme"
-vault_dockerhub_token: "changeme"
+vault_github_token: ""
+vault_gitlab_token: ""
+vault_dockerhub_token: ""
 
 # ============================================================================
 # BACKUP CREDENTIALS
 # ============================================================================
 
-vault_backup_s3_access_key: "changeme"
-vault_backup_s3_secret_key: "changeme"
-vault_backup_encryption_password: "changeme"
+vault_backup_s3_access_key: ""
+vault_backup_s3_secret_key: ""
+vault_backup_encryption_password: ""
 
 # ============================================================================
 # NOTES

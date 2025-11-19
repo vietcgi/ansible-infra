@@ -1,10 +1,12 @@
 ---
 # Auth0 Credentials - ENCRYPTED
 # Vietcgi Customer - Production
+# NOTE: Credentials should be provided via environment variables or secure vault storage
+# DO NOT commit real credentials to version control
 
-vault_auth0_client_id: "UKa51NnAoM7uGA7TgaKpQhbxh4PD4tiv"
-vault_auth0_client_secret: "NJHPL8jtI-WLFaBr9R7heGxxUTbgbkOp-kuscakHKB5SrbuemDEgEc4dIOGnDTkP"
+vault_auth0_client_id: ""
+vault_auth0_client_secret: ""
 
 # Initial User Passwords
-vault_initial_admin_password: "VietCGI@Admin2025!Secure"
-vault_support_user_password: "VietCGI@Support2025!Secure"
+vault_initial_admin_password: ""
+vault_support_user_password: ""

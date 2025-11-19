@@ -21,8 +21,8 @@ client_env: "test"
 
 # Auth0 Credentials (for mock API)
 auth0_domain: "127.0.0.1:19080"
-auth0_client_id: "test_client_id_12345"
-auth0_client_secret: "test_client_secret_67890"
+auth0_client_id: ""
+auth0_client_secret: ""
 
 # Test Applications
 auth0_applications:
@@ -48,13 +48,13 @@ auth0_users:
   - email: "test.user@example.com"
     given_name: "Test"
     family_name: "User"
-    password: "TestPassword123!"
+    password: ""
     email_verified: true
 
   - email: "admin.test@example.com"
     given_name: "Admin"
     family_name: "Test"
-    password: "AdminPassword123!"
+    password: ""
     email_verified: true
 
 # Test Roles
