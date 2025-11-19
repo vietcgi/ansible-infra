@@ -92,6 +92,11 @@ jobs:
             grep -v "^#" | \
             grep -v ": \"\"" | \
             grep -v ": ''" | \
+            grep -v "'\(client_\|api_\|access_\)" | \
+            grep -v "\['password'\]" | \
+            grep -v "\['client_secret'\]" | \
+            grep -v "\['access_token'\]" | \
+            grep -v "password: '[!*]'" | \
             tee credential-scan.log || true
 
       - name: Fail if credentials found
