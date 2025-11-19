@@ -1,0 +1,84 @@
+---
+# Verification playbook for Wireguard Hub-Spoke topology testing
+
+- name: Verify - Wireguard Hub-Spoke Topology
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Verify Wireguard interface exists
+      ansible.builtin.shell: ip link show wg0 || exit 1
+      register: wg_iface
+      failed_when: wg_iface.rc != 0
+
+    - name: Check configuration file
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.conf"
+      register: wg_config
+      failed_when: not wg_config.stat.exists
+
+    - name: Check private key file
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.key"
+      register: wg_privkey
+      failed_when: not wg_privkey.stat.exists
+
+    - name: Identify node type (Hub vs Spoke)
+      ansible.builtin.set_fact:
+        node_type: "{% if inventory_hostname == 'hub' %}HUB{% else %}SPOKE{% endif %}"
+
+    - name: Verify hub configuration (if hub)
+      block:
+        - name: Check hub peers (should be 2 spokes)
+          ansible.builtin.shell: grep -c "\[Peer\]" /etc/wireguard/wg0.conf
+          register: hub_peers
+          changed_when: false
+
+        - name: Verify hub has correct peers
+          ansible.builtin.assert:
+            that:
+              - hub_peers.stdout | int >= 2
+            fail_msg: "Hub should have at least 2 peer configurations"
+
+      when: inventory_hostname == 'hub'
+
+    - name: Verify spoke configuration (if spoke)
+      block:
+        - name: Check spoke peers (should be 1 hub + others)
+          ansible.builtin.shell: grep -c "\[Peer\]" /etc/wireguard/wg0.conf
+          register: spoke_peers
+          changed_when: false
+
+        - name: Verify spoke has hub peer
+          ansible.builtin.assert:
+            that:
+              - spoke_peers.stdout | int >= 1
+            fail_msg: "Spoke should have at least 1 peer (hub)"
+
+      when: inventory_hostname != 'hub'
+
+    - name: Check IP forwarding status
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        state: present
+      register: ip_forward
+      check_mode: true
+
+    - name: Verify routes configured
+      ansible.builtin.shell: ip -4 rule show | grep -c lookup || echo "0"
+      register: route_count
+      changed_when: false
+
+    - name: Hub-Spoke Topology Verification Summary
+      ansible.builtin.debug:
+        msg: |
+          Hub-Spoke Verification - {{ node_type }}
+          ====================================
+          Node: {{ inventory_hostname }}
+          Interface: wg0 - EXISTS
+          Config File: EXISTS
+          Private Key: EXISTS
+          {% if inventory_hostname == 'hub' %}Peers (Hub): {{ hub_peers.stdout }}{% else %}Peers (Spoke): {{ spoke_peers.stdout }}{% endif %}
+          Routing Rules: {{ route_count.stdout }}
+          Status: VERIFIED

@@ -1,0 +1,85 @@
+---
+# Molecule configuration for Wireguard Site-to-Site topology testing
+
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  inventory:
+    host_vars:
+      site-a-gw:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+      site-b-gw:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+      site-c-gw:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+
+verifier:
+  name: ansible
+  playbooks:
+    verify: verify.yml
+
+platforms:
+  - name: site-a-gw
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-s2s
+        ipv4_address: 172.20.2.10
+
+  - name: site-b-gw
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-s2s
+        ipv4_address: 172.20.2.20
+
+  - name: site-c-gw
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-s2s
+        ipv4_address: 172.20.2.30

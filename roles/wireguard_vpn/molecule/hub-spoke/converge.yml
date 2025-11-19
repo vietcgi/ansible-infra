@@ -1,0 +1,55 @@
+---
+# Convergence playbook for Wireguard Hub-Spoke topology testing
+
+- name: Converge - Wireguard Hub-Spoke Topology
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Wireguard and dependencies
+      ansible.builtin.apt:
+        name:
+          - wireguard
+          - wireguard-tools
+          - net-tools
+          - curl
+          - iputils-ping
+        state: present
+      when: ansible_os_family == "Debian"
+
+  roles:
+    - role: wireguard_vpn
+      vars:
+        wireguard_topology: hub_spoke
+        wireguard_hub_node: hub
+        wireguard_hub_vpn_ip: 10.100.0.1
+        wireguard_hub_endpoint: "172.20.1.10:51820"
+        wireguard_ha_mode: false
+        wireguard_spoke_nodes:
+          spoke1:
+            vpn_ip: 10.100.0.21
+            public_endpoint: "172.20.1.21:51820"
+            networks:
+              - 192.168.21.0/24
+            public_key: "{{ hostvars['spoke1'].get('wireguard_public_key', 'PLACEHOLDER') }}"
+          spoke2:
+            vpn_ip: 10.100.0.22
+            public_endpoint: "172.20.1.22:51820"
+            networks:
+              - 192.168.22.0/24
+            public_key: "{{ hostvars['spoke2'].get('wireguard_public_key', 'PLACEHOLDER') }}"
+
+  post_tasks:
+    - name: Identify node role
+      ansible.builtin.debug:
+        msg: |
+          Hub-Spoke Configuration:
+          Node: {{ inventory_hostname }}
+          {% if inventory_hostname == wireguard_hub_node %}Role: HUB{% else %}Role: SPOKE{% endif %}

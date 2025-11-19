@@ -1,0 +1,109 @@
+---
+# Verification playbook for Wireguard Full Mesh testing
+
+- name: Verify - Wireguard Full Mesh Topology
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Check Wireguard module is loaded
+      ansible.builtin.shell: |
+        lsmod | grep wireguard || modprobe wireguard
+      register: wg_module
+      changed_when: "modprobe" in wg_module.stderr
+      failed_when: "error" in wg_module.stderr | lower
+
+    - name: Verify Wireguard interface exists
+      ansible.builtin.shell: |
+        ip link show wg0 || exit 1
+      register: wg_iface
+      failed_when: wg_iface.rc != 0
+
+    - name: Display Wireguard interface details
+      ansible.builtin.debug:
+        msg: "{{ wg_iface.stdout_lines }}"
+
+    - name: Check Wireguard configuration file exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.conf"
+      register: wg_config
+      failed_when: not wg_config.stat.exists
+
+    - name: Verify private key file exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.key"
+      register: wg_privkey
+      failed_when: not wg_privkey.stat.exists
+
+    - name: Verify public key file exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0_public.key"
+      register: wg_pubkey
+      failed_when: not wg_pubkey.stat.exists
+
+    - name: Verify Wireguard listen port
+      ansible.builtin.shell: |
+        wg show wg0 listen-port 2>/dev/null || echo "Interface not active"
+      register: wg_port
+      changed_when: false
+
+    - name: Display listen port
+      ansible.builtin.debug:
+        msg: "Wireguard listen port: {{ wg_port.stdout }}"
+
+    - name: Check IP forwarding is enabled
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        state: present
+      register: ip_forward
+      check_mode: true
+
+    - name: Verify IP routing table entries
+      ansible.builtin.shell: |
+        ip -4 rule show | grep -c "from 10.100.0.0/24 lookup 200" || echo "0"
+      register: routing_rule
+      changed_when: false
+
+    - name: Display routing rules
+      ansible.builtin.debug:
+        msg: "Routing rules configured: {{ routing_rule.stdout }}"
+
+    - name: Verify DNS configuration in interface
+      ansible.builtin.shell: |
+        grep -c "DNS" /etc/wireguard/wg0.conf || echo "0"
+      register: dns_check
+      changed_when: false
+
+    - name: Display DNS configuration count
+      ansible.builtin.debug:
+        msg: "DNS entries in config: {{ dns_check.stdout }}"
+
+    - name: Collect Wireguard peers from config
+      ansible.builtin.shell: |
+        grep -c "\[Peer\]" /etc/wireguard/wg0.conf || echo "0"
+      register: peer_count
+      changed_when: false
+
+    - name: Verify peer configuration
+      ansible.builtin.debug:
+        msg: "Peers configured: {{ peer_count.stdout }}"
+
+    - name: Idempotency test - Second converge
+      ansible.builtin.debug:
+        msg: "Ready for second run to verify idempotency"
+
+    - name: Test summary
+      ansible.builtin.debug:
+        msg: |
+          Full Mesh Verification Summary
+          ==============================
+          Interface Exists: {{ wg_iface.rc == 0 | bool }}
+          Config File: {{ wg_config.stat.exists | bool }}
+          Private Key: {{ wg_privkey.stat.exists | bool }}
+          Public Key: {{ wg_pubkey.stat.exists | bool }}
+          Listen Port: {{ wg_port.stdout }}
+          Peers Configured: {{ peer_count.stdout }}
+          DNS Entries: {{ dns_check.stdout }}
+          Routing Rules: {{ routing_rule.stdout }}
+          Status: READY FOR CONNECTIVITY TEST

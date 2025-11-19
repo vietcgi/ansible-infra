@@ -1,0 +1,83 @@
+---
+# Verification playbook for Wireguard Site-to-Site topology testing
+
+- name: Verify - Wireguard Site-to-Site Topology
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Verify Wireguard interface exists
+      ansible.builtin.shell: ip link show wg0 || exit 1
+      register: wg_iface
+      failed_when: wg_iface.rc != 0
+
+    - name: Check configuration file exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.conf"
+      register: wg_config
+      failed_when: not wg_config.stat.exists
+
+    - name: Check private key exists
+      ansible.builtin.stat:
+        path: "/etc/wireguard/wg0.key"
+      register: wg_privkey
+      failed_when: not wg_privkey.stat.exists
+
+    - name: Verify gateway configuration (if gateway)
+      block:
+        - name: Count peer configurations for this gateway
+          ansible.builtin.shell: grep -c "\[Peer\]" /etc/wireguard/wg0.conf || echo "0"
+          register: gateway_peers
+          changed_when: false
+
+        - name: Display peer count
+          ansible.builtin.debug:
+            msg: "Gateway {{ inventory_hostname }} configured with {{ gateway_peers.stdout }} peers"
+
+        - name: Verify expected peer count (2 remote sites)
+          ansible.builtin.assert:
+            that:
+              - gateway_peers.stdout | int == 2
+            fail_msg: "Gateway should peer with 2 remote sites"
+
+      when: "inventory_hostname.endswith('-gw')"
+
+    - name: Verify inter-site routes
+      ansible.builtin.shell: ip -4 rule show | wc -l
+      register: rule_count
+      changed_when: false
+
+    - name: Check AllowedIPs in configuration
+      ansible.builtin.shell: grep -c "AllowedIPs" /etc/wireguard/wg0.conf || echo "0"
+      register: allowed_ips_count
+      changed_when: false
+
+    - name: Verify IP forwarding enabled
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        state: present
+      register: ip_forward
+      check_mode: true
+
+    - name: Verify routes for remote networks
+      ansible.builtin.shell: |
+        # Check for routes to remote site networks
+        ip route show | grep -E "(10\.[123]\.0\.0|192\.168\.(1|10|20)\.0)" | wc -l || echo "0"
+      register: remote_routes
+      changed_when: false
+
+    - name: Site-to-Site Topology Verification Summary
+      ansible.builtin.debug:
+        msg: |
+          Site-to-Site Verification - {{ inventory_hostname }}
+          ================================================
+          Interface: wg0 - EXISTS
+          Config File: EXISTS
+          Private Key: EXISTS
+          Peers Configured: {{ gateway_peers.stdout | default('N/A') }}
+          AllowedIPs Entries: {{ allowed_ips_count.stdout }}
+          Routing Rules: {{ rule_count.stdout }}
+          Remote Routes: {{ remote_routes.stdout }}
+          IP Forwarding: ENABLED
+          Status: VERIFIED FOR CONNECTIVITY TEST

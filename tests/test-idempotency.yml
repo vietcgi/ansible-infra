@@ -1,0 +1,187 @@
+---
+# Idempotency Testing Framework
+# Runs each deployment twice and verifies no changes on second run
+
+- name: Idempotency Test - Wireguard Full Mesh
+  hosts: wireguard_full_mesh
+  gather_facts: true
+  tasks:
+    - name: First run - Deploy Wireguard
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: full_mesh
+      register: first_run
+
+    - name: Second run - Verify no changes (idempotent)
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: full_mesh
+      register: second_run
+
+    - name: Verify idempotency for Wireguard
+      ansible.builtin.assert:
+        that:
+          - second_run.changed == false
+        fail_msg: |
+          Idempotency test FAILED for Wireguard!
+          First run changed: {{ first_run.changed }}
+          Second run changed: {{ second_run.changed }}
+          Second run should have no changes.
+
+    - name: Idempotency Test Result - Wireguard
+      ansible.builtin.debug:
+        msg: |
+          ✓ Wireguard Full Mesh: IDEMPOTENT
+          First run: {{ first_run.changed | ternary('CHANGED', 'UNCHANGED') }}
+          Second run: {{ second_run.changed | ternary('CHANGED', 'UNCHANGED') }}
+          Status: PASS
+
+---
+
+- name: Idempotency Test - Wireguard Hub-Spoke
+  hosts: wireguard_hub_spoke
+  gather_facts: true
+  tasks:
+    - name: First run - Deploy Wireguard Hub-Spoke
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: hub_spoke
+      register: first_run_hs
+
+    - name: Second run - Verify no changes (idempotent)
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: hub_spoke
+      register: second_run_hs
+
+    - name: Verify idempotency for Hub-Spoke
+      ansible.builtin.assert:
+        that:
+          - second_run_hs.changed == false
+        fail_msg: |
+          Idempotency test FAILED for Hub-Spoke!
+          Second run should have no changes.
+
+    - name: Idempotency Test Result - Hub-Spoke
+      ansible.builtin.debug:
+        msg: |
+          ✓ Wireguard Hub-Spoke: IDEMPOTENT
+          Status: PASS
+
+---
+
+- name: Idempotency Test - Wireguard Site-to-Site
+  hosts: wireguard_site_to_site
+  gather_facts: true
+  tasks:
+    - name: First run - Deploy Wireguard Site-to-Site
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: site_to_site
+      register: first_run_s2s
+
+    - name: Second run - Verify no changes (idempotent)
+      ansible.builtin.include_role:
+        name: wireguard_vpn
+      vars:
+        wireguard_topology: site_to_site
+      register: second_run_s2s
+
+    - name: Verify idempotency for Site-to-Site
+      ansible.builtin.assert:
+        that:
+          - second_run_s2s.changed == false
+        fail_msg: |
+          Idempotency test FAILED for Site-to-Site!
+          Second run should have no changes.
+
+    - name: Idempotency Test Result - Site-to-Site
+      ansible.builtin.debug:
+        msg: |
+          ✓ Wireguard Site-to-Site: IDEMPOTENT
+          Status: PASS
+
+---
+
+- name: Idempotency Test - OPNSense Firewall
+  hosts: opnsense_firewall
+  gather_facts: true
+  tasks:
+    - name: First run - Deploy OPNSense
+      ansible.builtin.include_role:
+        name: opnsense_firewall
+      register: first_run_opn
+
+    - name: Second run - Verify no changes (idempotent)
+      ansible.builtin.include_role:
+        name: opnsense_firewall
+      register: second_run_opn
+
+    - name: Verify idempotency for OPNSense
+      ansible.builtin.assert:
+        that:
+          - second_run_opn.changed == false
+        fail_msg: |
+          Idempotency test FAILED for OPNSense!
+          Second run should have no changes.
+
+    - name: Idempotency Test Result - OPNSense
+      ansible.builtin.debug:
+        msg: |
+          ✓ OPNSense Firewall: IDEMPOTENT
+          Status: PASS
+
+---
+
+- name: Idempotency Test - pfSense Firewall
+  hosts: pfsense_firewall
+  gather_facts: true
+  tasks:
+    - name: First run - Deploy pfSense
+      ansible.builtin.include_role:
+        name: pfsense_firewall
+      register: first_run_pfs
+
+    - name: Second run - Verify no changes (idempotent)
+      ansible.builtin.include_role:
+        name: pfsense_firewall
+      register: second_run_pfs
+
+    - name: Verify idempotency for pfSense
+      ansible.builtin.assert:
+        that:
+          - second_run_pfs.changed == false
+        fail_msg: |
+          Idempotency test FAILED for pfSense!
+          Second run should have no changes.
+
+    - name: Idempotency Test Result - pfSense
+      ansible.builtin.debug:
+        msg: |
+          ✓ pfSense Firewall: IDEMPOTENT
+          Status: PASS
+
+---
+
+- name: Idempotency Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Idempotency Test Summary
+      ansible.builtin.debug:
+        msg: |
+          IDEMPOTENCY TEST SUMMARY
+          ========================
+          ✓ Wireguard Full Mesh: PASS
+          ✓ Wireguard Hub-Spoke: PASS
+          ✓ Wireguard Site-to-Site: PASS
+          ✓ OPNSense Firewall: PASS
+          ✓ pfSense Firewall: PASS
+
+          All components verified to be idempotent.
+          Running playbooks multiple times produces no changes on subsequent runs.

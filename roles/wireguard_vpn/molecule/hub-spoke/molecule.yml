@@ -1,0 +1,86 @@
+---
+# Molecule configuration for Wireguard Hub-Spoke topology testing
+
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  inventory:
+    host_vars:
+      hub:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_network: 10.100.0.0/24
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+      spoke1:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+      spoke2:
+        wireguard_interface: wg0
+        wireguard_port: 51820
+        wireguard_vpn_mtu: 1420
+        wireguard_persistent_keepalive: 25
+        wireguard_enable_ip_forward: true
+
+verifier:
+  name: ansible
+  playbooks:
+    verify: verify.yml
+
+platforms:
+  - name: hub
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-hub
+        ipv4_address: 172.20.1.10
+
+  - name: spoke1
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-hub
+        ipv4_address: 172.20.1.21
+
+  - name: spoke2
+    image: geerlingguy/docker-ubuntu2204-ansible
+    pre_build_image: true
+    privileged: true
+    mounts:
+      - source: /sys/fs/cgroup
+        target: /sys/fs/cgroup
+        type: bind
+    command: /lib/systemd/systemd-cgroups-agent
+    environment:
+      container: docker
+    networks:
+      - name: wg-test-hub
+        ipv4_address: 172.20.1.22

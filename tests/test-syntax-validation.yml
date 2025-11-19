@@ -1,0 +1,32 @@
+---
+# Ansible Syntax Validation Tests
+
+- name: Syntax Validation Tests
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Validate all playbook syntax
+      ansible.builtin.shell: |
+        ansible-playbook --syntax-check {{ item }}
+      loop:
+        - "{{ playbook_dir }}/playbooks/deploy-proxmox.yml"
+        - "{{ playbook_dir }}/playbooks/deploy-wireguard.yml"
+        - "{{ playbook_dir }}/playbooks/deploy-firewalls.yml"
+        - "{{ playbook_dir }}/playbooks/deploy-infrastructure.yml"
+      register: syntax_check
+      changed_when: false
+
+    - name: Validate all role syntax
+      ansible.builtin.shell: |
+        find {{ playbook_dir }}/roles -name "*.yml" -o -name "*.yaml" | \
+        xargs -I {} ansible-playbook --syntax-check {}
+      register: role_syntax
+      changed_when: false
+      failed_when: role_syntax.rc != 0
+
+    - name: Syntax Validation Results
+      ansible.builtin.debug:
+        msg: |
+          ✓ All Playbooks: VALID
+          ✓ All Roles: VALID
+          Status: READY FOR DEPLOYMENT TESTING

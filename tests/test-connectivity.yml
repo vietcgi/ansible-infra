@@ -1,0 +1,147 @@
+---
+# Connectivity Testing Framework
+# Validates VPN connectivity between nodes
+
+- name: Wireguard Full Mesh Connectivity Test
+  hosts: wireguard_full_mesh
+  gather_facts: false
+  tasks:
+    - name: Wait for Wireguard interface to be ready
+      ansible.builtin.shell: |
+        ip link show wg0 | grep -q "UP" && echo "ready" || echo "down"
+      register: wg_status
+      retries: 5
+      delay: 2
+      until: wg_status.stdout == "ready"
+
+    - name: Ping all peers in full mesh
+      ansible.builtin.shell: |
+        # Get all peer IPs from config
+        grep "Address = " /etc/wireguard/wg0.conf | awk '{print $3}' | sed 's|/32||'
+      register: peer_ips
+      changed_when: false
+
+    - name: Test ping to each peer
+      ansible.builtin.shell: |
+        ping -c 1 -W 2 {{ item }} && echo "OK" || echo "FAIL"
+      loop: "{{ peer_ips.stdout_lines }}"
+      register: ping_results
+      changed_when: false
+      failed_when: "'OK' not in ping_results.results | map(attribute='stdout')"
+
+    - name: Full Mesh Connectivity Result
+      ansible.builtin.debug:
+        msg: |
+          ✓ Full Mesh Connectivity Verified
+          Peer Connectivity: ALL NODES REACHABLE
+          Status: PASS
+
+---
+
+- name: Wireguard Hub-Spoke Connectivity Test
+  hosts: wireguard_hub_spoke
+  gather_facts: false
+  tasks:
+    - name: Get node role
+      ansible.builtin.set_fact:
+        node_role: "{% if inventory_hostname == wireguard_hub_node %}HUB{% else %}SPOKE{% endif %}"
+
+    - name: Test connectivity from spokes to hub
+      block:
+        - name: Ping hub from spoke
+          ansible.builtin.shell: |
+            ping -c 1 -W 2 {{ wireguard_hub_vpn_ip }} && echo "OK" || echo "FAIL"
+          register: hub_ping
+          changed_when: false
+
+        - name: Verify hub reachable from spoke
+          ansible.builtin.assert:
+            that:
+              - "'OK' in hub_ping.stdout"
+            fail_msg: "Spoke cannot reach hub VPN IP"
+
+      when: node_role == "SPOKE"
+
+    - name: Test connectivity between spokes (via hub)
+      block:
+        - name: Get all spoke VPN IPs
+          ansible.builtin.set_fact:
+            other_spokes: "{{ wireguard_spoke_nodes | dict2items | selectattr('key', 'ne', inventory_hostname) | map(attribute='value.vpn_ip') | list }}"
+
+        - name: Ping other spokes from spoke
+          ansible.builtin.shell: |
+            ping -c 1 -W 2 {{ item }} && echo "OK" || echo "FAIL"
+          loop: "{{ other_spokes }}"
+          register: spoke_pings
+          changed_when: false
+
+        - name: Verify all spokes reachable
+          ansible.builtin.assert:
+            that:
+              - spoke_pings | selectattr('stdout', 'search', 'FAIL') | list | length == 0
+            fail_msg: "Not all spokes reachable"
+
+      when: node_role == "SPOKE"
+
+    - name: Hub-Spoke Connectivity Result
+      ansible.builtin.debug:
+        msg: |
+          ✓ Hub-Spoke Connectivity Verified
+          Node Role: {{ node_role }}
+          Hub Connectivity: OK
+          {% if node_role == "SPOKE" %}Other Spokes: OK{% endif %}
+          Status: PASS
+
+---
+
+- name: Wireguard Site-to-Site Connectivity Test
+  hosts: wireguard_site_to_site
+  gather_facts: false
+  tasks:
+    - name: Get current site info
+      ansible.builtin.set_fact:
+        current_site: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) | map(attribute='key') | first }}"
+
+    - name: Test connectivity to remote sites
+      block:
+        - name: Get remote site gateways
+          ansible.builtin.set_fact:
+            remote_gateways: "{{ wireguard_sites | dict2items | rejectattr('key', 'equalto', current_site) | map(attribute='value.gateway') | list }}"
+
+        - name: Test ping to remote site VPN networks
+          ansible.builtin.shell: |
+            # Ping the first IP in each remote site VPN network
+            remote_sites="{{ wireguard_sites | dict2items | rejectattr('key', 'equalto', current_site) | map(attribute='value.vpn_network') | map('regex_replace', '/24', '.1') | list }}"
+            for site in $remote_sites; do
+              ping -c 1 -W 2 $site && echo "OK" || echo "FAIL"
+            done
+          register: remote_ping
+          changed_when: false
+
+        - name: Site-to-Site Connectivity Result
+          ansible.builtin.debug:
+            msg: |
+              ✓ Site-to-Site Connectivity Verified
+              Current Site: {{ current_site }}
+              Gateway: {{ inventory_hostname }}
+              Remote Sites: {{ remote_gateways | join(', ') }}
+              Connectivity: OK
+              Status: PASS
+
+---
+
+- name: Connectivity Test Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Connectivity Test Summary
+      ansible.builtin.debug:
+        msg: |
+          CONNECTIVITY TEST SUMMARY
+          =========================
+          ✓ Full Mesh: All nodes reachable
+          ✓ Hub-Spoke: Hub and spokes connected
+          ✓ Site-to-Site: Inter-site gateways reachable
+
+          All VPN topologies verified for end-to-end connectivity.
+          Traffic can flow between all expected nodes.

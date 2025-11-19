@@ -1,0 +1,65 @@
+---
+# Convergence playbook for Wireguard Site-to-Site topology testing
+
+- name: Converge - Wireguard Site-to-Site Topology
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Wireguard and dependencies
+      ansible.builtin.apt:
+        name:
+          - wireguard
+          - wireguard-tools
+          - net-tools
+          - curl
+          - iputils-ping
+        state: present
+      when: ansible_os_family == "Debian"
+
+  roles:
+    - role: wireguard_vpn
+      vars:
+        wireguard_topology: site_to_site
+        wireguard_sites:
+          site-a:
+            location: "Site A - New York"
+            gateway: "site-a-gw"
+            vpn_network: 10.1.0.0/24
+            endpoint: "172.20.2.10:51820"
+            networks:
+              - 192.168.1.0/24
+              - 192.168.2.0/24
+            public_key: "{{ hostvars['site-a-gw'].get('wireguard_public_key', 'PLACEHOLDER') }}"
+          site-b:
+            location: "Site B - London"
+            gateway: "site-b-gw"
+            vpn_network: 10.2.0.0/24
+            endpoint: "172.20.2.20:51820"
+            networks:
+              - 192.168.10.0/24
+              - 192.168.11.0/24
+            public_key: "{{ hostvars['site-b-gw'].get('wireguard_public_key', 'PLACEHOLDER') }}"
+          site-c:
+            location: "Site C - Tokyo"
+            gateway: "site-c-gw"
+            vpn_network: 10.3.0.0/24
+            endpoint: "172.20.2.30:51820"
+            networks:
+              - 192.168.20.0/24
+              - 192.168.21.0/24
+            public_key: "{{ hostvars['site-c-gw'].get('wireguard_public_key', 'PLACEHOLDER') }}"
+
+  post_tasks:
+    - name: Display site gateway info
+      ansible.builtin.debug:
+        msg: |
+          Site-to-Site Configuration:
+          Gateway: {{ inventory_hostname }}
