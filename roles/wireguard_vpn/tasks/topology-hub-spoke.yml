@@ -7,43 +7,119 @@
       ansible.builtin.assert:
         that:
           - wireguard_hub_node is defined
-          - wireguard_spoke_nodes is defined or wireguard_spoke_nodes | length > 0
-        fail_msg: "Hub-spoke requires hub node and spoke nodes"
+          - wireguard_spoke_nodes is defined
+          - wireguard_spoke_nodes | length > 0
+        fail_msg: "Hub-spoke requires hub_node and at least one spoke_node"
 
     - name: Determine node role
       ansible.builtin.set_fact:
         wireguard_node_role: "{{ 'hub' if inventory_hostname == wireguard_hub_node else 'spoke' }}"
 
-    - name: Display hub-spoke topology (hub node)
-      ansible.builtin.debug:
-        msg: |
-          Hub-and-Spoke Wireguard Topology (HUB)
-          ======================================
-          Hub Node: {{ wireguard_hub_node }}
-          Hub VPN IP: {{ wireguard_hub_vpn_ip }}
-          {% if wireguard_ha_mode %}HA Mode: ENABLED (failover configured){% endif %}
-          Spoke Nodes: {{ wireguard_spoke_nodes | length }}
-          
-          Hub forwards traffic between spokes.
-          Spokes only peer with hub(s).
+    - name: Validate hub node is configured
+      ansible.builtin.assert:
+        that:
+          - wireguard_hub_vpn_ip is defined
+          - wireguard_hub_endpoint is defined or not wireguard_node_role == 'spoke'
+        fail_msg: "Hub node requires wireguard_hub_vpn_ip and wireguard_hub_endpoint"
+
+    - name: Hub node configuration
+      block:
+        - name: Validate all spokes have required fields
+          ansible.builtin.assert:
+            that:
+              - item.value.vpn_ip is defined
+              - item.value.public_endpoint is defined
+            fail_msg: "Spoke {{ item.key }} missing vpn_ip or public_endpoint"
+          loop: "{{ wireguard_spoke_nodes | dict2items }}"
+
+        - name: Set hub VPN IP as fact
+          ansible.builtin.set_fact:
+            hub_vpn_ip: "{{ wireguard_hub_vpn_ip }}"
+
+        - name: Display hub node configuration
+          ansible.builtin.debug:
+            msg: |
+              Hub-and-Spoke Configuration (HUB NODE)
+              ======================================
+              Hub Node: {{ wireguard_hub_node }}
+              VPN IP: {{ wireguard_hub_vpn_ip }}
+              Public Endpoint: {{ wireguard_hub_endpoint }}
+              {% if wireguard_ha_mode %}HA Mode: ENABLED
+              Backup Hubs: {{ wireguard_hub_peers | length }}{% endif %}
+              Spoke Nodes: {{ wireguard_spoke_nodes | length }}
+
+              Hub will peer with and route traffic between:
+              {% for spoke_name, spoke_data in wireguard_spoke_nodes.items() %}
+              - {{ spoke_name }}: {{ spoke_data.vpn_ip }}{% if spoke_data.networks %} (networks: {{ spoke_data.networks | join(', ') }}){% endif %}
+              {% endfor %}
+
       when: wireguard_node_role == "hub"
 
-    - name: Display hub-spoke topology (spoke node)
-      ansible.builtin.debug:
-        msg: |
-          Hub-and-Spoke Wireguard Topology (SPOKE)
-          ========================================
-          This node is a spoke.
-          Hub: {{ wireguard_hub_node }} ({{ wireguard_hub_vpn_ip }})
-          This node networks: {{ wireguard_spoke_nodes[inventory_hostname].networks | default([]) | join(', ') }}
-          
-          Traffic routes through hub to reach other spokes.
+    - name: Spoke node configuration
+      block:
+        - name: Validate spoke configuration
+          ansible.builtin.assert:
+            that:
+              - inventory_hostname in wireguard_spoke_nodes
+              - wireguard_spoke_nodes[inventory_hostname].vpn_ip is defined
+            fail_msg: "This spoke node ({{ inventory_hostname }}) not found in wireguard_spoke_nodes or missing vpn_ip"
+
+        - name: Get spoke configuration
+          ansible.builtin.set_fact:
+            spoke_config: "{{ wireguard_spoke_nodes[inventory_hostname] }}"
+            hub_vpn_ip: "{{ wireguard_hub_vpn_ip }}"
+            hub_endpoint: "{{ wireguard_hub_endpoint }}"
+            wireguard_hub_node_public_key: "{{ wireguard_hub_node_public_key | default('') }}"
+
+        - name: Collect other spoke IPs for AllowedIPs
+          ansible.builtin.set_fact:
+            other_spoke_networks: "{% for spoke_name, spoke_data in wireguard_spoke_nodes.items() %}{% if spoke_name != inventory_hostname %}{{ spoke_data.vpn_ip }}/32{% if not loop.last %},{% endif %}{% endif %}{% endfor %}"
+
+        - name: Display spoke node configuration
+          ansible.builtin.debug:
+            msg: |
+              Hub-and-Spoke Configuration (SPOKE NODE)
+              =======================================
+              This Node: {{ inventory_hostname }}
+              VPN IP: {{ spoke_config.vpn_ip }}
+              Hub Gateway: {{ wireguard_hub_node }} ({{ wireguard_hub_vpn_ip }})
+              Hub Endpoint: {{ wireguard_hub_endpoint }}
+              {% if spoke_config.networks %}Behind-NAT Networks: {{ spoke_config.networks | join(', ') }}{% endif %}
+              {% if wireguard_ha_mode %}HA Mode: ENABLED (backup hubs available){% endif %}
+
+              Traffic flow:
+              - Local traffic ({{ spoke_config.vpn_ip }}): Direct
+              - To hub ({{ wireguard_hub_vpn_ip }}): Direct peer
+              - To other spokes: Via hub gateway
+              {% if wireguard_ha_mode %}- Failover: Automatic to backup hubs if primary fails{% endif %}
+
       when: wireguard_node_role == "spoke"
 
-    - name: Configure hub backup peers if HA enabled
-      ansible.builtin.debug:
-        msg: "Backup hub: {{ item.name }} ({{ item.vpn_ip }})"
-      loop: "{{ wireguard_hub_peers }}"
+    - name: Configure hub backup peers for HA
+      block:
+        - name: Validate backup hub configuration
+          ansible.builtin.assert:
+            that:
+              - item.vpn_ip is defined
+              - item.public_key is defined or item.name
+            fail_msg: "Backup hub {{ item.name }} missing vpn_ip or public_key"
+          loop: "{{ wireguard_hub_peers }}"
+
+        - name: Display backup hub configuration
+          ansible.builtin.debug:
+            msg: |
+              HA Backup Hubs Configured
+              =========================
+              {% for backup_hub in wireguard_hub_peers %}
+              - {{ backup_hub.name }}: {{ backup_hub.vpn_ip }} ({{ backup_hub.public_endpoint }})
+              {% endfor %}
+
+              Failover Mechanism:
+              - Primary hub is active (role: primary or none)
+              - Backup hubs are standby (role: backup/secondary)
+              - Spokes detect hub failure via keepalive timeout
+              - Automatic fallback to first available backup hub
+
       when:
         - wireguard_ha_mode | default(false) | bool
         - wireguard_hub_peers | length > 0
