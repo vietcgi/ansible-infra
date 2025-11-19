@@ -11,7 +11,7 @@
     defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
     defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
   register: auto_security_updates_result
-  changed_when: true
+  changed_when: auto_security_updates_result.rc == 0
   when: macos_auto_security_updates
 
 - name: "Enable automatic OS updates"
@@ -19,7 +19,7 @@
     defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
     defaults write /Library/Preferences/com.apple.SoftwareUpdate InstallAssistantSuppressionMetric -bool true
   register: auto_os_updates_result
-  changed_when: true
+  changed_when: auto_os_updates_result.rc == 0
   when: macos_auto_os_updates
 
 - name: "Enable automatic update check"
@@ -27,7 +27,7 @@
     softwareupdate -l -r -d -s /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled
     defaults write /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency -int {{ macos_auto_update_check_frequency_days }}
   register: auto_check_result
-  changed_when: true
+  changed_when: auto_check_result.rc == 0
   when: macos_auto_check_enabled
   ignore_errors: true
 
@@ -39,13 +39,13 @@
     # Set check frequency (in days)
     defaults write /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency -int {{ macos_auto_update_check_frequency_days }}
   register: update_prefs_result
-  changed_when: true
+  changed_when: update_prefs_result.rc == 0
 
 - name: "Enable automatic macOS malware definition updates"
   shell: |
     defaults write /Library/Preferences/com.apple.security.xprotect.plist AutomaticUpdates -bool true
   register: malware_updates_result
-  changed_when: true
+  changed_when: malware_updates_result.rc == 0
 
 - name: "Schedule launchd job for updates (optional)"
   copy:
@@ -72,7 +72,7 @@
     group: wheel
     mode: "0644"
   register: update_launchd_result
-  changed_when: true
+  changed_when: update_launchd_result.changed
 
 - name: "Verify update configuration"
   shell: |

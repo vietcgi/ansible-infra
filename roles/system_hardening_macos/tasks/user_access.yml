@@ -41,21 +41,21 @@
   shell: |
     defaults write /Library/Preferences/com.apple.loginwindow DisableAutoLogin -bool true
   register: auto_login_result
-  changed_when: true
+  changed_when: auto_login_result.rc == 0
 
 - name: "Hide user list at login window"
   shell: |
     defaults write /Library/Preferences/com.apple.loginwindow SHOWFULLNAME -bool true
     defaults write /Library/Preferences/com.apple.loginwindow Hide500Users -bool true
   register: hide_users_result
-  changed_when: true
+  changed_when: hide_users_result.rc == 0
   when: macos_hide_user_list_login
 
 - name: "Disable guest account"
   shell: |
     defaults write /Library/Preferences/com.apple.loginwindow GuestEnabled -bool false
   register: guest_account_result
-  changed_when: true
+  changed_when: guest_account_result.rc == 0
   when: macos_disable_guest_account
 
 - name: "Disable remote login (SSH via standard mechanism)"
@@ -88,7 +88,7 @@
     defaults write /Library/Preferences/com.apple.loginwindow LoginwindowText \
       "Authorized Access Only. All activity is logged and monitored."
   register: login_message_result
-  changed_when: true
+  changed_when: login_message_result.rc == 0
 
 - name: "Display user access control configuration"
   debug:
