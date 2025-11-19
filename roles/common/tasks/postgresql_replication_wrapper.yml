@@ -192,7 +192,7 @@
       become: yes
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup replication slot retention
     - name: Configure replication slot retention on primary
@@ -202,7 +202,7 @@
       become: yes
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup Point-in-Time Recovery (PITR)
     - name: Configure PITR settings
@@ -357,7 +357,7 @@
       changed_when: false
       become: yes
       become_user: postgres
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display PostgreSQL replication configuration
       ansible.builtin.debug:

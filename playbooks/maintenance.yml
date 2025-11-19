@@ -62,6 +62,7 @@
       block:
         - name: Rotate logs manually
           command: logrotate -f /etc/logrotate.conf
+          changed_when: false
           when: ansible_os_family != "Darwin"
 
         - name: Clear old logs (>30 days)
@@ -92,6 +93,7 @@
 
         - name: Clear package manager cache (RedHat-based)
           command: yum clean all
+          changed_when: false
           when: ansible_os_family == "RedHat"
 
       tags:

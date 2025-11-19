@@ -30,7 +30,7 @@
         KUBECONFIG: /root/.kube/config
       when:
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install OpenTelemetry Collector for distributed tracing
     - name: Install OpenTelemetry Collector
@@ -49,7 +49,7 @@
       when:
         - orchestration_distributed_tracing_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Jaeger for distributed tracing backend
     - name: Install Jaeger for trace collection and analysis
@@ -71,7 +71,7 @@
         - orchestration_distributed_tracing_enabled | default(false) | bool
         - orchestration_distributed_tracing_backend | default('jaeger') == 'jaeger'
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Elasticsearch for log aggregation
     - name: Install Elasticsearch for log storage
@@ -92,7 +92,7 @@
         - orchestration_log_aggregation_enabled | default(true) | bool
         - orchestration_log_aggregation_backend | default('elasticsearch') == 'elasticsearch'
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Fluent Bit for log shipping
     - name: Install Fluent Bit for log collection
@@ -114,7 +114,7 @@
         - orchestration_log_aggregation_enabled | default(true) | bool
         - monitoring_log_collection_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Kibana for log visualization
     - name: Install Kibana for log visualization
@@ -135,7 +135,7 @@
         - orchestration_log_aggregation_enabled | default(true) | bool
         - monitoring_kibana_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure Prometheus metrics scraping
     - name: Create Prometheus scrape configuration for observability
@@ -184,7 +184,7 @@
       when:
         - monitoring_prometheus_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create alerting rules for observability
     - name: Create Prometheus alerting rules for observability
@@ -250,7 +250,7 @@
       when:
         - monitoring_alerting_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure alertmanager for alert routing
     - name: Create AlertManager configuration for observability alerts
@@ -297,7 +297,7 @@
       when:
         - monitoring_alerting_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Grafana dashboards for observability
     - name: Create Grafana dashboards for observability metrics
@@ -349,7 +349,7 @@
       when:
         - monitoring_grafana_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Wait for observability stack to be ready
     - name: Wait for observability components to become ready
@@ -371,7 +371,7 @@
       when:
         - monitoring_observability_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Display monitoring configuration
     - name: Display advanced monitoring configuration status

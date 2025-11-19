@@ -45,7 +45,7 @@
       when:
         - common_encrypt_logs | bool
         - common_encryption_log_size is defined
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - encryption_at_rest
 
@@ -111,7 +111,7 @@
       when:
         - common_encrypt_home | bool
         - common_encryption_home_size is defined
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - encryption_at_rest
 
@@ -187,7 +187,7 @@
       when:
         - common_encrypt_swap | bool
         - common_swap_size is defined
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - encryption_at_rest
 
@@ -228,7 +228,7 @@
         cmd: "diskutil info / | grep 'Encrypted'"
       register: filevault_status
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - encryption_at_rest
 
@@ -264,7 +264,7 @@
         - "/dev/mapper/crypt_home /home ext4 defaults,nodev 0 2"
       when:
         - common_encrypt_logs | bool or common_encrypt_home | bool
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - encryption_at_rest
   when:

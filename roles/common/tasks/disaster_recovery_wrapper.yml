@@ -42,7 +42,7 @@
         - orchestration_backup_enabled | default(true) | bool
         - disaster_recovery_encryption_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create Kubernetes etcd backup script
     - name: Create etcd backup script
@@ -170,7 +170,7 @@
         - orchestration_backup_enabled | default(true) | bool
         - disaster_recovery_pv_snapshots_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Schedule automated backups via cron
     - name: Schedule etcd backups via cron
@@ -199,7 +199,7 @@
         - orchestration_backup_enabled | default(true) | bool
         - disaster_recovery_backup_replication_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create disaster recovery runbook
     - name: Create disaster recovery runbook
@@ -325,7 +325,7 @@
       when:
         - orchestration_disaster_recovery_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create backup status dashboard
     - name: Create backup status monitoring dashboard

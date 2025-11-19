@@ -118,7 +118,7 @@
       when:
         - managed_users is defined
         - not sudo_item.value.enabled | bool
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - users
         - user_revoke

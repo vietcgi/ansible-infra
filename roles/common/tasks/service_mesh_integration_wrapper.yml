@@ -32,7 +32,7 @@
       when:
         - service_mesh_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Istio service mesh
     - name: Install Istio operator
@@ -56,7 +56,7 @@
         - service_mesh_enabled | default(false) | bool
         - service_mesh_type | default('istio') == 'istio'
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Linkerd service mesh
     - name: Install Linkerd service mesh
@@ -79,7 +79,7 @@
         - service_mesh_enabled | default(false) | bool
         - service_mesh_type | default('istio') == 'linkerd'
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure Istio ingress gateway
     - name: Install Istio ingress gateway
@@ -104,7 +104,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_ingress_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Enable sidecar auto-injection for application namespace
     - name: Enable sidecar auto-injection for application namespace
@@ -126,7 +126,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_sidecar_injection_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure Istio virtual services for traffic management
     - name: Create Istio VirtualService for application routing
@@ -169,7 +169,7 @@
         - service_mesh_traffic_management_enabled | default(true) | bool
         - item.traffic_routing_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure Istio destination rules for load balancing
     - name: Create Istio DestinationRule for load balancing
@@ -212,7 +212,7 @@
         - service_mesh_traffic_management_enabled | default(true) | bool
         - item.traffic_routing_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure mTLS for service-to-service communication
     - name: Create PeerAuthentication for mTLS
@@ -236,7 +236,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_mtls_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure request authorization policies
     - name: Create AuthorizationPolicy for service access control
@@ -271,7 +271,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_authorization_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure request rate limiting
     - name: Create Istio RequestAuthentication
@@ -300,7 +300,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_jwt_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup distributed tracing integration
     - name: Configure Istio telemetry for tracing
@@ -326,7 +326,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_tracing_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Kiali for service mesh visualization
     - name: Install Kiali service mesh visualization
@@ -347,7 +347,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_visualization_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install Jaeger for distributed tracing
     - name: Install Jaeger distributed tracing
@@ -369,7 +369,7 @@
         - service_mesh_type | default('istio') == 'istio'
         - service_mesh_tracing_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Wait for service mesh to be ready
     - name: Wait for service mesh operator to be ready
@@ -391,7 +391,7 @@
       when:
         - service_mesh_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Display service mesh configuration
     - name: Display service mesh configuration status

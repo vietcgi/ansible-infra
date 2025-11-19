@@ -146,7 +146,7 @@
           - "CREATE DATABASE IF NOT EXISTS galera_monitor"
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Create Galera cluster status table
       community.mysql.mysql_query:
@@ -162,7 +162,7 @@
              )"
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup incremental state transfer (IST) cache
     - name: Configure IST cache directory
@@ -226,7 +226,7 @@
           - "FLUSH PRIVILEGES;"
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup slow query logging
     - name: Enable MySQL slow query logging
@@ -314,7 +314,7 @@
       register: cluster_size
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Verify cluster state
       community.mysql.mysql_query:
@@ -324,7 +324,7 @@
       register: cluster_state
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Verify SST readiness
       community.mysql.mysql_query:
@@ -334,7 +334,7 @@
       register: cluster_ready
       become: yes
       become_user: mysql
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display MySQL Galera cluster configuration
       ansible.builtin.debug:

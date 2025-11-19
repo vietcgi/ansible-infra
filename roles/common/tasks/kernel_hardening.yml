@@ -67,7 +67,7 @@
   loop:
     - /proc/sysrq-trigger
     - /proc/sys/kernel
-  ignore_errors: yes
+  ignore_errors: true
   tags:
     - kernel_hardening
     - security

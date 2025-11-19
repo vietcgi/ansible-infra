@@ -96,7 +96,7 @@
       when:
         - common_domain is defined
         - common_domain | length > 0
-      ignore_errors: yes  # systemd-resolved may not support reload on all systems
+      ignore_errors: true  # systemd-resolved may not support reload on all systems
   when:
     - ansible_os_family == 'Debian'
     - ansible_service_mgr == 'systemd'

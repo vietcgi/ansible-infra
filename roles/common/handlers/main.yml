@@ -12,6 +12,7 @@
 
 - name: restart sshd macos
   command: sudo launchctl unload /System/Library/LaunchDaemons/ssh.plist && sudo launchctl load /System/Library/LaunchDaemons/ssh.plist
+  changed_when: false
   listen: restart sshd macos
 
 - name: restart ntp
@@ -56,6 +57,7 @@
 - name: apply netplan
   command: netplan apply
   become: yes
+  changed_when: false
   listen: apply netplan
 
 - name: restart networking
@@ -102,7 +104,7 @@
     state: restarted
   become: yes
   listen: restart ufw
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: restart firewalld
   systemd:
@@ -110,7 +112,7 @@
     state: restarted
   become: yes
   listen: restart firewalld
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: restart fail2ban
   systemd:
@@ -119,7 +121,7 @@
     daemon_reload: yes
   become: yes
   listen: restart fail2ban
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: reload systemd
   systemd:
@@ -136,14 +138,16 @@
 - name: reload sysctl
   command: sysctl -p
   become: yes
+  changed_when: false
   listen: reload sysctl
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: reload apparmor
   command: systemctl reload apparmor
   become: yes
+  changed_when: false
   listen: reload apparmor
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: restart systemd-resolved
   systemd:
@@ -151,19 +155,21 @@
     state: restarted
   become: yes
   listen: restart systemd-resolved
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: reload vault
   command: systemctl reload vault
   become: yes
+  changed_when: false
   listen: reload vault
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: reload prometheus
   command: systemctl reload prometheus
   become: yes
+  changed_when: false
   listen: "reload prometheus"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Check prometheus service status
   ansible.builtin.command: systemctl show -p LoadState --value prometheus.service
@@ -185,8 +191,9 @@
 - name: reload alertmanager
   command: systemctl reload alertmanager
   become: yes
+  changed_when: false
   listen: "reload alertmanager"
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Check node_exporter service status
   ansible.builtin.command: systemctl show -p LoadState --value node_exporter.service
@@ -228,4 +235,4 @@
     state: restarted
   become: yes
   listen: "restart grafana"
-  ignore_errors: yes
+  ignore_errors: true

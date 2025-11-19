@@ -60,7 +60,7 @@
       ansible.builtin.command: "swapoff -a"
       become: yes
       changed_when: false
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Remove swap from fstab
       ansible.builtin.lineinfile:
@@ -164,7 +164,7 @@
       when:
         - orchestration_kubernetes_network_plugin | default('flannel') == 'flannel'
         - "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install metrics server for HPA/VPA
     - name: Install Kubernetes Metrics Server
@@ -177,7 +177,7 @@
       when:
         - orchestration_kubernetes_metrics_server_enabled | default(true) | bool
         - "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure RBAC
     - name: Create service account for monitoring
@@ -194,7 +194,7 @@
       environment:
         KUBECONFIG: /root/.kube/config
       when: "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Join worker nodes
     - name: Get join command from control plane
@@ -203,7 +203,7 @@
       register: join_command
       delegate_to: "{{ groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0]) }}"
       when: "'worker' in group_names or 'node' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Join worker nodes to cluster
       ansible.builtin.shell: "{{ join_command.content | b64decode }}"
@@ -211,7 +211,7 @@
       when:
         - "'worker' in group_names or 'node' in group_names"
         - join_command.content is defined
-      ignore_errors: yes
+      ignore_errors: true
 
     # Verify cluster health
     - name: Wait for API server to be ready
@@ -228,7 +228,7 @@
         KUBECONFIG: /root/.kube/config
       register: k8s_nodes_status
       when: "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Check cluster components status
       ansible.builtin.shell: |
@@ -239,7 +239,7 @@
         KUBECONFIG: /root/.kube/config
       register: k8s_components_status
       when: "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Configure Kubernetes cluster labels
       ansible.builtin.shell: |
@@ -252,7 +252,7 @@
       environment:
         KUBECONFIG: /root/.kube/config
       when: "'worker' in group_names or 'node' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Install and configure Helm
     - name: Check if Helm is installed
@@ -276,7 +276,7 @@
       environment:
         KUBECONFIG: /root/.kube/config
       when: "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Configure storage classes for persistent volumes
     - name: Create persistent volume storage class
@@ -294,7 +294,7 @@
       environment:
         KUBECONFIG: /root/.kube/config
       when: "'control_plane' in group_names or 'master' in group_names"
-      ignore_errors: yes
+      ignore_errors: true
 
     # Verify Kubernetes cluster is healthy
     - name: Display Kubernetes cluster status

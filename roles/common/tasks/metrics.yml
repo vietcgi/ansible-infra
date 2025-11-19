@@ -17,7 +17,7 @@
   ansible.builtin.package:
     name: prometheus-node-exporter
     state: present
-  ignore_errors: yes
+  ignore_errors: true
   register: node_exporter_repo_install
   when: metrics_enabled | bool
   tags:

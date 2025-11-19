@@ -33,7 +33,7 @@
       when:
         - deployment_automation_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create ConfigMaps for application configuration
     - name: Create ConfigMaps for applications
@@ -55,7 +55,7 @@
         - deployment_automation_enabled | default(false) | bool
         - item.config is defined
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Deploy applications using rolling strategy
     - name: Deploy applications with rolling update strategy
@@ -125,7 +125,7 @@
         - deployment_automation_enabled | default(false) | bool
         - deployment_strategy | default('rolling') == 'rolling'
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Create Services for applications
     - name: Create Kubernetes Services for load balancing
@@ -155,7 +155,7 @@
       when:
         - deployment_automation_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup Horizontal Pod Autoscaler
     - name: Configure Horizontal Pod Autoscaler
@@ -196,7 +196,7 @@
         - deployment_automation_enabled | default(false) | bool
         - deployment_autoscaling_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup Network Policies
     - name: Create network policies for application isolation
@@ -241,7 +241,7 @@
         - deployment_automation_enabled | default(false) | bool
         - deployment_network_policies_enabled | default(true) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Wait for deployments to be ready
     - name: Wait for deployments to be ready
@@ -263,7 +263,7 @@
       when:
         - deployment_automation_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Check pod status
       ansible.builtin.shell: |
@@ -276,7 +276,7 @@
       when:
         - deployment_automation_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     # Setup monitoring for deployments
     - name: Create ServiceMonitor for Prometheus
@@ -305,7 +305,7 @@
         - deployment_monitoring_enabled | default(true) | bool
         - item.metrics_enabled | default(false) | bool
         - inventory_hostname == groups['kubernetes_control_plane'][0] | default(groups['kubernetes_masters'][0])
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display application deployment status
       ansible.builtin.debug:

@@ -289,7 +289,7 @@
       ansible.builtin.wait_for:
         port: "{{ firewall_ssh_port | default(22) }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: ssh_test
       changed_when: false
 

@@ -95,7 +95,7 @@
         cmd: "swapoff -a"
       when:
         - existing_swap.stdout != 'none'
-      ignore_errors: yes
+      ignore_errors: true
       tags:
         - swap_management
 
