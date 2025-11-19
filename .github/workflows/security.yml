@@ -84,15 +84,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install TruffleHog CLI
-        run: |
-          pip install truffleHog3
-
       - name: Run TruffleHog
         continue-on-error: true
         run: |
-          # Scan filesystem for secrets
-          truffleHog3 filesystem . --json --max-depth 3 || true
+          pip install truffleHog
+          # Scan filesystem for secrets using trufflehog CLI
+          python3 -m truffleHog filesystem . --json --max-depth 3 2>&1 | head -20 || true
           echo "TruffleHog filesystem scan completed"
           echo "Using entropy-based detection to find high-entropy strings"
 
