@@ -84,18 +84,21 @@ jobs:
       - name: Check for hardcoded passwords
         run: |
           echo "Scanning for hardcoded credentials..."
+          # Look for actual credential values, not just variable definitions
+          # Match patterns like: password: "actualvalue" or password=actualvalue
+          # But exclude templates, comments, empty values, and variable references
           grep -r \
-            -E "password['\"]?\s*[:=]|api[_-]?key|secret['\"]?\s*[:=]|token['\"]?\s*[:=]" \
+            -E "password['\"]?\s*[:=]\s*['\"]?[^#]['\"]?|api[_-]?key['\"]?\s*[:=]\s*['\"]?[^#]['\"]?|secret['\"]?\s*[:=]\s*['\"]?[^#]['\"]?|token['\"]?\s*[:=]\s*['\"]?[^#]['\"]?" \
             --include="*.yml" --include="*.yaml" --include="*.py" \
-            roles/ playbooks/ inventories/ | \
-            grep -v "{{ " | \
+            roles/ playbooks/ inventories/ 2>/dev/null | \
+            grep -v "{{" | \
+            grep -v "{%" | \
             grep -v "^#" | \
-            grep -v ": \"\"" | \
-            grep -v ": ''" | \
-            grep -v "'\(client_\|api_\|access_\)" | \
-            grep -v "\['password'\]" | \
-            grep -v "\['client_secret'\]" | \
-            grep -v "\['access_token'\]" | \
+            grep -v ": \"\"$" | \
+            grep -v ": ''$" | \
+            grep -v "PLACEHOLDER" | \
+            grep -v "CHANGEME" | \
+            grep -v "changeme" | \
             grep -v "password: '[!*]'" | \
             tee credential-scan.log || true
 
