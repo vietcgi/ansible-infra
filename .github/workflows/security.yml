@@ -217,7 +217,7 @@ jobs:
   security-report:
     name: Security Report
     runs-on: ubuntu-latest
-    needs: [dependency-check, secret-scanning, credential-check, yaml-security, ansible-security, compliance-check]
+    needs: [dependency-check, secret-scanning, yaml-security, ansible-security, compliance-check]
     if: always()
     steps:
       - name: Generate security summary
