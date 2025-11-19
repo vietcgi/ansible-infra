@@ -15,7 +15,7 @@ collections:
   # Provides: prometheus, alertmanager, node_exporter, and 25+ other roles
   # Roles used: prometheus, alertmanager, node_exporter
   - name: prometheus_community.prometheus
-    version: ">=0.14.0"
+    version: ">=1.0.0"
     source: https://galaxy.ansible.com
 
   # Community Collections
