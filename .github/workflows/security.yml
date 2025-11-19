@@ -147,7 +147,7 @@ jobs:
 
       - name: Install Ansible & tools
         run: |
-          pip install ansible bandit jinja2-linter
+          pip install ansible==2.15 bandit==1.7.5
 
       - name: Check for insecure Jinja2 templates
         continue-on-error: true
