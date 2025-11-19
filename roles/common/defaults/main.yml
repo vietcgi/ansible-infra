@@ -413,8 +413,8 @@ monitoring_grafana_port: 3000
 monitoring_grafana_domain: "localhost"
 monitoring_grafana_root_url: "http://localhost:3000"
 monitoring_grafana_admin_user: "admin"
-monitoring_grafana_admin_password: "changeme"
-monitoring_grafana_secret_key: ""
+monitoring_grafana_admin_password: "{{ vault_monitoring_grafana_admin_password | default('') }}"
+monitoring_grafana_secret_key: "{{ vault_monitoring_grafana_secret_key | default('') }}"
 
 # Custom dashboards (list of template files to deploy)
 monitoring_grafana_custom_dashboards: []
@@ -649,7 +649,7 @@ loadbalancing_haproxy_stats_enabled: true
 loadbalancing_haproxy_stats_port: 8404
 loadbalancing_haproxy_stats_auth_enabled: false
 loadbalancing_haproxy_stats_username: "admin"
-loadbalancing_haproxy_stats_password: "admin"
+loadbalancing_haproxy_stats_password: "{{ vault_loadbalancing_haproxy_stats_password | default('') }}"
 
 ## HAProxy Metrics Export
 loadbalancing_haproxy_metrics_port: 8405
