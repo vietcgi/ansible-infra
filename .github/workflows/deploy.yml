@@ -95,15 +95,13 @@ jobs:
 
       - name: Deploy notification
         uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
+        if: always()
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## Deployment Status\n\n**Environment**: Staging\n**Status**: ${{ job.status }}\n**Timestamp**: ${new Date().toISOString()}\n\nDeployment artifacts available in workflow logs.`
-            });
+            const status = '${{ job.status }}';
+            if (context.eventName === 'workflow_dispatch') {
+              console.log(`Staging deployment ${status}`);
+            }
 
   # Production deployment (requires approval)
   deploy-production:
@@ -180,18 +178,12 @@ jobs:
 
       - name: Production notification
         uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
+        if: always()
         with:
           script: |
             const status = '${{ job.status }}';
-            const color = status === 'success' ? '#36a64b' : '#ff0000';
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## Production Deployment\n\n**Status**: ${status.toUpperCase()}\n**Environment**: Production\n**Timestamp**: ${new Date().toISOString()}\n\n${status === 'success' ? 'Successfully deployed to production' : 'Deployment failed'}`
-            });
+            console.log(`Production deployment ${status.toUpperCase()}`);
+            console.log(`Timestamp: ${new Date().toISOString()}`);
 
   # Post-deployment monitoring
   post-deployment:
