@@ -63,8 +63,7 @@ jobs:
         continue-on-error: true
         run: |
           detect-secrets scan --all-files \
-            --force-use-all-plugins \
-            -l . 2>&1 | tee secrets-report.txt
+            --force-use-all-plugins 2>&1 | tee secrets-report.txt
 
       - name: Upload secrets report
         if: always()
