@@ -1,0 +1,44 @@
+---
+# Wireguard VPN Role - Main Tasks
+
+- name: Wireguard VPN Setup
+  block:
+    - name: Validate Wireguard configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_enabled | default(false) | bool
+          - wireguard_topology in ['full_mesh', 'hub_spoke', 'site_to_site']
+        fail_msg: "Wireguard not properly configured"
+
+    - name: Install Wireguard and dependencies
+      ansible.builtin.include_tasks: install.yml
+
+    - name: Generate and manage Wireguard keys
+      ansible.builtin.include_tasks: keys.yml
+
+    - name: Configure Wireguard interface
+      ansible.builtin.include_tasks: configure.yml
+
+    - name: Configure topology-specific settings
+      ansible.builtin.include_tasks: "topology-{{ wireguard_topology }}.yml"
+
+    - name: Configure IP forwarding if needed
+      ansible.builtin.include_tasks: routing.yml
+      when: wireguard_enable_ip_forward | default(false) | bool
+
+    - name: Configure firewall rules
+      ansible.builtin.include_tasks: firewall.yml
+      when: wireguard_configure_firewall | default(false) | bool
+
+    - name: Verify Wireguard connectivity
+      ansible.builtin.include_tasks: verify.yml
+      when: wireguard_verify_connectivity | default(false) | bool
+
+  rescue:
+    - name: Display error message
+      ansible.builtin.debug:
+        msg: "Wireguard setup failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail with details
+      ansible.builtin.fail:
+        msg: "Wireguard setup encountered an error. Check logs above."

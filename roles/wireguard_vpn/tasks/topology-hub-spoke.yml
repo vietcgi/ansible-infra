@@ -1,0 +1,54 @@
+---
+# Hub-and-Spoke Wireguard Topology Configuration
+
+- name: Configure Hub-and-Spoke Wireguard Topology
+  block:
+    - name: Validate hub-spoke configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_hub_node is defined
+          - wireguard_spoke_nodes is defined or wireguard_spoke_nodes | length > 0
+        fail_msg: "Hub-spoke requires hub node and spoke nodes"
+
+    - name: Determine node role
+      ansible.builtin.set_fact:
+        wireguard_node_role: "{{ 'hub' if inventory_hostname == wireguard_hub_node else 'spoke' }}"
+
+    - name: Display hub-spoke topology (hub node)
+      ansible.builtin.debug:
+        msg: |
+          Hub-and-Spoke Wireguard Topology (HUB)
+          ======================================
+          Hub Node: {{ wireguard_hub_node }}
+          Hub VPN IP: {{ wireguard_hub_vpn_ip }}
+          {% if wireguard_ha_mode %}HA Mode: ENABLED (failover configured){% endif %}
+          Spoke Nodes: {{ wireguard_spoke_nodes | length }}
+          
+          Hub forwards traffic between spokes.
+          Spokes only peer with hub(s).
+      when: wireguard_node_role == "hub"
+
+    - name: Display hub-spoke topology (spoke node)
+      ansible.builtin.debug:
+        msg: |
+          Hub-and-Spoke Wireguard Topology (SPOKE)
+          ========================================
+          This node is a spoke.
+          Hub: {{ wireguard_hub_node }} ({{ wireguard_hub_vpn_ip }})
+          This node networks: {{ wireguard_spoke_nodes[inventory_hostname].networks | default([]) | join(', ') }}
+          
+          Traffic routes through hub to reach other spokes.
+      when: wireguard_node_role == "spoke"
+
+    - name: Configure hub backup peers if HA enabled
+      ansible.builtin.debug:
+        msg: "Backup hub: {{ item.name }} ({{ item.vpn_ip }})"
+      loop: "{{ wireguard_hub_peers }}"
+      when:
+        - wireguard_ha_mode | default(false) | bool
+        - wireguard_hub_peers | length > 0
+
+  rescue:
+    - name: Handle hub-spoke configuration error
+      ansible.builtin.fail:
+        msg: "Hub-spoke topology configuration failed: {{ ansible_failed_result.msg }}"

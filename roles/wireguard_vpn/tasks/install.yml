@@ -1,0 +1,52 @@
+---
+# Wireguard Installation Tasks
+
+- name: Install Wireguard
+  block:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install Wireguard (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - wireguard
+          - wireguard-tools
+          - wg-quick
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Wireguard (RHEL/CentOS)
+      ansible.builtin.dnf:
+        name:
+          - wireguard-tools
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable Wireguard in kernel
+      ansible.builtin.shell: |
+        modprobe wireguard
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: kernel_load
+      failed_when:
+        - kernel_load.rc != 0
+        - "'is not currently loaded' not in kernel_load.stderr"
+
+    - name: Install systemd-networkd support
+      ansible.builtin.package:
+        name: systemd
+        state: present
+      when: wireguard_use_systemd_networkd | default(false) | bool
+
+    - name: Display installation status
+      ansible.builtin.debug:
+        msg: "Wireguard successfully installed on {{ inventory_hostname }}"
+
+  rescue:
+    - name: Handle installation error
+      ansible.builtin.fail:
+        msg: "Failed to install Wireguard: {{ ansible_failed_result.msg }}"

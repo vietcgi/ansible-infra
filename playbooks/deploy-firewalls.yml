@@ -1,0 +1,71 @@
+---
+# Firewall Deployment Playbook
+# Deploy OPNSense or pfSense with HA support
+
+- name: Deploy OPNSense Firewalls
+  hosts: opnsense_firewalls
+  gather_facts: true
+  serial: 1
+  become: false
+
+  pre_tasks:
+    - name: Display OPNSense deployment configuration
+      ansible.builtin.debug:
+        msg: |
+          OPNSense Firewall Deployment
+          ===========================
+          Cluster Size: {{ groups['opnsense_firewalls'] | default([]) | length }} nodes
+          HA Enabled: {{ opnsense_ha_enabled | default(false) }}
+          Deployment Time: {{ ansible_date_time.iso8601 }}
+
+  roles:
+    - role: opnsense_firewall
+      tags:
+        - opnsense
+        - firewall
+      when: opnsense_enabled | default(false) | bool
+
+  post_tasks:
+    - name: Display OPNSense deployment summary
+      ansible.builtin.debug:
+        msg: |
+          OPNSense Deployment Complete
+          ============================
+          Status: Firewall Online
+          Virtual IP: {{ opnsense_ha_virtual_ip | default('N/A') }}
+          HA Mode: {{ opnsense_ha_mode | default('Standalone') }}
+      when: opnsense_enabled | default(false) | bool
+
+- name: Deploy pfSense Firewalls
+  hosts: pfsense_firewalls
+  gather_facts: true
+  serial: 1
+  become: false
+
+  pre_tasks:
+    - name: Display pfSense deployment configuration
+      ansible.builtin.debug:
+        msg: |
+          pfSense Firewall Deployment
+          ===========================
+          Cluster Size: {{ groups['pfsense_firewalls'] | default([]) | length }} nodes
+          HA Enabled: {{ pfsense_ha_enabled | default(false) }}
+          Deployment Time: {{ ansible_date_time.iso8601 }}
+
+  roles:
+    - role: pfsense_firewall
+      tags:
+        - pfsense
+        - firewall
+      when: pfsense_enabled | default(false) | bool
+
+  post_tasks:
+    - name: Display pfSense deployment summary
+      ansible.builtin.debug:
+        msg: |
+          pfSense Deployment Complete
+          ===========================
+          Status: Firewall Online
+          Virtual IP: {{ pfsense_ha_virtual_ip | default('N/A') }}
+          HA Mode: {{ pfsense_ha_mode | default('Standalone') }}
+      when: pfsense_enabled | default(false) | bool

@@ -1,0 +1,44 @@
+---
+# OPNSense Firewall Role - Defaults
+
+opnsense_enabled: true
+
+# API Configuration
+opnsense_api_host: localhost
+opnsense_api_user: root
+opnsense_api_key: ""
+opnsense_api_secret: ""
+
+# HA Configuration
+opnsense_ha_enabled: false
+opnsense_ha_mode: carp
+opnsense_ha_vhid: 1
+opnsense_ha_advskew_primary: 10
+opnsense_ha_advskew_secondary: 200
+opnsense_ha_virtual_ip: ""
+
+# Interface Configuration
+opnsense_interfaces: []
+
+# Firewall Rules
+opnsense_firewall_rules: []
+
+# NAT Rules
+opnsense_nat_rules: []
+
+# System Settings
+opnsense_hostname: opnsense
+opnsense_domain: ""
+opnsense_timezone: UTC
+opnsense_dns_servers:
+  - 8.8.8.8
+  - 1.1.1.1
+
+# Wireguard VPN
+opnsense_wireguard_enabled: false
+opnsense_wireguard_port: 51820
+opnsense_wireguard_peers: []
+
+# Backup
+opnsense_backup_enabled: false
+opnsense_backup_schedule: "0 2 * * *"

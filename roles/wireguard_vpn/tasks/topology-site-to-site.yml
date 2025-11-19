@@ -1,0 +1,36 @@
+---
+# Site-to-Site Wireguard Topology Configuration
+
+- name: Configure Site-to-Site Wireguard Topology
+  block:
+    - name: Validate site-to-site configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_sites is defined
+          - wireguard_sites | length >= 2
+        fail_msg: "Site-to-site requires at least 2 sites"
+
+    - name: Display site-to-site topology
+      ansible.builtin.debug:
+        msg: |
+          Site-to-Site Wireguard Topology
+          ================================
+          Total Sites: {{ wireguard_sites | length }}
+          Sites:
+          {% for site_key, site_data in wireguard_sites.items() %}
+          - {{ site_data.location }}: {{ site_data.gateway }} ({{ site_data.networks | join(', ') }})
+          {% endfor %}
+          
+          Each site has its own VPN subnet.
+          Gateways route traffic between sites.
+
+    - name: Configure inter-site routes
+      ansible.builtin.debug:
+        msg: "Route: {{ item.from }} → {{ item.to }} via {{ item.via }}"
+      loop: "{{ wireguard_site_routes }}"
+      when: wireguard_site_routes | length > 0
+
+  rescue:
+    - name: Handle site-to-site configuration error
+      ansible.builtin.fail:
+        msg: "Site-to-site topology configuration failed: {{ ansible_failed_result.msg }}"

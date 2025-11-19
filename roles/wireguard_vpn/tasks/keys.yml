@@ -1,0 +1,57 @@
+---
+# Wireguard Key Management Tasks
+
+- name: Generate Wireguard Keys
+  block:
+    - name: Create keys directory
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        mode: '0700'
+
+    - name: Generate private key
+      ansible.builtin.shell: |
+        wg genkey
+      register: wg_private_key
+      changed_when: false
+      when: wireguard_generate_keys | default(true) | bool
+
+    - name: Generate public key from private
+      ansible.builtin.shell: |
+        echo "{{ wg_private_key.stdout }}" | wg pubkey
+      register: wg_public_key
+      changed_when: false
+      when: wireguard_generate_keys | default(true) | bool
+
+    - name: Set keys as fact
+      ansible.builtin.set_fact:
+        wireguard_private_key: "{{ wg_private_key.stdout }}"
+        wireguard_public_key: "{{ wg_public_key.stdout }}"
+      when: wireguard_generate_keys | default(true) | bool
+
+    - name: Save private key to file
+      ansible.builtin.copy:
+        content: "{{ wireguard_private_key }}"
+        dest: "/etc/wireguard/{{ wireguard_interface }}_private.key"
+        owner: root
+        group: root
+        mode: '0600'
+      when: wireguard_generate_keys | default(true) | bool
+
+    - name: Save public key to file
+      ansible.builtin.copy:
+        content: "{{ wireguard_public_key }}"
+        dest: "/etc/wireguard/{{ wireguard_interface }}_public.key"
+        owner: root
+        group: root
+        mode: '0644'
+      when: wireguard_generate_keys | default(true) | bool
+
+    - name: Display key generation status
+      ansible.builtin.debug:
+        msg: "Wireguard keys generated for {{ inventory_hostname }}"
+
+  rescue:
+    - name: Handle key generation error
+      ansible.builtin.fail:
+        msg: "Failed to generate Wireguard keys: {{ ansible_failed_result.msg }}"

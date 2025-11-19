@@ -37,38 +37,40 @@
   ansible.builtin.import_playbook: deploy-wireguard.yml
   when: deploy_stage is not defined or deploy_stage == 'all' or deploy_stage == 'wireguard'
 
-- name: "Stage 6: Deploy Applications"
-  hosts: all
-  gather_facts: true
+- name: "Stage 6: Post-Deployment Verification"
+  hosts: localhost
+  gather_facts: false
   tasks:
     - name: Display post-deployment summary
       ansible.builtin.debug:
         msg: |
-          Infrastructure Deployment Complete
-          ===================================
+          Infrastructure Deployment Pipeline Complete
+          ===========================================
 
           Deployment Summary:
-          ✓ Proxmox VMs deployed and configured
-          ✓ Firewall infrastructure running
+          {% if deploy_stage is not defined or 'proxmox' in deploy_stage or deploy_stage == 'all' %}
+          ✓ Proxmox hypervisors configured
+          ✓ VMs deployed and booted
+          ✓ Base OS hardening applied to VMs
+          {% endif %}
+          {% if deploy_stage is not defined or 'firewalls' in deploy_stage or deploy_stage == 'all' %}
+          ✓ Firewall infrastructure deployed (OPNSense and/or pfSense)
+          {% endif %}
+          {% if deploy_stage is not defined or 'wireguard' in deploy_stage or deploy_stage == 'all' %}
           ✓ Wireguard VPN established
-          ✓ Base OS hardening applied
+          {% endif %}
+
+          Infrastructure Status:
+          → Proxmox: https://proxmox.example.com
+          → OPNSense: https://opnsense.example.com/ui
+          → pfSense: https://pfsense.example.com
+          → Monitoring: https://grafana.example.com
 
           Next Steps:
-          1. Configure application-specific roles
-          2. Set up monitoring and alerting
-          3. Configure backup and disaster recovery
-          4. Run security compliance checks
-
-          Monitoring Access:
-          - Grafana: https://grafana.example.com
-          - Prometheus: https://prometheus.example.com
-          - AlertManager: https://alertmanager.example.com
-
-          Firewall Access:
-          - OPNSense: https://opnsense.example.com/ui
-          - pfSense: https://pfsense.example.com
-          - SSH: ssh admin@{{ groups['all_firewalls'][0] }}
-
-          VPN Status:
-          - Full mesh, hub-spoke, or site-to-site operational
-          - Check with: wg show
+          1. Verify all services are accessible
+          2. Configure application-specific roles
+          3. Set up monitoring and alerting
+          4. Configure backup and disaster recovery
+          5. Run security compliance checks
+          6. Load test infrastructure
+          7. Document runbooks

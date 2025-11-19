@@ -1,0 +1,45 @@
+---
+# Wireguard Firewall Configuration
+
+- name: Configure Firewall for Wireguard
+  block:
+    - name: Allow Wireguard port in UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ wireguard_port | string }}"
+        proto: udp
+        state: enabled
+      when: ansible_os_family == "Debian"
+
+    - name: Allow Wireguard port in firewalld
+      ansible.posix.firewalld:
+        port: "{{ wireguard_port }}/udp"
+        permanent: true
+        state: enabled
+      when: ansible_os_family == "RedHat"
+
+    - name: Configure additional firewall rules
+      block:
+        - name: Add custom firewall rules
+          community.general.ufw:
+            rule: "{{ item.rule }}"
+            port: "{{ item.port | default(omit) }}"
+            proto: "{{ item.proto | default('tcp') }}"
+            direction: "{{ item.direction | default('in') }}"
+            state: enabled
+          loop: "{{ wireguard_firewall_rules }}"
+          when: ansible_os_family == "Debian"
+      when: wireguard_firewall_rules | length > 0
+
+    - name: Display firewall configuration
+      ansible.builtin.debug:
+        msg: |
+          Wireguard Firewall Rules
+          ========================
+          Wireguard Port (UDP): {{ wireguard_port }}
+          Additional Rules: {{ wireguard_firewall_rules | length }}
+
+  rescue:
+    - name: Handle firewall configuration error
+      ansible.builtin.fail:
+        msg: "Firewall configuration failed: {{ ansible_failed_result.msg }}"

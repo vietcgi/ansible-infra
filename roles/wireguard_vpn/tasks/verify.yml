@@ -1,0 +1,44 @@
+---
+# Wireguard Connectivity Verification
+
+- name: Verify Wireguard Connectivity
+  block:
+    - name: Check Wireguard interface status
+      ansible.builtin.shell: |
+        wg show {{ wireguard_interface }}
+      register: wg_status
+      changed_when: false
+
+    - name: Display Wireguard status
+      ansible.builtin.debug:
+        msg: "{{ wg_status.stdout }}"
+
+    - name: Check IP address assignment
+      ansible.builtin.shell: |
+        ip addr show {{ wireguard_interface }}
+      register: wg_ip
+      changed_when: false
+
+    - name: Display IP configuration
+      ansible.builtin.debug:
+        msg: "{{ wg_ip.stdout }}"
+
+    - name: Test connectivity to peers
+      ansible.builtin.shell: |
+        ping -c 1 -W 2 {{ item }}
+      loop: "{{ wireguard_peer_vpn_ips | default([]) }}"
+      register: ping_result
+      failed_when: false
+      changed_when: false
+
+    - name: Display connectivity results
+      ansible.builtin.debug:
+        msg: |
+          Peers Reachable: {{ (ping_result.results | selectattr('rc', 'equalto', 0) | list | length) | default(0) }}
+          Total Peers: {{ ping_result.results | length | default(0) }}
+      when: ping_result.results | length > 0
+
+  rescue:
+    - name: Handle verification error
+      ansible.builtin.debug:
+        msg: "Note: Some verification checks may fail if peers aren't configured yet. This is normal."

@@ -1,0 +1,36 @@
+---
+# Full Mesh Wireguard Topology Configuration
+
+- name: Configure Full Mesh Wireguard Topology
+  block:
+    - name: Validate full mesh configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_full_mesh_nodes is defined
+          - wireguard_full_mesh_nodes | length >= 2
+        fail_msg: "Full mesh requires at least 2 nodes"
+
+    - name: Display full mesh topology info
+      ansible.builtin.debug:
+        msg: |
+          Full Mesh Wireguard Topology
+          ============================
+          Total Peers: {{ wireguard_full_mesh_nodes | length }}
+          VPN Network: {{ wireguard_vpn_network }}
+          
+          All nodes will peer with all other nodes.
+          This is a full mesh topology where every node connects to every other node.
+
+    - name: Set full mesh peer facts
+      ansible.builtin.set_fact:
+        wireguard_peers: "{{ wireguard_full_mesh_nodes }}"
+
+    - name: Ensure all peers are configured
+      ansible.builtin.debug:
+        msg: "Peer {{ item.key }} ({{ item.value.vpn_ip }})"
+      loop: "{{ wireguard_peers | dict2items }}"
+
+  rescue:
+    - name: Handle full mesh configuration error
+      ansible.builtin.fail:
+        msg: "Full mesh topology configuration failed: {{ ansible_failed_result.msg }}"

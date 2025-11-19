@@ -1,0 +1,43 @@
+---
+# Wireguard Interface Configuration Tasks
+
+- name: Configure Wireguard Interface
+  block:
+    - name: Create Wireguard configuration directory
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        mode: '0700'
+
+    - name: Set Wireguard interface configuration variables
+      ansible.builtin.set_fact:
+        wg_config_path: "/etc/wireguard/{{ wireguard_interface }}.conf"
+
+    - name: Template Wireguard configuration
+      ansible.builtin.template:
+        src: wireguard.conf.j2
+        dest: "{{ wg_config_path }}"
+        owner: root
+        group: root
+        mode: '0600'
+      notify: restart wireguard
+
+    - name: Enable Wireguard service
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_interface }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Display configuration status
+      ansible.builtin.debug:
+        msg: |
+          Wireguard configured on {{ inventory_hostname }}
+          Interface: {{ wireguard_interface }}
+          VPN Network: {{ wireguard_vpn_network }}
+          Listen Port: {{ wireguard_port }}
+
+  rescue:
+    - name: Handle configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure Wireguard: {{ ansible_failed_result.msg }}"

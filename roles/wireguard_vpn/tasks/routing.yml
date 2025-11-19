@@ -1,0 +1,54 @@
+---
+# IP Forwarding and Routing Configuration
+
+- name: Configure IP Forwarding and Routing
+  block:
+    - name: Enable IPv4 IP forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: true
+        state: present
+        reload: true
+      when: wireguard_enable_ip_forward | default(false) | bool
+
+    - name: Enable IPv6 IP forwarding
+      ansible.posix.sysctl:
+        name: net.ipv6.conf.all.forwarding
+        value: '1'
+        sysctl_set: true
+        state: present
+        reload: true
+      when:
+        - wireguard_ipv6_enabled | default(false) | bool
+        - wireguard_enable_ip_forward | default(false) | bool
+
+    - name: Configure static routes if needed
+      block:
+        - name: Add static routes
+          ansible.builtin.shell: |
+            set -euo pipefail
+            ip route add {{ item.destination }} via {{ item.via }}
+          args:
+            executable: /bin/bash
+          loop: "{{ wireguard_routes }}"
+          register: route_result
+          failed_when:
+            - route_result.rc != 0
+            - "'RTNETLINK answers: File exists' not in route_result.stderr"
+          changed_when: "'RTNETLINK answers' not in route_result.stderr"
+      when: wireguard_routes | length > 0
+
+    - name: Display routing configuration
+      ansible.builtin.debug:
+        msg: |
+          IP Forwarding Enabled
+          ====================
+          IPv4 Forwarding: {{ wireguard_enable_ip_forward | default(false) }}
+          {% if wireguard_ipv6_enabled %}IPv6 Forwarding: true{% endif %}
+          Static Routes: {{ wireguard_routes | length }}
+
+  rescue:
+    - name: Handle routing configuration error
+      ansible.builtin.fail:
+        msg: "Routing configuration failed: {{ ansible_failed_result.msg }}"
