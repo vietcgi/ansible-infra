@@ -383,11 +383,13 @@ jobs:
 
       - name: Create success badge
         if: success()
-        run: echo "Pipeline Status: PASSED" > pipeline-status.txt
+        run: |
+          echo "Pipeline Status: PASSED" > pipeline-status.txt
 
       - name: Create failure badge
         if: failure()
-        run: echo "Pipeline Status: FAILED" > pipeline-status.txt
+        run: |
+          echo "Pipeline Status: FAILED" > pipeline-status.txt
 
   # Job 9: Notify on completion
   notify:
