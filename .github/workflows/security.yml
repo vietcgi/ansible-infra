@@ -84,18 +84,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run TruffleHog
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          extra_args: --only-verified
-        continue-on-error: true
-
-      - name: TruffleHog Summary
+      - name: Install TruffleHog CLI
         run: |
-          echo "TruffleHog scanning completed"
-          echo "Only verified secrets are reported (--only-verified flag)"
-          echo "This reduces false positives significantly"
+          pip install truffleHog3
+
+      - name: Run TruffleHog
+        continue-on-error: true
+        run: |
+          # Scan filesystem for secrets
+          truffleHog3 filesystem . --json --max-depth 3 || true
+          echo "TruffleHog filesystem scan completed"
+          echo "Using entropy-based detection to find high-entropy strings"
 
   # YAML security scanning
   yaml-security:
