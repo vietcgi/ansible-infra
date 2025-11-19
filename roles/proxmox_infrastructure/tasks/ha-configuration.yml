@@ -1,0 +1,111 @@
+---
+# Proxmox Infrastructure - High Availability Configuration
+
+- name: High Availability (HA) Setup
+  block:
+    - name: Configure HA Groups
+      block:
+        - name: "Create HA Group: {{ ha_group.group_name }}"
+          community.proxmox.proxmox_ha_group:
+            api_host: "{{ proxmox_api_host }}"
+            api_user: "{{ proxmox_api_user }}"
+            api_password: "{{ proxmox_api_password }}"
+            api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+            api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+            validate_certs: "{{ proxmox_api_verify_ssl }}"
+            group: "{{ ha_group.group_name }}"
+            nodes: "{{ ha_group.nodes | join(',') }}"
+            state: present
+          loop: "{{ proxmox_ha_groups }}"
+          loop_control:
+            loop_var: ha_group
+            label: "{{ ha_group.group_name }}"
+          register: ha_group_result
+          no_log: true
+
+        - name: Display HA Groups created
+          ansible.builtin.debug:
+            msg: |
+              HA Groups Created
+              =================
+              {% for group in proxmox_ha_groups %}
+              - {{ group.group_name }}: {{ group.nodes | join(', ') }}
+              {% endfor %}
+
+      when: proxmox_ha_groups | length > 0
+
+    - name: Configure HA Resources
+      block:
+        - name: "Register VM in HA: {{ ha_resource.vmid }}"
+          community.proxmox.proxmox_ha_resource:
+            api_host: "{{ proxmox_api_host }}"
+            api_user: "{{ proxmox_api_user }}"
+            api_password: "{{ proxmox_api_password }}"
+            api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+            api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+            validate_certs: "{{ proxmox_api_verify_ssl }}"
+            vmid: "{{ ha_resource.vmid }}"
+            group: "{{ ha_resource.group }}"
+            state: "{{ ha_resource.state | default('started') }}"
+            max_relocate: "{{ ha_resource.max_relocate | default(1) }}"
+            max_restart: "{{ ha_resource.max_restart | default(3) }}"
+          loop: "{{ proxmox_ha_resources }}"
+          loop_control:
+            loop_var: ha_resource
+            label: "VM {{ ha_resource.vmid }}"
+          register: ha_resource_result
+          no_log: true
+
+        - name: Display HA Resources configured
+          ansible.builtin.debug:
+            msg: |
+              HA Resources Configured
+              =======================
+              {% for resource in proxmox_ha_resources %}
+              - VM {{ resource.vmid }}: Group={{ resource.group }}, MaxRestart={{ resource.max_restart | default(3) }}
+              {% endfor %}
+
+      when: proxmox_ha_resources | length > 0
+
+    - name: Configure HA Resource Manager
+      block:
+        - name: Set HA Resource Manager configuration
+          community.proxmox.proxmox_ha_rm_config:
+            api_host: "{{ proxmox_api_host }}"
+            api_user: "{{ proxmox_api_user }}"
+            api_password: "{{ proxmox_api_password }}"
+            api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+            api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+            validate_certs: "{{ proxmox_api_verify_ssl }}"
+            shutdown_policy: "{{ proxmox_ha_rm_shutdown_policy }}"
+            max_worker: "{{ proxmox_ha_rm_max_worker }}"
+            ha_interval: "{{ proxmox_ha_rm_ha_interval }}"
+          register: ha_rm_config_result
+          no_log: true
+
+        - name: Display HA Resource Manager configuration
+          ansible.builtin.debug:
+            msg: |
+              HA Resource Manager Configuration
+              ==================================
+              Shutdown Policy: {{ proxmox_ha_rm_shutdown_policy }}
+              Max Workers: {{ proxmox_ha_rm_max_worker }}
+              HA Interval: {{ proxmox_ha_rm_ha_interval }}s
+
+    - name: Display HA Summary
+      ansible.builtin.debug:
+        msg: |
+          High Availability Setup Complete
+          ==================================
+          HA Groups: {{ proxmox_ha_groups | length }}
+          HA Resources: {{ proxmox_ha_resources | length }}
+          Status: All HA configurations applied
+
+  rescue:
+    - name: Display HA configuration error
+      ansible.builtin.debug:
+        msg: "HA Configuration Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail HA configuration
+      ansible.builtin.fail:
+        msg: "HA configuration failed. Check logs above for details."

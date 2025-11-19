@@ -1,0 +1,193 @@
+---
+# Proxmox Infrastructure Role - Defaults
+
+# ============================================================================
+# API Configuration
+# ============================================================================
+proxmox_api_host: "localhost"
+proxmox_api_user: "root@pam"
+proxmox_api_password: ""
+proxmox_api_port: 8006
+proxmox_api_verify_ssl: false              # Set to true in production with valid certs
+proxmox_node: "pve"                        # Default node for VM creation
+
+# ============================================================================
+# VM/Container Configuration
+# ============================================================================
+# List of VMs to manage
+proxmox_vms: []
+# Example:
+#   - name: "web-01"
+#     template: "ubuntu-22.04"
+#     vmid: 100
+#     cores: 4
+#     memory: 8192
+#     disk: 50
+#     storage: "local-lvm"
+#     net0: "virtio,bridge=vmbr0"
+#     state: present
+
+# VM state (present, absent, started, stopped, restarted)
+proxmox_vm_state: present
+
+# Default VM parameters
+proxmox_vm_defaults:
+  cores: 2
+  memory: 2048
+  disk: 30
+  storage: "local-lvm"
+  boot: "c"
+  sockets: 1
+  numa: 0
+
+# ============================================================================
+# High Availability (HA) Configuration
+# ============================================================================
+proxmox_ha_enabled: false                  # Enable HA management
+
+# HA groups define node priorities and failover behavior
+proxmox_ha_groups: []
+# Example:
+#   - group_name: "web-cluster"
+#     nodes: [pve-node-01, pve-node-02, pve-node-03]
+#     priority:
+#       pve-node-01: 1
+#       pve-node-02: 2
+#       pve-node-03: 3
+
+# HA resources (VMs managed by HA)
+proxmox_ha_resources: []
+# Example:
+#   - vmid: 100
+#     state: started
+#     group: "web-cluster"
+#     max_relocate: 1                     # Max relocations per node
+#     max_restart: 3                      # Max restarts before failover
+
+# HA Resource Manager defaults
+proxmox_ha_rm_shutdown_policy: "conditional"  # policy, conditional, force
+proxmox_ha_rm_max_worker: 4
+proxmox_ha_rm_ha_interval: 10
+
+# ============================================================================
+# Cloud-Init Template Management
+# ============================================================================
+proxmox_cloudinit_enabled: false            # Enable cloud-init template management
+
+# Templates to import (download cloud images)
+proxmox_cloudinit_templates: []
+# Example:
+#   - name: "ubuntu-22.04"
+#     image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+#     vmid: 9000
+#     storage: "local"
+#   - name: "debian-12"
+#     image_url: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
+#     vmid: 9001
+#     storage: "local"
+
+# Default cloud-init configuration for cloned VMs
+proxmox_cloudinit_default:
+  hostname: "{{ inventory_hostname }}"
+  user: ubuntu
+  ssh_authorized_keys: []                 # List of SSH public keys
+  packages: []
+  runcmd: []
+
+# ============================================================================
+# Network Configuration
+# ============================================================================
+proxmox_network_management_enabled: false  # Enable network interface management
+
+# Network bridges (vmbr0, vmbr1, etc.)
+proxmox_network_bridges: []
+# Example:
+#   - name: "vmbr1"
+#     ports: ["eno2"]                    # Physical port(s)
+#     vlan_aware: true
+#     stp: false                         # Spanning tree protocol
+#     vlan_filtering: 1
+
+# VLAN configuration
+proxmox_vlans: []
+# Example:
+#   - iface: vmbr1
+#     vlan: 100
+#     name: vlan100
+
+# Bonds for network redundancy
+proxmox_bonds: []
+# Example:
+#   - name: "bond0"
+#     slaves: ["eno2", "eno3"]
+#     mode: "active-backup"
+
+# ============================================================================
+# Storage Configuration
+# ============================================================================
+proxmox_storage_management_enabled: false  # Enable storage management
+
+# Storage pool definitions
+proxmox_storage: []
+# Example:
+#   - storage: "ceph-pool"
+#     type: "rbd"
+#     content: "images,rootdir"
+#     pool: "rbd"
+#     nodes: [pve-node-01, pve-node-02, pve-node-03]
+#   - storage: "nfs-backup"
+#     type: "nfs"
+#     content: "backup"
+#     path: "/mnt/nfs-backup"
+#     server: "192.168.1.50"
+#     export: "/backups"
+
+# LVM volume group creation
+proxmox_lvm_vg: []
+# Example:
+#   - name: "pve-local"
+#     pvs: ["/dev/sdb"]
+
+# ============================================================================
+# API Token Management
+# ============================================================================
+proxmox_api_token_management_enabled: false  # Enable API token creation
+
+# Tokens for automation and service accounts
+proxmox_api_tokens: []
+# Example:
+#   - name: "ansible-automation"
+#     user: "ansible@pam"
+#     privileges: "Datastore.AllocateSpace,Pool.Allocate,Sys.Audit,VM.Allocate,VM.Clone,VM.Console,VM.Migrate,VM.Monitor,VM.PowerMgmt"
+
+# ============================================================================
+# Cluster Configuration
+# ============================================================================
+proxmox_cluster_enabled: false              # Enable cluster operations
+proxmox_cluster_name: "proxmox-cluster"
+proxmox_cluster_nodes: []
+
+# ============================================================================
+# Backup Configuration
+# ============================================================================
+proxmox_backup_enabled: false               # Enable backup scheduling
+proxmox_backup_schedule:
+  - vmid: 100
+    schedule: "22 0 * * *"                 # Daily at 22:00
+    retention_days: 7
+    compression: lz4
+    storage: "local-lvm"
+
+# ============================================================================
+# Validation & Checks
+# ============================================================================
+proxmox_validate_environment: true          # Check prerequisites
+proxmox_validate_api_connection: true       # Test API connectivity
+proxmox_validate_templates: true            # Check templates exist before cloning
+proxmox_check_before_destroy: true          # Prevent accidental VM deletion
+
+# ============================================================================
+# Logging & Debugging
+# ============================================================================
+proxmox_debug: false
+proxmox_log_api_calls: false

@@ -1,0 +1,59 @@
+---
+# Proxmox Infrastructure Deployment Playbook
+# Deploy Proxmox VM/container infrastructure with optional HA
+
+- name: Deploy Proxmox Infrastructure
+  hosts: proxmox_hypervisors
+  gather_facts: true
+  serial: 1                                   # Process nodes sequentially
+  become: false
+
+  pre_tasks:
+    - name: Display deployment configuration
+      ansible.builtin.debug:
+        msg: |
+          Proxmox Infrastructure Deployment
+          ==================================
+          Cluster Size: {{ groups['proxmox_hypervisors'] | length }} nodes
+          HA Enabled: {{ proxmox_ha_enabled | default(false) }}
+          VMs to Deploy: {{ proxmox_vms | length }}
+          Deployment Time: {{ ansible_date_time.iso8601 }}
+
+  roles:
+    - role: proxmox_infrastructure
+      tags:
+        - proxmox
+        - infrastructure
+        - vms
+
+  post_tasks:
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Proxmox Deployment Complete
+          ===========================
+          Cluster Status: Ready
+          Nodes Connected: {{ proxmox_cluster_nodes_available | default([]) | length }}
+          VMs Deployed: {{ proxmox_vms | length }}
+
+          Next Steps:
+          1. Run 'common' role on each VM for base configuration
+          2. Configure Wireguard VPN if needed
+          3. Configure firewall (OPNSense/pfSense) if using external FW
+          4. Set up monitoring and logging
+
+    - name: Display VM access information
+      ansible.builtin.debug:
+        msg: |
+          VM Access Information
+          =====================
+          {% for vm in proxmox_vms %}
+          - {{ vm.name }} (VM ID: {{ vm.vmid }})
+            Node: {{ vm.node | default(proxmox_node) }}
+            Status: Deployed (Configure network after boot)
+          {% endfor %}
+
+  handlers:
+    - name: Reload Proxmox configuration
+      ansible.builtin.debug:
+        msg: "Proxmox configuration reloaded"

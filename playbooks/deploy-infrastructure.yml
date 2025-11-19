@@ -1,0 +1,74 @@
+---
+# Complete Infrastructure Deployment Orchestration
+# Deploy Proxmox → VMs → Firewalls → Wireguard VPN → Applications
+
+- name: "Stage 1: Proxmox Hypervisor Setup"
+  ansible.builtin.import_playbook: deploy-proxmox.yml
+  when: deploy_stage is not defined or deploy_stage == 'all' or deploy_stage == 'proxmox'
+
+- name: "Stage 2: Wait for VMs to Boot"
+  hosts: vm_cluster
+  gather_facts: false
+  tasks:
+    - name: Wait for VM network availability
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        timeout: 300
+        delay: 10
+      when: groups['vm_cluster'] | default([]) | length > 0
+      ignore_errors: true
+
+- name: "Stage 3: Configure VM Base OS"
+  hosts: vm_cluster
+  gather_facts: true
+  become: true
+  roles:
+    - role: common
+      tags:
+        - vm_base_config
+  when: groups['vm_cluster'] | default([]) | length > 0
+
+- name: "Stage 4: Deploy Firewall Infrastructure"
+  ansible.builtin.import_playbook: deploy-firewalls.yml
+  when: deploy_stage is not defined or deploy_stage == 'all' or deploy_stage == 'firewalls'
+
+- name: "Stage 5: Deploy Wireguard VPN"
+  ansible.builtin.import_playbook: deploy-wireguard.yml
+  when: deploy_stage is not defined or deploy_stage == 'all' or deploy_stage == 'wireguard'
+
+- name: "Stage 6: Deploy Applications"
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Display post-deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Infrastructure Deployment Complete
+          ===================================
+
+          Deployment Summary:
+          ✓ Proxmox VMs deployed and configured
+          ✓ Firewall infrastructure running
+          ✓ Wireguard VPN established
+          ✓ Base OS hardening applied
+
+          Next Steps:
+          1. Configure application-specific roles
+          2. Set up monitoring and alerting
+          3. Configure backup and disaster recovery
+          4. Run security compliance checks
+
+          Monitoring Access:
+          - Grafana: https://grafana.example.com
+          - Prometheus: https://prometheus.example.com
+          - AlertManager: https://alertmanager.example.com
+
+          Firewall Access:
+          - OPNSense: https://opnsense.example.com/ui
+          - pfSense: https://pfsense.example.com
+          - SSH: ssh admin@{{ groups['all_firewalls'][0] }}
+
+          VPN Status:
+          - Full mesh, hub-spoke, or site-to-site operational
+          - Check with: wg show

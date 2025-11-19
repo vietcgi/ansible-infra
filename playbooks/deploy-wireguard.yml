@@ -1,0 +1,130 @@
+---
+# Wireguard VPN Deployment Playbook
+# Deploy Wireguard with support for: full mesh, hub-spoke (HA), and site-to-site topologies
+
+- name: Deploy Wireguard VPN Infrastructure
+  hosts: all
+  gather_facts: true
+  become: true
+
+  pre_tasks:
+    - name: Validate Wireguard configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_enabled | default(false) | bool
+          - wireguard_topology in ['full_mesh', 'hub_spoke', 'site_to_site']
+        fail_msg: "Wireguard not properly configured. Check inventory."
+
+    - name: Display deployment configuration
+      ansible.builtin.debug:
+        msg: |
+          Wireguard VPN Deployment
+          ========================
+          Topology: {{ wireguard_topology }}
+          {% if wireguard_topology == 'full_mesh' %}
+          Nodes: {{ wireguard_full_mesh_nodes | length }}
+          {% elif wireguard_topology == 'hub_spoke' %}
+          Mode: Hub-and-Spoke{% if wireguard_ha_mode %} (HA Enabled){% endif %}
+          Hub Node: {{ wireguard_hub_node }}
+          Spokes: {{ wireguard_spoke_nodes | length }}
+          {% elif wireguard_topology == 'site_to_site' %}
+          Sites: {{ wireguard_sites | length }}
+          {% endif %}
+          VPN Network: {{ wireguard_vpn_network }}
+          Port: {{ wireguard_port }}
+          Deployment Time: {{ ansible_date_time.iso8601 }}
+
+  roles:
+    - role: common
+      tags:
+        - common
+        - base_config
+      vars:
+        # Ensure IP forwarding is enabled if needed
+        common_ip_forward: "{{ wireguard_enable_ip_forward | default(false) }}"
+        # Allow Wireguard port in firewall
+        firewall_allowed_udp_ports:
+          - "{{ wireguard_port }}"
+
+    - role: wireguard_vpn
+      tags:
+        - wireguard
+        - vpn
+
+  post_tasks:
+    - name: Display Wireguard deployment summary
+      ansible.builtin.debug:
+        msg: |
+          Wireguard Deployment Complete
+          =============================
+          Status: VPN Network Online
+          Interface: {{ wireguard_interface }}
+          Listen Port: {{ wireguard_port }}/UDP
+
+          {% if wireguard_topology == 'full_mesh' %}
+          Full Mesh Status:
+          - All nodes interconnected
+          - VPN CIDR: {{ wireguard_vpn_network }}
+          {% elif wireguard_topology == 'hub_spoke' %}
+          Hub-and-Spoke Status:
+          - Hub Node: {{ wireguard_hub_node }}
+          {% if wireguard_ha_mode %}- HA Mode: ENABLED (failover configured)
+          {% endif %}- Spoke Nodes: {{ wireguard_spoke_nodes | length }}
+          {% elif wireguard_topology == 'site_to_site' %}
+          Site-to-Site Status:
+          - Sites: {{ wireguard_sites | length }}
+          - Inter-site routing: Configured
+          {% endif %}
+
+    - name: Verify VPN connectivity (optional)
+      block:
+        - name: Ping VPN peers
+          ansible.builtin.command: "ping -c 1 -W 2 {{ peer_vpn_ip }}"
+          register: ping_result
+          failed_when: false
+          changed_when: false
+          loop: "{{ wireguard_peer_vpn_ips | default([]) }}"
+          loop_control:
+            loop_var: peer_vpn_ip
+          when: wireguard_verify_connectivity | default(false)
+
+        - name: Display connectivity test results
+          ansible.builtin.debug:
+            msg: |
+              VPN Connectivity Verification
+              =============================
+              Peers Reachable: {{ (ping_result.results | selectattr('rc', 'equalto', 0) | list | length) | default(0) }}
+              Total Peers: {{ ping_result.results | length | default(0) }}
+          when: wireguard_verify_connectivity | default(false)
+
+      when: wireguard_topology in ['full_mesh', 'hub_spoke']
+
+    - name: Display troubleshooting guide
+      ansible.builtin.debug:
+        msg: |
+          Wireguard Troubleshooting
+          ========================
+          View VPN status:
+            wg show
+            wg show {{ wireguard_interface }} peers
+            ip addr show {{ wireguard_interface }}
+
+          Test connectivity:
+            ping -I {{ wireguard_vpn_ip }} <peer_vpn_ip>
+
+          View logs:
+            journalctl -u wg-quick@{{ wireguard_interface }} -f
+
+          Check MTU:
+            ping -M do -s 1372 <peer_vpn_ip>
+
+  handlers:
+    - name: Reload Wireguard
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_interface }}"
+        state: reloaded
+
+    - name: Restart Wireguard
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_interface }}"
+        state: restarted

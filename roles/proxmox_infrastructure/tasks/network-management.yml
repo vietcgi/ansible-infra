@@ -1,0 +1,93 @@
+---
+# Proxmox Infrastructure - Network Management Tasks
+
+- name: Network Bridge Configuration
+  block:
+    - name: "Configure bridge: {{ bridge_item.name }}"
+      community.general.interfaces_file:
+        iface: "{{ bridge_item.name }}"
+        option: "bridge_ports"
+        value: "{{ bridge_item.ports | join(' ') }}"
+        backup: true
+        state: present
+      loop: "{{ proxmox_network_bridges }}"
+      loop_control:
+        loop_var: bridge_item
+        label: "{{ bridge_item.name }}"
+      when: proxmox_network_bridges | length > 0
+      register: bridge_config
+
+    - name: Display bridge configuration
+      ansible.builtin.debug:
+        msg: |
+          Network Bridges Configured
+          ==========================
+          {% for bridge in proxmox_network_bridges %}
+          - {{ bridge.name }}: {{ bridge.ports | join(', ') }}
+          {% endfor %}
+      when: proxmox_network_bridges | length > 0
+
+  rescue:
+    - name: Display bridge error
+      ansible.builtin.debug:
+        msg: "Bridge configuration error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+- name: VLAN Configuration
+  block:
+    - name: "Configure VLAN: {{ vlan_item.name }}"
+      community.general.interfaces_file:
+        iface: "{{ vlan_item.name }}"
+        option: "bridge_vlan_aware"
+        value: "yes"
+        backup: true
+        state: present
+      loop: "{{ proxmox_vlans }}"
+      loop_control:
+        loop_var: vlan_item
+        label: "{{ vlan_item.name }}"
+      when: proxmox_vlans | length > 0
+
+    - name: Display VLAN configuration
+      ansible.builtin.debug:
+        msg: |
+          VLANs Configured
+          ================
+          {% for vlan in proxmox_vlans %}
+          - {{ vlan.name }} on {{ vlan.iface }} (VLAN {{ vlan.vlan }})
+          {% endfor %}
+      when: proxmox_vlans | length > 0
+
+  rescue:
+    - name: Display VLAN error
+      ansible.builtin.debug:
+        msg: "VLAN configuration error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+- name: Network Bond Configuration
+  block:
+    - name: "Configure bond: {{ bond_item.name }}"
+      community.general.interfaces_file:
+        iface: "{{ bond_item.name }}"
+        option: "bond_slaves"
+        value: "{{ bond_item.slaves | join(' ') }}"
+        backup: true
+        state: present
+      loop: "{{ proxmox_bonds }}"
+      loop_control:
+        loop_var: bond_item
+        label: "{{ bond_item.name }}"
+      when: proxmox_bonds | length > 0
+
+    - name: Display bond configuration
+      ansible.builtin.debug:
+        msg: |
+          Network Bonds Configured
+          ========================
+          {% for bond in proxmox_bonds %}
+          - {{ bond.name }}: {{ bond.slaves | join(', ') }} (Mode: {{ bond.mode }})
+          {% endfor %}
+      when: proxmox_bonds | length > 0
+
+  rescue:
+    - name: Display bond error
+      ansible.builtin.debug:
+        msg: "Bond configuration error: {{ ansible_failed_result.msg | default('Unknown error') }}"

@@ -1,0 +1,172 @@
+---
+# Wireguard VPN Role - Defaults
+
+# ============================================================================
+# Core Wireguard Configuration
+# ============================================================================
+wireguard_enabled: true
+
+# Wireguard interface name
+wireguard_interface: wg0
+
+# Listen port
+wireguard_port: 51820
+
+# VPN network (CIDR notation)
+wireguard_vpn_network: "10.0.0.0/24"
+
+# MTU size for VPN tunnel
+wireguard_vpn_mtu: 1420
+
+# Persistent keepalive interval (0 = disabled, recommended 25)
+wireguard_persistent_keepalive: 25
+
+# DNS servers for VPN
+wireguard_dns_servers:
+  - 1.1.1.1
+  - 1.0.0.1
+
+# ============================================================================
+# Topology Selection (CHOOSE ONE)
+# ============================================================================
+# Options: full_mesh, hub_spoke, site_to_site
+wireguard_topology: "full_mesh"
+
+# ============================================================================
+# Full Mesh Topology (All nodes peer with all nodes)
+# ============================================================================
+# Define peer nodes for full mesh
+wireguard_full_mesh_nodes: {}
+# Example:
+#   node1:
+#     vpn_ip: "10.0.0.1"
+#     public_endpoint: "node1.example.com:51820"
+#     public_key: "{{ vault_node1_pubkey }}"  # Optional, auto-gen if omitted
+#
+#   node2:
+#     vpn_ip: "10.0.0.2"
+#     public_endpoint: "node2.example.com:51820"
+
+# ============================================================================
+# Hub-and-Spoke Topology (HA mode)
+# ============================================================================
+wireguard_ha_mode: false
+
+# Hub node name (primary firewall/router)
+wireguard_hub_node: "hub"
+
+# Hub configuration
+wireguard_hub_vpn_ip: "10.0.0.1"
+wireguard_hub_endpoint: ""
+
+# Backup/secondary hub peers (for failover)
+wireguard_hub_peers: []
+# Example:
+#   - name: "hub-backup"
+#     vpn_ip: "10.0.0.254"
+#     public_endpoint: "hub-backup.example.com:51820"
+#     role: backup
+
+# Spoke nodes (behind hub)
+wireguard_spoke_nodes: {}
+# Example:
+#   spoke1:
+#     vpn_ip: "10.0.0.10"
+#     networks: ["192.168.1.0/24"]
+#     public_endpoint: "spoke1.example.com:51820"
+#
+#   spoke2:
+#     vpn_ip: "10.0.0.20"
+#     networks: ["192.168.2.0/24"]
+#     public_endpoint: "spoke2.example.com:51820"
+
+# ============================================================================
+# Site-to-Site Topology
+# ============================================================================
+# Define sites/locations
+wireguard_sites: {}
+# Example:
+#   site_a:
+#     location: "New York"
+#     gateway: "gw-nyc"
+#     networks: ["192.168.1.0/24"]
+#     vpn_network: "10.0.1.0/24"
+#
+#   site_b:
+#     location: "London"
+#     gateway: "gw-lon"
+#     networks: ["192.168.10.0/24"]
+#     vpn_network: "10.0.2.0/24"
+
+# Site-to-site routing
+wireguard_site_routes: []
+
+# ============================================================================
+# Key Generation & Management
+# ============================================================================
+# Auto-generate keys if not provided
+wireguard_generate_keys: true
+
+# Key storage directory (on control machine)
+wireguard_keys_dir: "{{ playbook_dir }}/keys/wireguard"
+
+# Encrypt keys with Ansible Vault
+wireguard_vault_encrypt_keys: true
+
+# ============================================================================
+# IP Forwarding & Routing
+# ============================================================================
+wireguard_enable_ip_forward: false      # Required for hub/spoke and site-to-site
+
+wireguard_setup_routes: false           # Configure routing
+
+wireguard_routes: []
+# Example:
+#   - destination: "10.0.0.0/24"
+#     via: "{{ wireguard_vpn_ip }}"
+#     table: main
+
+# ============================================================================
+# Firewall Integration
+# ============================================================================
+wireguard_configure_firewall: false
+
+wireguard_firewall_rules:
+  - direction: in
+    protocol: udp
+    port: "{{ wireguard_port }}"
+    rule: allow
+
+# ============================================================================
+# Pre-shared Keys (Optional)
+# ============================================================================
+wireguard_use_preshared_keys: false
+
+wireguard_preshared_keys: {}
+
+# ============================================================================
+# Systemd-networkd Integration
+# ============================================================================
+# Use systemd-networkd instead of wg-quick
+wireguard_use_systemd_networkd: false
+
+# ============================================================================
+# IPv6 Support
+# ============================================================================
+wireguard_ipv6_enabled: false
+
+wireguard_vpn_ipv6_network: "fd00::/64"
+
+# ============================================================================
+# Validation & Checks
+# ============================================================================
+wireguard_validate_environment: true
+
+wireguard_verify_connectivity: false    # Test ping after setup
+
+# ============================================================================
+# Logging & Debugging
+# ============================================================================
+wireguard_debug: false
+
+wireguard_log_level: info

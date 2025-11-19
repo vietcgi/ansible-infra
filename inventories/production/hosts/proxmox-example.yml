@@ -1,0 +1,196 @@
+# Proxmox VE Infrastructure - Example Inventory
+# This file demonstrates a single-node and HA Proxmox cluster configuration
+
+---
+all:
+  vars:
+    # Ansible connection settings
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/proxmox_key
+
+proxmox_hypervisors:
+  description: "Proxmox VE Hypervisor Hosts"
+  hosts:
+    pve-node-01:
+      ansible_host: 192.168.1.10
+      proxmox_node: pve-node-01
+
+    pve-node-02:
+      ansible_host: 192.168.1.11
+      proxmox_node: pve-node-02
+
+    pve-node-03:
+      ansible_host: 192.168.1.12
+      proxmox_node: pve-node-03
+
+  vars:
+    # Proxmox API Configuration
+    proxmox_api_host: 192.168.1.10              # Primary node IP
+    proxmox_api_user: root@pam
+    proxmox_api_password: "{{ vault_proxmox_password }}"
+    proxmox_api_verify_ssl: false
+
+    # ============================================================================
+    # OPTION 1: Single Node (Minimal Setup)
+    # ============================================================================
+    # proxmox_ha_enabled: false
+    # proxmox_vms:
+    #   - name: "web-01"
+    #     vmid: 100
+    #     template: "ubuntu-22.04"
+    #     cores: 4
+    #     memory: 8192
+    #     disk: 50
+    #     net0: "virtio,bridge=vmbr0"
+    #     state: present
+
+    # ============================================================================
+    # OPTION 2: High Availability Cluster (Recommended for Production)
+    # ============================================================================
+    proxmox_ha_enabled: true
+
+    # HA Groups - Define node failure domains
+    proxmox_ha_groups:
+      - group_name: "web-cluster"
+        nodes:
+          - pve-node-01
+          - pve-node-02
+          - pve-node-03
+        priority:
+          pve-node-01: 1               # Primary (highest priority)
+          pve-node-02: 2
+          pve-node-03: 3               # Fallback
+
+      - group_name: "db-cluster"
+        nodes:
+          - pve-node-01
+          - pve-node-02
+        priority:
+          pve-node-01: 1
+          pve-node-02: 2
+
+    # HA Resources - VMs managed by HA
+    proxmox_ha_resources:
+      # Web servers
+      - vmid: 100
+        state: started
+        group: web-cluster
+        max_relocate: 1               # Max node relocations
+        max_restart: 3                # Max restarts before giving up
+
+      - vmid: 101
+        state: started
+        group: web-cluster
+        max_relocate: 1
+        max_restart: 3
+
+      # Database servers
+      - vmid: 200
+        state: started
+        group: db-cluster
+        max_relocate: 0               # Pin to node
+        max_restart: 5
+
+    # HA Resource Manager settings
+    proxmox_ha_rm_shutdown_policy: "conditional"  # policy, conditional, force
+    proxmox_ha_rm_max_worker: 4
+    proxmox_ha_rm_ha_interval: 10
+
+    # VMs to create
+    proxmox_vms:
+      # Web Tier
+      - name: "web-01"
+        vmid: 100
+        template: "ubuntu-22.04"
+        node: pve-node-01
+        cores: 4
+        memory: 8192
+        disk: 50
+        storage: "local-lvm"
+        net0: "virtio,bridge=vmbr0"
+        state: present
+
+      - name: "web-02"
+        vmid: 101
+        template: "ubuntu-22.04"
+        node: pve-node-02
+        cores: 4
+        memory: 8192
+        disk: 50
+        storage: "local-lvm"
+        net0: "virtio,bridge=vmbr0"
+        state: present
+
+      # Database Tier
+      - name: "db-01"
+        vmid: 200
+        template: "ubuntu-22.04"
+        node: pve-node-01
+        cores: 8
+        memory: 16384
+        disk: 100
+        storage: "local-lvm"
+        net0: "virtio,bridge=vmbr0"
+        state: present
+
+      - name: "db-02"
+        vmid: 201
+        template: "ubuntu-22.04"
+        node: pve-node-02
+        cores: 8
+        memory: 16384
+        disk: 100
+        storage: "local-lvm"
+        net0: "virtio,bridge=vmbr0"
+        state: present
+
+    # Cloud-Init Templates (optional)
+    proxmox_cloudinit_enabled: false
+    proxmox_cloudinit_templates:
+      - name: "ubuntu-22.04"
+        image_url: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+        vmid: 9000
+        storage: "local-lvm"
+
+    # Network Management (optional)
+    proxmox_network_management_enabled: false
+    proxmox_network_bridges:
+      - name: "vmbr1"
+        ports: ["eno2"]
+        vlan_aware: true
+        stp: false
+
+    # Storage Management (optional)
+    proxmox_storage_management_enabled: false
+    proxmox_storage:
+      - storage: "local-lvm"
+        type: lvmthin
+        content: "images,rootdir"
+
+# Deployed VMs (created by Proxmox role)
+vm_cluster:
+  description: "Application VMs (deployed on Proxmox)"
+  children:
+    web_servers:
+      hosts:
+        web-01:
+          ansible_host: 192.168.1.100
+          app_role: web
+        web-02:
+          ansible_host: 192.168.1.101
+          app_role: web
+
+    database_servers:
+      hosts:
+        db-01:
+          ansible_host: 192.168.1.200
+          app_role: database
+        db-02:
+          ansible_host: 192.168.1.201
+          app_role: database
+
+  vars:
+    ansible_user: ubuntu
+    # Apply common role to all VMs
+    common_ssh_port: 22
+    common_firewall_enabled: true

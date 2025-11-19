@@ -1,0 +1,44 @@
+---
+# Proxmox Infrastructure Role - Main Tasks
+
+- name: Proxmox Infrastructure Setup
+  block:
+    - name: Include validation tasks
+      ansible.builtin.include_tasks: validate-environment.yml
+      when: proxmox_validate_environment | bool
+
+    - name: Include API connection setup
+      ansible.builtin.include_tasks: api-connection.yml
+
+    - name: Include VM management tasks
+      ansible.builtin.include_tasks: vm-management.yml
+      when: proxmox_vms | length > 0
+
+    - name: Include cloud-init template management
+      ansible.builtin.include_tasks: cloudinit-templates.yml
+      when: proxmox_cloudinit_enabled | bool
+
+    - name: Include HA configuration
+      ansible.builtin.include_tasks: ha-configuration.yml
+      when: proxmox_ha_enabled | bool
+
+    - name: Include network management
+      ansible.builtin.include_tasks: network-management.yml
+      when: proxmox_network_management_enabled | bool
+
+    - name: Include storage management
+      ansible.builtin.include_tasks: storage-management.yml
+      when: proxmox_storage_management_enabled | bool
+
+    - name: Include API token management
+      ansible.builtin.include_tasks: api-token-management.yml
+      when: proxmox_api_token_management_enabled | bool
+
+  rescue:
+    - name: Display error message
+      ansible.builtin.debug:
+        msg: "Proxmox infrastructure setup failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail with details
+      ansible.builtin.fail:
+        msg: "Proxmox infrastructure setup encountered an error. Check logs above for details."

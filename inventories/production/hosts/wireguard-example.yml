@@ -1,0 +1,250 @@
+# Wireguard VPN Infrastructure - Example Inventory
+# This file demonstrates three topology options:
+# 1. Full Mesh - Every node peers with every other node
+# 2. Hub-and-Spoke (HA) - Central gateway with failover
+# 3. Site-to-Site - Multiple locations with inter-site routing
+
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: ~/.ssh/wireguard_key
+
+# ============================================================================
+# OPTION 1: Full Mesh VPN (All nodes peer to all nodes)
+# ============================================================================
+# Use this for small to medium deployments (2-50 nodes) with good inter-connectivity
+
+wireguard_full_mesh:
+  description: "Wireguard Full Mesh VPN"
+  hosts:
+    vpn-node-01:
+      ansible_host: 192.168.1.100
+      wireguard_vpn_ip: 10.0.0.1
+
+    vpn-node-02:
+      ansible_host: 192.168.1.101
+      wireguard_vpn_ip: 10.0.0.2
+
+    vpn-node-03:
+      ansible_host: 192.168.1.102
+      wireguard_vpn_ip: 10.0.0.3
+
+  vars:
+    # Enable full mesh topology
+    wireguard_enabled: true
+    wireguard_topology: "full_mesh"
+    wireguard_vpn_network: "10.0.0.0/24"
+    wireguard_port: 51820
+    wireguard_persistent_keepalive: 25
+
+    # Define all nodes in the mesh
+    wireguard_full_mesh_nodes:
+      node1:
+        vpn_ip: "10.0.0.1"
+        public_endpoint: "vpn-node-01.example.com:51820"
+        # public_key will be auto-generated if not specified
+
+      node2:
+        vpn_ip: "10.0.0.2"
+        public_endpoint: "vpn-node-02.example.com:51820"
+
+      node3:
+        vpn_ip: "10.0.0.3"
+        public_endpoint: "vpn-node-03.example.com:51820"
+
+    # Full mesh doesn't require IP forwarding for local VPN
+    wireguard_enable_ip_forward: false
+    wireguard_configure_firewall: true
+
+# ============================================================================
+# OPTION 2: Hub-and-Spoke with HA (Recommended for Production)
+# ============================================================================
+# Use this for centralized security/routing with failover capability
+
+firewalls:
+  description: "Wireguard Hub Nodes (Primary + Backup)"
+  hosts:
+    fw-primary:
+      ansible_host: 192.168.1.250
+      wireguard_role: hub
+      wireguard_vpn_ip: 10.0.0.1
+
+    fw-secondary:
+      ansible_host: 192.168.1.251
+      wireguard_role: hub
+      wireguard_vpn_ip: 10.0.0.254
+      wireguard_backup: true
+
+  vars:
+    wireguard_enabled: true
+    wireguard_topology: "hub_spoke"
+    wireguard_ha_mode: true               # Enable failover
+    wireguard_hub_node: fw-primary
+    wireguard_vpn_network: "10.0.0.0/24"
+
+    # Secondary hub for failover
+    wireguard_hub_peers:
+      - name: fw-secondary
+        vpn_ip: 10.0.0.254
+        public_endpoint: "fw-secondary.example.com:51820"
+        role: backup
+
+    # Enable IP forwarding and firewall
+    wireguard_enable_ip_forward: true
+    wireguard_configure_firewall: true
+
+spoke_nodes:
+  description: "Wireguard Spoke Nodes (App Servers)"
+  hosts:
+    app-server-01:
+      ansible_host: 192.168.2.10
+      wireguard_role: spoke
+      wireguard_vpn_ip: 10.0.0.10
+      wireguard_networks: ["192.168.2.0/24"]
+
+    app-server-02:
+      ansible_host: 192.168.2.11
+      wireguard_role: spoke
+      wireguard_vpn_ip: 10.0.0.11
+      wireguard_networks: ["192.168.2.0/24"]
+
+    db-server-01:
+      ansible_host: 192.168.3.10
+      wireguard_role: spoke
+      wireguard_vpn_ip: 10.0.0.20
+      wireguard_networks: ["192.168.3.0/24"]
+
+  vars:
+    wireguard_enabled: true
+    wireguard_topology: "hub_spoke"
+    wireguard_ha_mode: true
+    wireguard_vpn_network: "10.0.0.0/24"
+
+    # Spokes define their behind-the-firewall networks
+    wireguard_spoke_nodes:
+      app-server-01:
+        vpn_ip: 10.0.0.10
+        networks: ["192.168.2.0/24"]
+        public_endpoint: "app-01.example.com:51820"
+
+      app-server-02:
+        vpn_ip: 10.0.0.11
+        networks: ["192.168.2.0/24"]
+        public_endpoint: "app-02.example.com:51820"
+
+      db-server-01:
+        vpn_ip: 10.0.0.20
+        networks: ["192.168.3.0/24"]
+        public_endpoint: "db-01.example.com:51820"
+
+    wireguard_enable_ip_forward: false    # Spokes don't forward
+    wireguard_configure_firewall: true
+
+# ============================================================================
+# OPTION 3: Site-to-Site Multi-Location VPN
+# ============================================================================
+# Use this for connecting multiple offices/datacenters
+
+site_new_york:
+  description: "New York Office"
+  hosts:
+    gw-nyc:
+      ansible_host: 203.0.113.1           # Public IP
+      wireguard_vpn_ip: 10.0.1.1
+      wireguard_site: site_a
+
+    app-nyc-01:
+      ansible_host: 192.168.1.10          # Private IP
+      wireguard_vpn_ip: 10.0.1.10
+      wireguard_site: site_a
+
+  vars:
+    wireguard_enabled: true
+    wireguard_topology: "site_to_site"
+    wireguard_enable_ip_forward: true
+    wireguard_configure_firewall: true
+
+site_london:
+  description: "London Office"
+  hosts:
+    gw-lon:
+      ansible_host: 203.0.113.2
+      wireguard_vpn_ip: 10.0.2.1
+      wireguard_site: site_b
+
+    app-lon-01:
+      ansible_host: 192.168.10.10
+      wireguard_vpn_ip: 10.0.2.10
+      wireguard_site: site_b
+
+  vars:
+    wireguard_enabled: true
+    wireguard_topology: "site_to_site"
+    wireguard_enable_ip_forward: true
+    wireguard_configure_firewall: true
+
+site_tokyo:
+  description: "Tokyo Office"
+  hosts:
+    gw-tyo:
+      ansible_host: 203.0.113.3
+      wireguard_vpn_ip: 10.0.3.1
+      wireguard_site: site_c
+
+    app-tyo-01:
+      ansible_host: 192.168.20.10
+      wireguard_vpn_ip: 10.0.3.10
+      wireguard_site: site_c
+
+  vars:
+    wireguard_enabled: true
+    wireguard_topology: "site_to_site"
+    wireguard_enable_ip_forward: true
+    wireguard_configure_firewall: true
+
+# Site-to-site configuration (apply to all sites)
+wireguard_sites_all:
+  vars:
+    # Define all sites
+    wireguard_sites:
+      site_a:
+        location: "New York"
+        gateway: gw-nyc
+        networks: ["192.168.1.0/24"]
+        vpn_network: "10.0.1.0/24"
+
+      site_b:
+        location: "London"
+        gateway: gw-lon
+        networks: ["192.168.10.0/24"]
+        vpn_network: "10.0.2.0/24"
+
+      site_c:
+        location: "Tokyo"
+        gateway: gw-tyo
+        networks: ["192.168.20.0/24"]
+        vpn_network: "10.0.3.0/24"
+
+    # Define inter-site routes
+    wireguard_site_routes:
+      - from: site_a
+        to: site_b
+        via: gw-nyc
+        priority: 100
+
+      - from: site_b
+        to: site_c
+        via: gw-lon
+        priority: 100
+
+      - from: site_c
+        to: site_a
+        via: gw-tyo
+        priority: 100
+
+      # Backup routes for redundancy
+      - from: site_a
+        to: site_c
+        via: gw-nyc
+        priority: 200

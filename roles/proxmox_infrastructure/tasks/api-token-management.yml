@@ -1,0 +1,77 @@
+---
+# Proxmox Infrastructure - API Token Management Tasks
+
+- name: API Token Management
+  block:
+    - name: "Create API token: {{ token_item.name }}"
+      block:
+        - name: "Check if user exists: {{ token_item.user }}"
+          ansible.builtin.shell: |
+            set -euo pipefail
+            pveum user list | grep -q "{{ token_item.user }}"
+          args:
+            executable: /bin/bash
+          register: user_check
+          failed_when: false
+          changed_when: false
+
+        - name: "Create user if not exists: {{ token_item.user }}"
+          ansible.builtin.shell: |
+            set -euo pipefail
+            pveum user add {{ token_item.user }}
+          args:
+            executable: /bin/bash
+          register: user_create
+          failed_when:
+            - user_create.rc != 0
+            - "'already exists' not in user_create.stderr"
+          changed_when: "'already exists' not in user_create.stderr"
+          when: user_check.rc != 0
+
+        - name: "Create API token: {{ token_item.name }}"
+          ansible.builtin.shell: |
+            set -euo pipefail
+            pveum user token add {{ token_item.user }} "{{ token_item.name }}" --privsep 0
+          args:
+            executable: /bin/bash
+          register: token_create
+          failed_when:
+            - token_create.rc != 0
+            - "'already exists' not in token_create.stderr"
+          changed_when: "'already exists' not in token_create.stderr"
+
+        - name: "Assign privileges: {{ token_item.name }}"
+          ansible.builtin.shell: |
+            set -euo pipefail
+            pveum acl modify / --users "{{ token_item.user }}" --roles PVEAdmin
+          args:
+            executable: /bin/bash
+          register: privilege_assign
+          changed_when: privilege_assign.rc == 0
+          when: token_item.privileges is defined
+
+      rescue:
+        - name: "Token creation error: {{ token_item.name }}"
+          ansible.builtin.debug:
+            msg: "Warning: API token {{ token_item.name }} creation had issues. Check logs."
+
+      loop: "{{ proxmox_api_tokens }}"
+      loop_control:
+        loop_var: token_item
+        label: "{{ token_item.name }}"
+      when: proxmox_api_tokens | length > 0
+
+    - name: Display API tokens created
+      ansible.builtin.debug:
+        msg: |
+          API Tokens Created
+          ==================
+          {% for token in proxmox_api_tokens %}
+          - {{ token.name }} for {{ token.user }}
+          {% endfor %}
+      when: proxmox_api_tokens | length > 0
+
+  rescue:
+    - name: Display API token error
+      ansible.builtin.debug:
+        msg: "API token management error: {{ ansible_failed_result.msg | default('Unknown error') }}"

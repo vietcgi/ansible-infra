@@ -1,0 +1,44 @@
+---
+# Proxmox Infrastructure - VM Management Tasks
+
+- name: VM Lifecycle Management
+  block:
+    - name: Retrieve existing VMs from Proxmox
+      community.proxmox.proxmox_vm_info:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_password: "{{ proxmox_api_password }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+        validate_certs: "{{ proxmox_api_verify_ssl }}"
+      register: existing_vms
+      no_log: true
+
+    - name: Set existing VM IDs fact
+      ansible.builtin.set_fact:
+        existing_vm_ids: "{{ existing_vms.proxmox_vms | map(attribute='vmid') | list }}"
+        existing_vm_names: "{{ existing_vms.proxmox_vms | map(attribute='name') | list }}"
+
+    - name: Display existing VMs
+      ansible.builtin.debug:
+        msg: |
+          Existing VMs in Proxmox
+          =======================
+          IDs: {{ existing_vm_ids | join(', ') }}
+          Names: {{ existing_vm_names | join(', ') }}
+
+    - name: Process each VM configuration
+      ansible.builtin.include_tasks: vm-management-item.yml
+      loop: "{{ proxmox_vms }}"
+      loop_control:
+        loop_var: vm_item
+        label: "{{ vm_item.name }} (ID: {{ vm_item.vmid }})"
+
+  rescue:
+    - name: Display VM management error
+      ansible.builtin.debug:
+        msg: "VM Management Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail VM management
+      ansible.builtin.fail:
+        msg: "VM management task failed. Check logs above for details."

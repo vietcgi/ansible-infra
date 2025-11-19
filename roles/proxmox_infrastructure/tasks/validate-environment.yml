@@ -1,0 +1,117 @@
+---
+# Proxmox Infrastructure - Environment Validation Tasks
+
+- name: Check Python proxmoxer library
+  block:
+    - name: Import proxmoxer
+      ansible.builtin.command: python3 -c "import proxmoxer; print(proxmoxer.__version__)"
+      register: proxmoxer_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if proxmoxer not installed
+      ansible.builtin.fail:
+        msg: |
+          proxmoxer library is required but not installed.
+          Install with: pip install proxmoxer requests
+      when: proxmoxer_check.rc != 0
+
+    - name: Display proxmoxer version
+      ansible.builtin.debug:
+        msg: "proxmoxer version: {{ proxmoxer_check.stdout }}"
+      when: proxmoxer_check.rc == 0
+
+- name: Validate Proxmox API credentials
+  block:
+    - name: Check API connection details
+      ansible.builtin.assert:
+        that:
+          - proxmox_api_host is defined
+          - proxmox_api_user is defined
+          - proxmox_api_password is defined
+        fail_msg: |
+          Required Proxmox API configuration missing:
+          - proxmox_api_host
+          - proxmox_api_user
+          - proxmox_api_password
+
+    - name: Validate API host format
+      ansible.builtin.assert:
+        that:
+          - proxmox_api_host | ansible.utils.ipaddr or proxmox_api_host | community.general.is_fqdn
+        fail_msg: "proxmox_api_host must be a valid IP address or FQDN"
+
+- name: Validate VM configuration
+  block:
+    - name: Check VM definitions
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.vmid is defined
+        fail_msg: "VM must have 'name' and 'vmid' defined"
+      loop: "{{ proxmox_vms }}"
+      when: proxmox_vms | length > 0
+
+    - name: Check for duplicate VM IDs
+      ansible.builtin.assert:
+        that:
+          - proxmox_vms | map(attribute='vmid') | list | unique | length == proxmox_vms | length
+        fail_msg: "Duplicate VMID detected in proxmox_vms"
+      when: proxmox_vms | length > 1
+
+    - name: Validate VM memory sizes
+      ansible.builtin.assert:
+        that:
+          - (item.memory | int) >= 512
+        fail_msg: "VM memory must be at least 512 MB"
+      loop: "{{ proxmox_vms }}"
+      when: proxmox_vms | length > 0
+
+- name: Validate HA configuration
+  block:
+    - name: Check HA group definitions
+      ansible.builtin.assert:
+        that:
+          - item.group_name is defined
+          - item.nodes is defined
+        fail_msg: "HA group must have 'group_name' and 'nodes' defined"
+      loop: "{{ proxmox_ha_groups }}"
+      when:
+        - proxmox_ha_enabled | bool
+        - proxmox_ha_groups | length > 0
+
+    - name: Check HA resource definitions
+      ansible.builtin.assert:
+        that:
+          - item.vmid is defined
+          - item.group is defined
+        fail_msg: "HA resource must have 'vmid' and 'group' defined"
+      loop: "{{ proxmox_ha_resources }}"
+      when:
+        - proxmox_ha_enabled | bool
+        - proxmox_ha_resources | length > 0
+
+- name: Validate cloud-init templates
+  block:
+    - name: Check cloud-init template definitions
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.image_url is defined or item.local_path is defined
+          - item.vmid is defined
+        fail_msg: "Cloud-init template must have 'name', 'image_url' or 'local_path', and 'vmid'"
+      loop: "{{ proxmox_cloudinit_templates }}"
+      when:
+        - proxmox_cloudinit_enabled | bool
+        - proxmox_cloudinit_templates | length > 0
+
+- name: Display validation summary
+  ansible.builtin.debug:
+    msg: |
+      Proxmox Environment Validation Complete
+      =========================================
+      API Host: {{ proxmox_api_host }}
+      API User: {{ proxmox_api_user }}
+      VMs to manage: {{ proxmox_vms | length }}
+      HA enabled: {{ proxmox_ha_enabled }}
+      Cloud-init enabled: {{ proxmox_cloudinit_enabled }}

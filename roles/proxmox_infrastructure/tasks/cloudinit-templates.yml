@@ -1,0 +1,115 @@
+---
+# Proxmox Infrastructure - Cloud-Init Template Management
+
+- name: Cloud-Init Template Management
+  block:
+    - name: Import cloud-init templates from URL
+      block:
+        - name: "Download cloud-init image: {{ template_item.name }}"
+          ansible.builtin.get_url:
+            url: "{{ template_item.image_url }}"
+            dest: "/tmp/{{ template_item.name }}.qcow2"
+            mode: '0644'
+            timeout: 300
+          register: template_download
+          when: template_item.image_url is defined
+
+        - name: "Create cloud-init template: {{ template_item.name }}"
+          block:
+            - name: "Create template VM: {{ template_item.name }}"
+              ansible.builtin.shell: |
+                set -euo pipefail
+                qm create {{ template_item.vmid }} \
+                  --name {{ template_item.name }}-base \
+                  --node {{ proxmox_node }} \
+                  --memory 2048 \
+                  --cores 2 \
+                  --net0 virtio,bridge=vmbr0
+              args:
+                executable: /bin/bash
+              register: template_create
+              failed_when:
+                - template_create.rc != 0
+                - "'already exists' not in template_create.stderr"
+              changed_when: "'already exists' not in template_create.stderr"
+
+            - name: "Import disk to template: {{ template_item.name }}"
+              ansible.builtin.shell: |
+                set -euo pipefail
+                qm importdisk {{ template_item.vmid }} \
+                  /tmp/{{ template_item.name }}.qcow2 \
+                  {{ template_item.storage | default('local-lvm') }}
+              args:
+                executable: /bin/bash
+              register: disk_import
+              failed_when:
+                - disk_import.rc != 0
+                - "'already exists' not in disk_import.stderr"
+              changed_when: "'already exists' not in disk_import.stderr"
+
+            - name: "Attach disk to template: {{ template_item.name }}"
+              ansible.builtin.shell: |
+                set -euo pipefail
+                qm set {{ template_item.vmid }} \
+                  --scsihw virtio-scsi-pci \
+                  --scsi0 {{ template_item.storage | default('local-lvm') }}:vm-{{ template_item.vmid }}-disk-0
+              args:
+                executable: /bin/bash
+              register: disk_attach
+              changed_when: disk_attach.rc == 0
+
+            - name: "Configure cloud-init: {{ template_item.name }}"
+              ansible.builtin.shell: |
+                set -euo pipefail
+                qm set {{ template_item.vmid }} \
+                  --ide2 {{ template_item.storage | default('local-lvm') }}:cloudinit \
+                  --boot c \
+                  --bootdisk scsi0 \
+                  --serial0 socket \
+                  --vga serial0
+              args:
+                executable: /bin/bash
+              register: cloudinit_config
+              changed_when: cloudinit_config.rc == 0
+
+            - name: "Convert to template: {{ template_item.name }}"
+              ansible.builtin.shell: |
+                set -euo pipefail
+                qm template {{ template_item.vmid }}
+              args:
+                executable: /bin/bash
+              register: template_convert
+              failed_when:
+                - template_convert.rc != 0
+                - "'is already a template' not in template_convert.stderr"
+              changed_when: "'is already a template' not in template_convert.stderr"
+
+          rescue:
+            - name: "Template creation failed: {{ template_item.name }}"
+              ansible.builtin.debug:
+                msg: "Warning: Template {{ template_item.name }} creation had issues. Check logs."
+
+    - name: Display imported templates
+      ansible.builtin.debug:
+        msg: |
+          Cloud-Init Templates Imported
+          =============================
+          {% for template in proxmox_cloudinit_templates %}
+          - {{ template.name }} (VM ID: {{ template.vmid }})
+          {% endfor %}
+
+  rescue:
+    - name: Display cloud-init error
+      ansible.builtin.debug:
+        msg: "Cloud-Init Template Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+  always:
+    - name: Clean up temporary files
+      ansible.builtin.file:
+        path: "/tmp/{{ template_item.name }}.qcow2"
+        state: absent
+      loop: "{{ proxmox_cloudinit_templates }}"
+      loop_control:
+        loop_var: template_item
+      when: proxmox_cloudinit_templates | length > 0
+      ignore_errors: true

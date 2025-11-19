@@ -1,0 +1,122 @@
+---
+# Proxmox Infrastructure - Individual VM Management
+
+- name: "Prepare VM configuration for {{ vm_item.name }}"
+  block:
+    - name: Set VM defaults
+      ansible.builtin.set_fact:
+        vm_config: "{{ proxmox_vm_defaults | combine(vm_item, recursive=True) }}"
+
+    - name: Validate VM will not overwrite existing
+      ansible.builtin.assert:
+        that:
+          - vm_item.vmid not in existing_vm_ids or vm_item.vmid in (proxmox_vms | map(attribute='vmid') | list)
+        fail_msg: |
+          VM ID {{ vm_item.vmid }} already exists in Proxmox.
+          Existing VMs: {{ existing_vm_ids | join(', ') }}
+      when:
+        - proxmox_check_before_destroy | bool
+        - vm_item.state | default('present') == 'present'
+
+- name: "Create/Update VM: {{ vm_item.name }}"
+  block:
+    - name: "Create VM if not exists: {{ vm_item.name }}"
+      community.proxmox.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_password: "{{ proxmox_api_password }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+        validate_certs: "{{ proxmox_api_verify_ssl }}"
+        vmid: "{{ vm_item.vmid }}"
+        node: "{{ vm_item.node | default(proxmox_node) }}"
+        name: "{{ vm_item.name }}"
+        clone: "{{ vm_item.template | default(omit) }}"
+        cores: "{{ vm_config.cores }}"
+        memory: "{{ vm_config.memory }}"
+        sockets: "{{ vm_config.sockets | default(1) }}"
+        numa: "{{ vm_config.numa | default(0) }}"
+        boot: "{{ vm_config.boot | default('c') }}"
+        scsihw: "{{ vm_item.scsihw | default('virtio-scsi-pci') }}"
+        net0: "{{ vm_item.net0 | default(omit) }}"
+        net1: "{{ vm_item.net1 | default(omit) }}"
+        net2: "{{ vm_item.net2 | default(omit) }}"
+        net3: "{{ vm_item.net3 | default(omit) }}"
+        ide2: "{{ vm_item.ide2 | default(omit) }}"
+        serial0: "{{ vm_item.serial0 | default('socket') }}"
+        vga: "{{ vm_item.vga | default('serial0') }}"
+        agent: "{{ vm_item.agent | default(1) }}"
+        state: "{{ vm_item.state | default(proxmox_vm_state) }}"
+        timeout: 300
+      register: vm_create_result
+      no_log: true
+
+    - name: "Display VM creation result: {{ vm_item.name }}"
+      ansible.builtin.debug:
+        msg: |
+          VM {{ vm_item.name }} Status:
+          =============================
+          VMID: {{ vm_item.vmid }}
+          Node: {{ vm_item.node | default(proxmox_node) }}
+          Status: {{ vm_create_result.status | default('Created') }}
+
+  rescue:
+    - name: "Handle VM creation error: {{ vm_item.name }}"
+      ansible.builtin.debug:
+        msg: "Error creating VM {{ vm_item.name }}: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: "Fail on critical VM error"
+      ansible.builtin.fail:
+        msg: "Failed to create VM {{ vm_item.name }}. Check logs above."
+      when: proxmox_vm_state | default('present') == 'present'
+
+- name: "Configure VM disk: {{ vm_item.name }}"
+  block:
+    - name: "Check if disk configuration needed"
+      ansible.builtin.set_fact:
+        configure_vm_disk: "{{ vm_item.disk is defined and (vm_item.clone is not defined or vm_item.clone | length == 0) }}"
+
+    - name: "Resize VM disk: {{ vm_item.name }}"
+      community.proxmox.proxmox_disk:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_password: "{{ proxmox_api_password }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+        validate_certs: "{{ proxmox_api_verify_ssl }}"
+        vmid: "{{ vm_item.vmid }}"
+        disk: "{{ vm_item.disk_name | default('scsi0') }}"
+        size: "{{ vm_item.disk }}G"
+        state: resized
+      register: disk_resize_result
+      when:
+        - configure_vm_disk | bool
+        - vm_item.state | default('present') == 'present'
+      no_log: true
+
+  rescue:
+    - name: "Disk configuration error: {{ vm_item.name }}"
+      ansible.builtin.debug:
+        msg: "Warning: Disk configuration failed for {{ vm_item.name }}: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+- name: "Start VM if needed: {{ vm_item.name }}"
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+    api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+    validate_certs: "{{ proxmox_api_verify_ssl }}"
+    vmid: "{{ vm_item.vmid }}"
+    state: started
+  register: vm_start_result
+  when:
+    - vm_item.state | default('present') in ['present', 'started']
+  no_log: true
+
+- name: "Wait for VM to be ready: {{ vm_item.name }}"
+  ansible.builtin.pause:
+    seconds: 10
+  when:
+    - vm_item.state | default('present') in ['present', 'started']
+    - vm_item.skip_wait is not defined or not vm_item.skip_wait | bool

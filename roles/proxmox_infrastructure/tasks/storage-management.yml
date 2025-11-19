@@ -1,0 +1,68 @@
+---
+# Proxmox Infrastructure - Storage Management Tasks
+
+- name: Storage Pool Configuration
+  block:
+    - name: "Create storage pool: {{ storage_item.storage }}"
+      community.proxmox.proxmox_storage:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_password: "{{ proxmox_api_password }}"
+        api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+        api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+        validate_certs: "{{ proxmox_api_verify_ssl }}"
+        storage: "{{ storage_item.storage }}"
+        type: "{{ storage_item.type }}"
+        content: "{{ storage_item.content }}"
+        state: present
+      loop: "{{ proxmox_storage }}"
+      loop_control:
+        loop_var: storage_item
+        label: "{{ storage_item.storage }}"
+      register: storage_config
+      when: proxmox_storage | length > 0
+      no_log: true
+
+    - name: Display storage configuration
+      ansible.builtin.debug:
+        msg: |
+          Storage Pools Configured
+          ========================
+          {% for storage in proxmox_storage %}
+          - {{ storage.storage }} ({{ storage.type }}): {{ storage.content }}
+          {% endfor %}
+      when: proxmox_storage | length > 0
+
+  rescue:
+    - name: Display storage error
+      ansible.builtin.debug:
+        msg: "Storage configuration error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+- name: LVM Volume Group Configuration
+  block:
+    - name: "Create LVM volume group: {{ lvm_item.name }}"
+      community.general.lvg:
+        vg: "{{ lvm_item.name }}"
+        pvs: "{{ lvm_item.pvs | join(',') }}"
+        state: present
+      loop: "{{ proxmox_lvm_vg }}"
+      loop_control:
+        loop_var: lvm_item
+        label: "{{ lvm_item.name }}"
+      register: lvm_config
+      when: proxmox_lvm_vg | length > 0
+
+    - name: Display LVM configuration
+      ansible.builtin.debug:
+        msg: |
+          LVM Volume Groups Created
+          ==========================
+          {% for lvm in proxmox_lvm_vg %}
+          - {{ lvm.name }}: {{ lvm.pvs | join(', ') }}
+          {% endfor %}
+      when: proxmox_lvm_vg | length > 0
+
+  rescue:
+    - name: Display LVM error
+      ansible.builtin.debug:
+        msg: "LVM configuration error: {{ ansible_failed_result.msg | default('Unknown error') }}"

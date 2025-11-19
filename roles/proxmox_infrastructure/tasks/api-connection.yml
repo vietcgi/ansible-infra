@@ -1,0 +1,77 @@
+---
+# Proxmox Infrastructure - API Connection Setup
+
+- name: Test Proxmox API connectivity
+  community.proxmox.proxmox_vm_info:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+    api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+    validate_certs: "{{ proxmox_api_verify_ssl }}"
+  register: api_test
+  failed_when: false
+  changed_when: false
+  no_log: true
+
+- name: Handle API connection failure
+  block:
+    - name: Display connection error
+      ansible.builtin.debug:
+        msg: |
+          Proxmox API Connection Failed!
+          ================================
+          Host: {{ proxmox_api_host }}
+          User: {{ proxmox_api_user }}
+          Error: {{ api_test.msg | default('Unknown error') }}
+
+    - name: Fail if API connection fails
+      ansible.builtin.fail:
+        msg: "Cannot connect to Proxmox API at {{ proxmox_api_host }}"
+  when: api_test.failed | bool
+
+- name: Display API connection success
+  ansible.builtin.debug:
+    msg: |
+      Proxmox API Connected Successfully
+      ===================================
+      Host: {{ proxmox_api_host }}
+      User: {{ proxmox_api_user }}
+      Total VMs: {{ api_test.proxmox_vms | length }}
+
+- name: Retrieve Proxmox cluster information
+  community.proxmox.proxmox_node_info:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
+    api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
+    validate_certs: "{{ proxmox_api_verify_ssl }}"
+  register: proxmox_nodes_info
+  no_log: true
+
+- name: Set Proxmox cluster facts
+  ansible.builtin.set_fact:
+    proxmox_cluster_nodes_available: "{{ proxmox_nodes_info.proxmox_nodes | map(attribute='node') | list }}"
+    proxmox_nodes_status: "{{ proxmox_nodes_info.proxmox_nodes }}"
+
+- name: Display available Proxmox nodes
+  ansible.builtin.debug:
+    msg: |
+      Available Proxmox Nodes
+      =======================
+      Nodes: {{ proxmox_cluster_nodes_available | join(', ') }}
+
+- name: Validate configured node exists
+  ansible.builtin.assert:
+    that:
+      - proxmox_node in proxmox_cluster_nodes_available
+    fail_msg: |
+      Configured node '{{ proxmox_node }}' not found in cluster.
+      Available nodes: {{ proxmox_cluster_nodes_available | join(', ') }}
+  when: proxmox_node is defined
+
+- name: Set Proxmox connection facts
+  ansible.builtin.set_fact:
+    proxmox_api_connected: true
+    proxmox_connection_timestamp: "{{ ansible_date_time.iso8601 }}"

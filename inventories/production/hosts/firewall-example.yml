@@ -1,0 +1,250 @@
+# OPNSense & pfSense Firewall Infrastructure - Example Inventory
+# This file demonstrates two firewall setups:
+# 1. OPNSense with HA
+# 2. pfSense with HA
+
+---
+all:
+  vars:
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/firewall_key
+
+# ============================================================================
+# OPTION 1: OPNSense Firewall (HA Pair)
+# ============================================================================
+opnsense_firewalls:
+  description: "OPNSense Firewall Cluster"
+  hosts:
+    opnsense-primary:
+      ansible_host: 192.168.1.1
+      firewall_role: primary
+
+    opnsense-secondary:
+      ansible_host: 192.168.1.2
+      firewall_role: secondary
+      firewall_backup: true
+
+  vars:
+    # OPNSense Configuration
+    opnsense_api_host: "{{ inventory_hostname }}"
+    opnsense_api_user: "ansible"
+    opnsense_api_key: "{{ vault_opnsense_api_key }}"
+    opnsense_api_secret: "{{ vault_opnsense_api_secret }}"
+    opnsense_ssl_verify: false
+
+    # High Availability Setup
+    opnsense_ha_enabled: true
+    opnsense_ha_mode: "carp"                      # CARP = Common Address Redundancy Protocol
+    opnsense_ha_vhid: 1                           # Virtual Host ID
+    opnsense_ha_advskew_primary: 10
+    opnsense_ha_advskew_secondary: 200
+    opnsense_ha_virtual_ip: 192.168.1.254         # Shared VIP
+    opnsense_ha_subnet_mask: "255.255.255.0"
+
+    # Interface Configuration
+    opnsense_interfaces:
+      - name: em0                                 # WAN interface
+        ipaddr: "{{ opnsense_wan_ip }}"
+        subnet: 24
+        gateway: "{{ opnsense_gateway }}"
+        description: "WAN - Internet"
+        enable: true
+
+      - name: em1                                 # LAN interface
+        ipaddr: "{{ opnsense_lan_ip }}"
+        subnet: 24
+        description: "LAN - Internal Network"
+        enable: true
+
+      - name: em2                                 # HA Sync interface
+        ipaddr: "{{ opnsense_ha_sync_ip }}"
+        subnet: 24
+        description: "HA Synchronization"
+        enable: true
+
+    # Firewall Rules (examples)
+    opnsense_firewall_rules:
+      - name: "Allow SSH"
+        action: pass
+        interface: wan
+        protocol: tcp
+        destination_port: 22
+        destination_ip: "{{ opnsense_ha_virtual_ip }}"
+
+      - name: "Allow LAN to WAN"
+        action: pass
+        interface: lan
+        protocol: any
+        direction: out
+
+      - name: "Block P2P"
+        action: block
+        protocol: tcp/udp
+        destination_port: "6881:6889"
+        direction: in
+
+    # NAT Rules
+    opnsense_nat_rules:
+      - name: "Masquerade LAN"
+        interface: wan
+        source_ip: "192.168.1.0/24"
+        target_ip: "interface"
+
+    # System Settings
+    opnsense_system_settings:
+      hostname: opnsense
+      domain: example.com
+      timezone: UTC
+      dns_servers:
+        - 8.8.8.8
+        - 1.1.1.1
+
+    # Wireguard VPN (integrated)
+    opnsense_wireguard_enabled: true
+    opnsense_wireguard_port: 51820
+    opnsense_wireguard_peers: []
+
+# ============================================================================
+# OPTION 2: pfSense Firewall (HA Pair)
+# ============================================================================
+pfsense_firewalls:
+  description: "pfSense Firewall Cluster"
+  hosts:
+    pfsense-primary:
+      ansible_host: 192.168.2.1
+      firewall_role: primary
+
+    pfsense-secondary:
+      ansible_host: 192.168.2.2
+      firewall_role: secondary
+      firewall_backup: true
+
+  vars:
+    # pfSense Configuration (SSH-based)
+    ansible_user: root
+    pfsensible_setup: true
+
+    # High Availability Setup
+    pfsense_ha_enabled: true
+    pfsense_ha_mode: "carp"
+    pfsense_ha_vhid: 2
+    pfsense_ha_advskew_primary: 10
+    pfsense_ha_advskew_secondary: 200
+    pfsense_ha_virtual_ip: 192.168.2.254
+    pfsense_ha_virtual_ipv6: "fd00::1/64"
+
+    # Interface Configuration
+    pfsense_interfaces:
+      - ifname: em0                               # WAN
+        enable: true
+        ipaddr: "{{ pfsense_wan_ip }}"
+        subnet: 24
+        gateway: "{{ pfsense_gateway }}"
+
+      - ifname: em1                               # LAN
+        enable: true
+        ipaddr: "{{ pfsense_lan_ip }}"
+        subnet: 24
+        type: static
+
+      - ifname: em2                               # HA Sync
+        enable: true
+        ipaddr: "{{ pfsense_ha_sync_ip }}"
+        subnet: 24
+
+    # Firewall Rules
+    pfsense_firewall_rules:
+      - name: "Allow SSH to Firewall"
+        action: pass
+        interface: wan
+        ipprotocol: inet
+        protocol: tcp
+        destination_port: 22
+        destination_ip: "{{ pfsense_ha_virtual_ip }}"
+        after: "pass out on {{ item }} proto tcp from any to any keep state"
+
+      - name: "LAN to WAN"
+        action: pass
+        interface: lan
+        ipprotocol: inet
+        protocol: any
+        direction: out
+
+      - name: "Block Internet to LAN"
+        action: block
+        interface: wan
+        direction: in
+
+    # NAT Configuration
+    pfsense_nat_rules:
+      - name: "Masquerade LAN"
+        target: "interface"
+        interface: wan
+        ipprotocol: inet
+        source_net: "192.168.2.0/24"
+
+    # System Settings
+    pfsense_hostname: pfsense
+    pfsense_domain: example.com
+    pfsense_dns_servers:
+      - 8.8.8.8
+      - 1.1.1.1
+
+    # IPsec VPN (for site-to-site)
+    pfsense_ipsec_enabled: false
+    pfsense_ipsec_tunnels: []
+
+# ============================================================================
+# VPN Clients Behind Firewalls
+# ============================================================================
+# Servers connecting to Wireguard VPN through firewalls
+
+internal_servers:
+  description: "Internal Servers (Behind Firewall)"
+  hosts:
+    app-server-01:
+      ansible_host: 192.168.1.10
+      behind_firewall: opnsense-primary
+
+    app-server-02:
+      ansible_host: 192.168.1.11
+      behind_firewall: opnsense-primary
+
+    db-server-01:
+      ansible_host: 192.168.1.20
+      behind_firewall: opnsense-primary
+
+  vars:
+    ansible_user: ubuntu
+
+# ============================================================================
+# Centralized Firewall Configuration
+# ============================================================================
+all_firewalls:
+  children:
+    - opnsense_firewalls
+    - pfsense_firewalls
+
+  vars:
+    # Firewall Role
+    firewall_enabled: true
+
+    # Backup Settings
+    firewall_backup_enabled: true
+    firewall_backup_schedule: "0 2 * * *"         # Daily at 2 AM
+    firewall_backup_retention_days: 30
+
+    # Logging
+    firewall_logging_enabled: true
+    firewall_log_level: informational
+
+    # Monitoring
+    firewall_snmp_enabled: true
+    firewall_snmp_community: public
+
+    # Security
+    firewall_disable_webgui: false
+    firewall_disable_ssh: false
+    firewall_change_default_creds: true
+    firewall_admin_user: "{{ vault_firewall_admin_user }}"
+    firewall_admin_password: "{{ vault_firewall_admin_password }}"

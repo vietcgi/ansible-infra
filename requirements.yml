@@ -41,3 +41,24 @@ collections:
   - name: kubernetes.core
     version: ">=2.4.0"
     source: https://galaxy.ansible.com
+
+  # Network Infrastructure - Proxmox
+  # Collection: community.proxmox
+  # Provides: Proxmox VE VM and container management via API
+  - name: community.proxmox
+    version: ">=1.4.0"
+    source: https://galaxy.ansible.com
+
+  # Network Infrastructure - OPNSense
+  # Collection: oxlorg.opnsense (ansibleguy.opnsense)
+  # Provides: OPNSense firewall management via REST API
+  - name: oxlorg.opnsense
+    version: ">=0.5.0"
+    source: https://galaxy.ansible.com
+
+  # Network Infrastructure - pfSense
+  # Collection: pfsensible.core
+  # Provides: pfSense firewall management via XML + PHP shell
+  - name: pfsensible.core
+    version: ">=0.5.0"
+    source: https://galaxy.ansible.com
