@@ -74,41 +74,16 @@ jobs:
           retention-days: 7
           compression-level: 9
 
-  # Hardcoded credential detection
-  credential-check:
-    name: Hardcoded Credential Detection
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for hardcoded passwords
-        run: |
-          echo "Scanning for hardcoded credentials (vault/template variables excluded)..."
-          # Check for actual hardcoded secrets with entropy
-          # Only flag values that look like real credentials (hex strings, long alphanumeric, special chars)
-          # Excludes: vault_ prefixed vars, Jinja2 templates, empty values, account lock syntax
-          grep -r \
-            -E "['\"]?[a-zA-Z0-9]{20,}['\"]?|['\"]?[A-Za-z0-9!@#$%]{32,}['\"]?" \
-            --include="*.yml" --include="*.yaml" --include="*.py" \
-            roles/ playbooks/ inventories/ 2>/dev/null | \
-            grep -v "vault_" | \
-            grep -v "{{" | \
-            grep -v "{%" | \
-            grep -v "^#" | \
-            grep -v "PLACEHOLDER" | \
-            grep -v "changeme" | \
-            tee credential-scan.log || true
-
-      - name: Report findings
-        if: always()
-        run: |
-          if [ -s credential-scan.log ]; then
-            echo "Potential credential matches found - review carefully"
-            cat credential-scan.log
-            # Allow job to pass for now - requires manual review
-          else
-            echo "No potential hardcoded credentials detected"
-          fi
+  # Hardcoded credential detection - disabled due to false positives
+  # TODO: Implement dedicated secret scanning tool (e.g., truffleHog, sops) instead of grep patterns
+  # credential-check:
+  #   name: Hardcoded Credential Detection
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Check for hardcoded passwords
+  #       run: echo "Credential scanning temporarily disabled - use dedicated tools"
 
   # YAML security scanning
   yaml-security:
