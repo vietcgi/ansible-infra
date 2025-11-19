@@ -59,7 +59,7 @@
     chown root:wheel /etc/ssh/sshd_config
   when: sshd_validation.rc == 0 and not macos_hardening_dry_run
   register: sshd_deploy_result
-  changed_when: true
+  changed_when: sshd_deploy_result.rc == 0
 
 - name: "Restart SSH daemon (launchd)"
   shell: |
@@ -69,7 +69,7 @@
     launchctl start com.openssh.sshd 2>/dev/null || true
   when: sshd_validation.rc == 0 and not macos_hardening_dry_run
   register: ssh_restart_result
-  changed_when: true
+  changed_when: ssh_restart_result.rc == 0
 
 - name: "Wait for SSH daemon to restart"
   wait_for:

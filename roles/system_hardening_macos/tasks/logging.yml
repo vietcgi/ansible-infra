@@ -52,7 +52,7 @@
     chmod 0600 /etc/security/audit_control
   when: audit_config_created is changed
   register: audit_deploy_result
-  changed_when: true
+  changed_when: audit_deploy_result.rc == 0
 
 - name: "Reload audit rules"
   shell: |
@@ -62,7 +62,7 @@
     launchctl start com.apple.auditd 2>/dev/null || true
   when: audit_deploy_result is changed
   register: audit_reload_result
-  changed_when: true
+  changed_when: audit_reload_result.rc == 0
 
 - name: "Configure log retention"
   shell: |
@@ -70,7 +70,7 @@
     log config --subsystem com.apple --mode system --level debug --retention 30d 2>/dev/null || \
     defaults write /Library/Preferences/com.apple.system.logging logRetention -int {{ macos_log_retention_days }} || true
   register: log_retention_result
-  changed_when: true
+  changed_when: log_retention_result.rc == 0
 
 - name: "Enable unified logging"
   shell: |
@@ -78,7 +78,7 @@
     log config --subsystem com.apple.system.logging --mode persistent --level debug 2>/dev/null || \
     log config --subsystem com.apple.system --mode persistent --level debug 2>/dev/null || true
   register: unified_logging_result
-  changed_when: true
+  changed_when: unified_logging_result.rc == 0
 
 - name: "Verify logging configuration"
   shell: |

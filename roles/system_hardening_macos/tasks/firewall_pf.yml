@@ -55,7 +55,7 @@
     chmod 0600 /etc/pf.conf
   when: pf_validation.rc == 0 and not macos_hardening_dry_run
   register: pf_deploy_result
-  changed_when: true
+  changed_when: pf_deploy_result.rc == 0
 
 - name: "Enable Packet Filter"
   shell: pfctl -e 2>&1 | grep -v "already enabled"
@@ -66,7 +66,7 @@
 - name: "Load PF rules"
   shell: pfctl -f /etc/pf.conf
   register: pf_load_result
-  changed_when: true
+  changed_when: pf_load_result.rc == 0
   when: pf_validation.rc == 0 and not macos_hardening_dry_run
 
 - name: "Configure PF to load on boot"

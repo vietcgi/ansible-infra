@@ -22,7 +22,7 @@
     /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
   when: '"Firewall is off" in alf_status_check.stdout'
   register: alf_enable_result
-  changed_when: true
+  changed_when: alf_enable_result.rc == 0
 
 - name: "Enable Application Firewall stealth mode"
   shell: |
@@ -42,7 +42,7 @@
   shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --setblockall on
   register: alf_blockall_result
-  changed_when: true
+  changed_when: alf_blockall_result.rc == 0
   when: macos_firewall_block_all_incoming
 
 - name: "Verify Application Firewall final status"
