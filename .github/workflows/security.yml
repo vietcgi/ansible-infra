@@ -91,6 +91,8 @@ jobs:
             roles/ playbooks/ inventories/ | \
             grep -v "{{ " | \
             grep -v "^#" | \
+            grep -v ": \"\"" | \
+            grep -v ": ''" | \
             tee credential-scan.log || true
 
       - name: Fail if credentials found
