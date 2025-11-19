@@ -228,7 +228,7 @@ jobs:
     steps:
       - name: Generate summary
         run: |
-          cat > nightly-summary.md << 'EOF'
+          cat > nightly-summary.md << EOF
           # Nightly Testing Report
 
           **Date**: $(date)

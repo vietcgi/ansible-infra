@@ -194,7 +194,7 @@ jobs:
 
       - name: Verify CHANGELOG.md updated
         run: |
-          if git diff origin/main...HEAD -- CHANGELOG.md | grep -q ''; then
+          if git diff origin/main...HEAD -- CHANGELOG.md | grep -q '.'; then
             echo "CHANGELOG.md has been updated"
           else
             echo "WARNING: CHANGELOG.md was not updated (optional for some changes)"

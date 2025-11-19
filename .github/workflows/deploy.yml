@@ -95,7 +95,7 @@ jobs:
 
       - name: Deploy notification
         uses: actions/github-script@v6
-        if: always()
+        if: github.event_name == 'pull_request'
         with:
           script: |
             github.rest.issues.createComment({
@@ -180,7 +180,7 @@ jobs:
 
       - name: Production notification
         uses: actions/github-script@v6
-        if: always()
+        if: github.event_name == 'pull_request'
         with:
           script: |
             const status = '${{ job.status }}';

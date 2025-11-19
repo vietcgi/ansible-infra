@@ -137,8 +137,9 @@ jobs:
     needs: lint-and-syntax
     if: |
       github.event_name != 'pull_request' ||
-      !contains(github.event.pull_request.changed_files, '\.md$') ||
-      contains(github.event.pull_request.labels.*.name, 'full-test')
+      (github.event_name == 'pull_request' &&
+       (!contains(github.event.pull_request.changed_files, '\.md$') ||
+        contains(github.event.pull_request.labels.*.name, 'full-test')))
     strategy:
       fail-fast: false
       matrix:
