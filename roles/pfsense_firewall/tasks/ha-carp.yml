@@ -1,0 +1,149 @@
+---
+# pfSense Firewall - HA/CARP Configuration Tasks
+
+- name: Configure pfSense High Availability (CARP)
+  block:
+    - name: Display HA configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring High Availability (CARP)
+          ====================================
+          HA Mode: {{ pfsense_ha_mode }}
+          XMLRPC Sync: {{ pfsense_ha_xmlrpc_sync | default(false) }}
+          Peer IP: {{ pfsense_ha_peer_ip | default('not set') }}
+          Virtual IPs (CARP): {{ pfsense_ha_virtual_ips | length | default(0) }}
+
+          This node will:
+          {% if inventory_hostname in groups.get('pfsense_primary', []) %}
+          - Operate as PRIMARY (will typically be MASTER for CARP VIPs)
+          {% elif inventory_hostname in groups.get('pfsense_secondary', []) %}
+          - Operate as SECONDARY (will typically be BACKUP for CARP VIPs)
+          {% else %}
+          - Auto-determine role based on configuration
+          {% endif %}
+
+    - name: Determine node's HA role
+      ansible.builtin.set_fact:
+        pfsense_ha_role: |
+          {%- if inventory_hostname in groups.get('pfsense_primary', []) -%}
+          primary
+          {%- elif inventory_hostname in groups.get('pfsense_secondary', []) -%}
+          secondary
+          {%- else -%}
+          primary
+          {%- endif -%}
+
+    - name: Configure sync interface
+      block:
+        - name: Identify sync interface
+          ansible.builtin.set_fact:
+            sync_iface: "{{ pfsense_ha_sync_interface | default('lo0') }}"
+
+        - name: Display sync configuration
+          ansible.builtin.debug:
+            msg: |
+              HA Configuration Sync
+              ====================
+              Sync Interface: {{ sync_iface }}
+              Peer IP: {{ pfsense_ha_peer_ip | default('(configured in GUI)') }}
+              XMLRPC Sync: {{ pfsense_ha_xmlrpc_sync | default(false) }}
+
+              To complete HA setup manually:
+              1. System > High Availability > Settings
+              2. Configure Synchronization IP (peer IP address)
+              3. Enable XMLRPC Sync if desired
+              4. Select services to synchronize
+
+      when: pfsense_ha_enabled | bool
+
+    - name: Create CARP Virtual IPs
+      block:
+        - name: Display CARP VIP configuration
+          ansible.builtin.debug:
+            msg: |
+              CARP Virtual IP Configuration
+              =============================
+              Total VIPs to Configure: {{ pfsense_ha_virtual_ips | length }}
+
+              {% for vip in pfsense_ha_virtual_ips %}
+              VIP {{ loop.index }}: {{ vip.descr }}
+              - Address: {{ vip.ipv4_address }}/{{ vip.ipv4_prefixlen }}
+              - Interface: {{ vip.interface }}
+              - VHID: {{ vip.vhid }}
+              - Advskew: {{ vip.advskew | default('auto') }}
+              {% endfor %}
+
+        - name: Create CARP Virtual IPs manually (pfsensible limitation)
+          ansible.builtin.debug:
+            msg: |
+              Note: pfsensible.core does not have a dedicated pfsense_virtual_ip module.
+
+              To create CARP Virtual IPs, manually complete these steps:
+              1. Web UI: Interfaces > Virtual IPs > Add
+              2. Mode: CARP
+              3. For each VIP:
+                 - Interface: {{ item.interface }}
+                 - Address: {{ item.ipv4_address }}
+                 - Subnet Mask: /{{ item.ipv4_prefixlen }}
+                 - VHID: {{ item.vhid }}
+                 - Advskew Primary: 10
+                 - Advskew Secondary: 100
+                 - Description: {{ item.descr }}
+              4. Click Save and Apply
+              5. Repeat on secondary node with same configuration
+          loop: "{{ pfsense_ha_virtual_ips }}"
+          when: pfsense_ha_virtual_ips | length > 0
+
+      when: pfsense_ha_virtual_ips | length | default(0) > 0
+
+    - name: Display CARP failover behavior
+      ansible.builtin.debug:
+        msg: |
+          CARP Failover Behavior
+          ======================
+          Primary Role (Lower Advskew):
+          - Sends CARP advertisements regularly
+          - Owns Virtual IP addresses (MASTER)
+          - Handles all traffic to VIP
+
+          Secondary Role (Higher Advskew):
+          - Monitors CARP advertisements from primary
+          - Waits for advertisement timeout
+          - Assumes Virtual IPs if primary fails
+
+          Timeout & Recovery:
+          - Advertisement interval: advbase (default 1 second)
+          - Failover trigger: 3 × advbase without advertisement
+          - Failover time: ~3 seconds
+          - Recovery: When primary returns, automatically becomes MASTER again
+
+          Monitoring:
+          1. Web UI: Status > Virtual IPs
+          2. Shows which node owns each VIP (MASTER or BACKUP)
+          3. Verify both nodes synchronized
+
+    - name: Display HA configuration completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ HA/CARP Configuration Ready
+          =============================
+          Role: {{ pfsense_ha_role | capitalize }}
+          Sync Interface: {{ sync_iface }}
+          Status: Partial (manual CARP VIP creation required)
+
+          Next Steps:
+          1. Configure sync IP on both nodes (System > High Availability)
+          2. Create CARP Virtual IPs (Interfaces > Virtual IPs)
+          3. Synchronize firewall rules between nodes
+          4. Test failover by stopping CARP on primary
+          5. Verify secondary takes over VIPs
+
+          Commands for testing:
+          On primary: pfctl -d  (disables CARP temporarily)
+          Watch secondary become MASTER
+          On primary: pfctl -e  (re-enables CARP)
+
+  rescue:
+    - name: Handle HA configuration error
+      ansible.builtin.fail:
+        msg: "pfSense HA/CARP configuration failed: {{ ansible_failed_result.msg }}"

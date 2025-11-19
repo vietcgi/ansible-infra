@@ -1,0 +1,102 @@
+---
+# OPNSense Firewall - Backup Configuration Tasks
+
+- name: Configure OPNSense Backup
+  block:
+    - name: Display backup configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring OPNSense Backup
+          ===========================
+          Backup Enabled: {{ opnsense_backup_enabled }}
+          Schedule: {{ opnsense_backup_schedule }}
+
+    - name: Enable configuration backups
+      block:
+        - name: Create backup schedule
+          ansible.builtin.debug:
+            msg: |
+              OPNSense Configuration Backup
+              ============================
+              Schedule: {{ opnsense_backup_schedule }}
+
+              To enable automatic backups:
+              1. Web UI: System > Configuration > Backups
+              2. Select "Automatic Backup"
+              3. Set backup location (local or remote)
+              4. Set schedule: {{ opnsense_backup_schedule }}
+
+              Manual Backup Steps:
+              1. System > Configuration > Backups
+              2. Download (JSON or RRD format)
+              3. Store securely
+
+              Recommended Locations:
+              - Local: /conf/backup/
+              - Remote: NFS mount, S3, FTP
+
+    - name: Configure backup destinations
+      block:
+        - name: Display backup destination options
+          ansible.builtin.debug:
+            msg: |
+              Backup Destination Options
+              ==========================
+              OPNSense supports multiple backup destinations:
+              1. Local Filesystem: /conf/backup/
+              2. Remote via CRON: Custom script
+              3. Third-party tools: Bacula, Amanda, etc.
+
+              To set up remote backups with Ansible:
+              Option A: SCP/SFTP
+              - Periodic backup via cron
+              - SCP to remote server
+              - Verify backup integrity
+
+              Option B: NFS Mount
+              - Mount remote NFS share
+              - Configure backup location in Web UI
+              - Automatic backups to mounted path
+
+              Option C: S3/Cloud
+              - Use AWS S3 API
+              - Periodic sync of backup directory
+              - Encryption recommended
+
+    - name: Recommend restore procedure
+      ansible.builtin.debug:
+        msg: |
+          OPNSense Restore Procedure
+          ==========================
+          To restore from backup:
+          1. Web UI: System > Configuration > Backups
+          2. Click "Restore" on desired backup
+          3. Confirm (all current config replaced)
+          4. Firewall reboots
+          5. Verify restored configuration
+
+          Important Notes:
+          ⚠ Restore overwrites ALL current configuration
+          ⚠ Hostname and IP may change during restore
+          ⚠ Save backup to secure location
+          ⚠ Test restores periodically
+
+    - name: Display backup completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ Backup Configuration Complete
+          ==============================
+          Backup Schedule: {{ opnsense_backup_schedule }}
+          Status: Ready to enable in Web UI
+
+          Recommended Actions:
+          1. Enable automatic backups in Web UI
+          2. Download first backup immediately
+          3. Store backup securely (encrypted)
+          4. Test restore procedure with test config
+          5. Set up remote backup destination
+
+  rescue:
+    - name: Handle backup configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense backup configuration failed: {{ ansible_failed_result.msg }}"

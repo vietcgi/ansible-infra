@@ -1,0 +1,36 @@
+---
+# pfSense Firewall - System Configuration Tasks
+
+- name: Configure pfSense System Settings
+  block:
+    - name: Configure basic system settings
+      pfsensible.core.pfsense_setup:
+        hostname: "{{ pfsense_hostname }}"
+        domain: "{{ pfsense_domain }}"
+        timezone: "{{ pfsense_timezone }}"
+        dns_addresses: "{{ pfsense_dns_servers }}"
+        timeservers:
+          - 0.pfsense.pool.ntp.org
+          - 1.pfsense.pool.ntp.org
+        language: en_US
+        session_timeout: 240
+      register: pfsense_system_config
+
+    - name: Display system configuration result
+      ansible.builtin.debug:
+        msg: |
+          ✓ System Configuration Applied
+          ==============================
+          Hostname: {{ pfsense_hostname }}
+          Domain: {{ pfsense_domain }}
+          Timezone: {{ pfsense_timezone }}
+          DNS Servers:
+          {% for dns in pfsense_dns_servers %}
+          - {{ dns }}
+          {% endfor %}
+          Status: {{ pfsense_system_config.changed | ternary('Changed', 'Unchanged') }}
+
+  rescue:
+    - name: Handle system configuration error
+      ansible.builtin.fail:
+        msg: "pfSense system configuration failed: {{ ansible_failed_result.msg }}"

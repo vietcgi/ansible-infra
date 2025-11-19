@@ -1,0 +1,102 @@
+---
+# OPNSense Firewall - Validation Tasks
+
+- name: Validate OPNSense API Credentials
+  ansible.builtin.assert:
+    that:
+      - opnsense_api_host is defined
+      - opnsense_api_user is defined
+      - opnsense_api_key is not empty
+      - opnsense_api_secret is not empty
+    fail_msg: |
+      OPNSense API credentials not configured.
+      Required:
+      - opnsense_api_host: {{ opnsense_api_host | default('UNDEFINED') }}
+      - opnsense_api_user: {{ opnsense_api_user | default('UNDEFINED') }}
+      - opnsense_api_key: {{ 'SET' if opnsense_api_key else 'EMPTY' }}
+      - opnsense_api_secret: {{ 'SET' if opnsense_api_secret else 'EMPTY' }}
+
+- name: Set API URL fact
+  ansible.builtin.set_fact:
+    opnsense_api_url: "https://{{ opnsense_api_host }}"
+
+- name: Test OPNSense API connectivity
+  block:
+    - name: Call OPNSense system API (list endpoint)
+      oxlorg.opnsense.system:
+        api_key: "{{ opnsense_api_key }}"
+        api_secret: "{{ opnsense_api_secret }}"
+        firewall_url: "{{ opnsense_api_url }}"
+        state: present
+        reload: false
+      register: opnsense_system_check
+
+    - name: Confirm API connectivity
+      ansible.builtin.debug:
+        msg: |
+          ✓ OPNSense API Connection Successful
+          Firewall: {{ opnsense_api_url }}
+          API User: {{ opnsense_api_user }}
+
+  rescue:
+    - name: Handle API connectivity error
+      ansible.builtin.fail:
+        msg: |
+          ✗ Cannot connect to OPNSense API
+          URL: {{ opnsense_api_url }}
+          User: {{ opnsense_api_user }}
+          Error: {{ ansible_failed_result.msg }}
+
+          Troubleshooting:
+          1. Verify OPNSense hostname/IP is correct
+          2. Verify API credentials are correct
+          3. Verify API key is created in OPNSense (System > Access > Users > Edit > API Keys)
+          4. Check firewall allows API calls on port 443
+
+- name: Validate required configuration
+  ansible.builtin.assert:
+    that:
+      - opnsense_hostname is defined
+      - opnsense_hostname | length > 0
+    fail_msg: "opnsense_hostname must be defined"
+
+- name: Validate HA configuration if enabled
+  block:
+    - name: Check HA required fields
+      ansible.builtin.assert:
+        that:
+          - opnsense_ha_mode is defined
+          - opnsense_ha_mode in ['carp', 'sync']
+          - opnsense_ha_vhid is defined
+          - opnsense_ha_vhid | int >= 1
+          - opnsense_ha_vhid | int <= 255
+        fail_msg: |
+          Invalid HA configuration:
+          - ha_mode must be 'carp' or 'sync' (got: {{ opnsense_ha_mode | default('UNDEFINED') }})
+          - ha_vhid must be 1-255 (got: {{ opnsense_ha_vhid | default('UNDEFINED') }})
+
+    - name: Check CARP-specific fields
+      ansible.builtin.assert:
+        that:
+          - opnsense_ha_advskew_primary is defined
+          - opnsense_ha_advskew_primary | int >= 0
+          - opnsense_ha_advskew_primary | int <= 254
+          - opnsense_ha_advskew_secondary is defined
+          - opnsense_ha_advskew_secondary | int > opnsense_ha_advskew_primary | int
+        fail_msg: |
+          Invalid CARP advskew values:
+          - Primary must be 0-254 (got: {{ opnsense_ha_advskew_primary | default('UNDEFINED') }})
+          - Secondary must be > primary (secondary: {{ opnsense_ha_advskew_secondary | default('UNDEFINED') }}, primary: {{ opnsense_ha_advskew_primary | default('UNDEFINED') }})
+
+  when: opnsense_ha_enabled | bool
+
+- name: Display validation summary
+  ansible.builtin.debug:
+    msg: |
+      ✓ Validation Complete
+      ====================
+      Firewall: {{ opnsense_hostname }}
+      Domain: {{ opnsense_domain | default('not set') }}
+      API: Accessible
+      HA Enabled: {{ opnsense_ha_enabled }}
+      Ready to proceed with configuration

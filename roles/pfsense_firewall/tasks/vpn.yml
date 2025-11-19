@@ -1,0 +1,152 @@
+---
+# pfSense Firewall - VPN Configuration Tasks
+
+- name: Configure pfSense VPN Services
+  block:
+    - name: Display VPN configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring VPN Services
+          =======================
+          IPsec Tunnels: {{ pfsense_ipsec_tunnels | length | default(0) }}
+          OpenVPN Servers: {{ pfsense_openvpn_servers | length | default(0) }}
+          OpenVPN Clients: {{ pfsense_openvpn_clients | length | default(0) }}
+
+    - name: Configure IPsec tunnels
+      block:
+        - name: Display IPsec configuration
+          ansible.builtin.debug:
+            msg: |
+              IPsec Tunnels Configuration
+              ============================
+              {% for tunnel in pfsense_ipsec_tunnels %}
+              Tunnel {{ loop.index }}: {{ tunnel.descr }}
+              - Remote Gateway: {{ tunnel.remote_gateway }}
+              - Protocol: IPsec
+              - Authentication: {{ tunnel.auth_method | default('pre-shared key') }}
+              {% endfor %}
+
+        - name: Create IPsec tunnels (Phase 1)
+          pfsensible.core.pfsense_ipsec:
+            descr: "{{ item.descr }}"
+            iketype: "{{ item.iketype | default('ikev2') }}"
+            protocol: "{{ item.protocol | default('inet') }}"
+            interface: "{{ item.interface | default('wan') }}"
+            remote_gateway: "{{ item.remote_gateway }}"
+            encryption: "{{ item.encryption | default(['aes-256', 'aes-192', 'aes-128']) }}"
+            integrity: "{{ item.integrity | default(['hmac-sha256', 'hmac-sha512']) }}"
+            preshared_key: "{{ item.preshared_key | default(omit) }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_ipsec_tunnels }}"
+          register: ipsec_results
+
+        - name: Display IPsec configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ IPsec Tunnels Configured
+              ==========================
+              {% for result in ipsec_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_ipsec_tunnels | length | default(0) > 0
+
+    - name: Configure OpenVPN Server
+      block:
+        - name: Display OpenVPN Server configuration
+          ansible.builtin.debug:
+            msg: |
+              OpenVPN Server Configuration
+              ============================
+              {% for server in pfsense_openvpn_servers %}
+              Server {{ loop.index }}: {{ server.descr }}
+              - Protocol: {{ server.protocol | default('UDP') }}
+              - Port: {{ server.port | default(1194) }}
+              - Network: {{ server.network | default('10.0.0.0/8') }}
+              - Mode: {{ server.mode | default('p2p') }}
+              {% endfor %}
+
+        - name: Create OpenVPN servers
+          pfsensible.core.pfsense_openvpn_server:
+            descr: "{{ item.descr }}"
+            protocol: "{{ item.protocol | default('UDP') }}"
+            port: "{{ item.port | default(1194) }}"
+            network: "{{ item.network | default('10.0.0.0/8') }}"
+            mode: "{{ item.mode | default('p2p_shared_key') }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_openvpn_servers }}"
+          register: openvpn_server_results
+
+        - name: Display OpenVPN Server configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ OpenVPN Servers Configured
+              ============================
+              {% for result in openvpn_server_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_openvpn_servers | length | default(0) > 0
+
+    - name: Configure OpenVPN Client
+      block:
+        - name: Display OpenVPN Client configuration
+          ansible.builtin.debug:
+            msg: |
+              OpenVPN Client Configuration
+              =============================
+              {% for client in pfsense_openvpn_clients %}
+              Client {{ loop.index }}: {{ client.descr }}
+              - Server: {{ client.server_ip }}:{{ client.server_port | default(1194) }}
+              - Protocol: {{ client.protocol | default('UDP') }}
+              {% endfor %}
+
+        - name: Create OpenVPN clients
+          pfsensible.core.pfsense_openvpn_client:
+            descr: "{{ item.descr }}"
+            protocol: "{{ item.protocol | default('UDP') }}"
+            server_ip: "{{ item.server_ip }}"
+            server_port: "{{ item.server_port | default(1194) }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_openvpn_clients }}"
+          register: openvpn_client_results
+
+        - name: Display OpenVPN Client configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ OpenVPN Clients Configured
+              ============================
+              {% for result in openvpn_client_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_openvpn_clients | length | default(0) > 0
+
+    - name: Display VPN configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ VPN Configuration Complete
+          ============================
+          IPsec Tunnels: {{ pfsense_ipsec_tunnels | length | default(0) }}
+          OpenVPN Servers: {{ pfsense_openvpn_servers | length | default(0) }}
+          OpenVPN Clients: {{ pfsense_openvpn_clients | length | default(0) }}
+
+          VPN Monitoring:
+          1. Status > IPsec (view tunnel status)
+          2. Status > OpenVPN (view server/client connections)
+          3. System Logs > IPsec/OpenVPN (troubleshoot issues)
+
+          Configure Firewall Rules:
+          - Allow VPN traffic on interfaces (WAN for inbound)
+          - Allow VPN client traffic through firewall rules
+          - Configure route-push on OpenVPN servers
+
+          Assign VPN Interfaces:
+          1. Interfaces > Interface Assignments
+          2. Add VPN interface assignments for clients
+          3. Configure IP addressing if needed
+
+  rescue:
+    - name: Handle VPN configuration error
+      ansible.builtin.fail:
+        msg: "pfSense VPN configuration failed: {{ ansible_failed_result.msg }}"

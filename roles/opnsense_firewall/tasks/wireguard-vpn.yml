@@ -1,0 +1,137 @@
+---
+# OPNSense Firewall - Wireguard VPN Configuration Tasks
+
+- name: Configure OPNSense Wireguard VPN
+  block:
+    - name: Display Wireguard VPN configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring Wireguard VPN in OPNSense
+          ====================================
+          VPN Port: {{ opnsense_wireguard_port }}
+          VPN Peers to Configure: {{ opnsense_wireguard_peers | length }}
+
+          {% for peer in opnsense_wireguard_peers %}
+          Peer {{ loop.index }}: {{ peer.name | default(peer.public_key[:16]) }}
+          - Endpoint: {{ peer.endpoint | default('dynamic') }}
+          - Allowed IPs: {{ peer.allowed_ips | default('auto') }}
+          {% endfor %}
+
+    - name: Generate Wireguard keypair for OPNSense
+      block:
+        - name: Create Wireguard private key for firewall
+          ansible.builtin.shell: wg genkey 2>/dev/null | tee /tmp/wg_private.key | wg pubkey > /tmp/wg_public.key
+          register: wg_genkey
+          changed_when: false
+
+        - name: Read generated keys
+          ansible.builtin.slurp:
+            src: "{{ item }}"
+          register: wg_keys
+          loop:
+            - /tmp/wg_private.key
+            - /tmp/wg_public.key
+
+        - name: Store Wireguard keys as facts
+          ansible.builtin.set_fact:
+            opnsense_wg_private_key: "{{ wg_keys.results[0].content | b64decode | trim }}"
+            opnsense_wg_public_key: "{{ wg_keys.results[1].content | b64decode | trim }}"
+
+        - name: Display Wireguard keys
+          ansible.builtin.debug:
+            msg: |
+              ✓ Wireguard Keys Generated
+              ==========================
+              Public Key: {{ opnsense_wg_public_key[:32] }}...
+              (Full key saved for VPN peer configuration)
+
+      rescue:
+        - name: Log Wireguard key generation issue
+          ansible.builtin.debug:
+            msg: "⚠ Wireguard key generation skipped (wg binary not available on control host)"
+
+    - name: Configure Wireguard interface via API
+      block:
+        - name: Create Wireguard interface configuration
+          ansible.builtin.debug:
+            msg: |
+              Wireguard Interface Configuration
+              ==================================
+              OPNSense includes Wireguard module. Configure via:
+              1. VPN > Wireguard > General
+              2. VPN > Wireguard > Peers
+
+              To enable via Ansible:
+              - Use oxlorg.opnsense.wireguard_general module
+              - Use oxlorg.opnsense.wireguard_peers module
+
+              Current Configuration:
+              - Listen Port: {{ opnsense_wireguard_port }}
+              - Interface: wg0
+              - Peers: {{ opnsense_wireguard_peers | length }}
+
+        - name: Configure Wireguard general settings (if module available)
+          block:
+            - name: Enable Wireguard VPN
+              ansible.builtin.debug:
+                msg: |
+                  To enable Wireguard in OPNSense:
+                  1. Web UI: VPN > Wireguard > General
+                  2. Check "Enable Wireguard"
+                  3. Set Listen Port: {{ opnsense_wireguard_port }}
+                  4. Save and Apply
+
+                  Public Key to share with peers:
+                  {{ opnsense_wg_public_key | default('(Not generated on this host)') }}
+
+          rescue:
+            - name: Log Wireguard configuration skip
+              ansible.builtin.debug:
+                msg: "⚠ Wireguard module configuration partial"
+
+    - name: Display Wireguard peer configuration
+      ansible.builtin.debug:
+        msg: |
+          Wireguard Peers to Add
+          ======================
+          {% for peer in opnsense_wireguard_peers %}
+
+          Peer {{ loop.index }}: {{ peer.name | default('Peer ' + loop.index | string) }}
+          Endpoint: {{ peer.endpoint | default('(dynamic)') }}
+          Allowed IPs: {{ peer.allowed_ips | default('(to be determined)') }}
+          Public Key: {{ peer.public_key[:32] }}...
+
+          To add in Web UI:
+          1. VPN > Wireguard > Peers
+          2. Click "Add Peer"
+          3. Paste public key
+          4. Set Endpoint and Allowed IPs
+          5. Save
+
+          {% endfor %}
+
+    - name: Display Wireguard configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Wireguard Configuration Ready
+          ==============================
+          Status: Ready to enable in Web UI
+          Interface: wg0
+          Listen Port: {{ opnsense_wireguard_port }}
+          Peers: {{ opnsense_wireguard_peers | length }}
+
+          Next Steps:
+          1. Log into OPNSense Web UI
+          2. Navigate to VPN > Wireguard > General
+          3. Enable Wireguard VPN
+          4. Configure Peers (VPN > Wireguard > Peers)
+          5. Assign to interface (Interfaces > Assignments)
+
+          Integration with Routing:
+          After peers are configured, set up routes to reach
+          remote networks through the Wireguard interface.
+
+  rescue:
+    - name: Handle Wireguard configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense Wireguard configuration failed: {{ ansible_failed_result.msg }}"

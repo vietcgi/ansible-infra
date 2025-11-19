@@ -1,0 +1,97 @@
+---
+# pfSense Firewall - Validation Tasks
+
+- name: Validate pfSense Prerequisites
+  block:
+    - name: Check SSH connectivity
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        port: "{{ ansible_port | default(22) }}"
+        timeout: 5
+      register: ssh_check
+
+    - name: Confirm SSH connectivity
+      ansible.builtin.debug:
+        msg: |
+          ✓ SSH Connection Established
+          ===========================
+          Host: {{ ansible_host | default(inventory_hostname) }}
+          Port: {{ ansible_port | default(22) }}
+          User: {{ ansible_ssh_user }}
+
+    - name: Verify Ansible user requirements
+      ansible.builtin.assert:
+        that:
+          - ansible_ssh_user is defined
+          - ansible_python_interpreter is defined
+        fail_msg: |
+          Missing required pfSense configuration:
+          - ansible_ssh_user: {{ ansible_ssh_user | default('UNDEFINED') }}
+          - ansible_python_interpreter: {{ ansible_python_interpreter | default('UNDEFINED') }}
+
+          Required inventory configuration:
+          ---
+          all:
+            hosts:
+              pfsense:
+                ansible_host: 192.168.1.1
+                ansible_ssh_user: ansible
+                ansible_python_interpreter: /usr/local/bin/python3.11
+                ansible_become: yes
+                ansible_become_method: sudo
+
+    - name: Set Python interpreter fact
+      ansible.builtin.set_fact:
+        python_version: "{{ ansible_python_interpreter.split('/')[-1] }}"
+
+    - name: Validate pfSense configuration
+      ansible.builtin.assert:
+        that:
+          - pfsense_hostname is defined
+          - pfsense_hostname | length > 0
+          - pfsense_domain is defined
+        fail_msg: |
+          Missing required pfSense configuration:
+          - pfsense_hostname: {{ pfsense_hostname | default('UNDEFINED') }}
+          - pfsense_domain: {{ pfsense_domain | default('UNDEFINED') }}
+
+    - name: Validate HA configuration if enabled
+      block:
+        - name: Check HA required fields
+          ansible.builtin.assert:
+            that:
+              - pfsense_ha_mode is defined
+              - pfsense_ha_mode in ['carp', 'xmlrpc']
+            fail_msg: |
+              Invalid HA configuration:
+              - ha_mode must be 'carp' or 'xmlrpc' (got: {{ pfsense_ha_mode | default('UNDEFINED') }})
+
+      when: pfsense_ha_enabled | bool
+
+    - name: Display pfSense target information
+      ansible.builtin.debug:
+        msg: |
+          ✓ pfSense Prerequisites Validated
+          ================================
+          Hostname: {{ pfsense_hostname }}
+          Domain: {{ pfsense_domain }}
+          Python: {{ python_version }}
+          SSH User: {{ ansible_ssh_user }}
+          Become: {{ ansible_become | default(false) }}
+          HA Mode: {{ pfsense_ha_mode | default('none') }}
+          Ready to proceed with configuration
+
+  rescue:
+    - name: Handle validation error
+      ansible.builtin.fail:
+        msg: |
+          pfSense validation failed: {{ ansible_failed_result.msg }}
+
+          Pre-deployment Checklist:
+          ========================
+          ✓ pfSense SSH access enabled (System > Advanced > Secure Shell)
+          ✓ Ansible user created with admin privileges
+          ✓ SSH public key authentication configured
+          ✓ pfSense-pkg-sudo installed (if using sudo)
+          ✓ Python 3.11 available at /usr/local/bin/python3.11
+          ✓ Inventory configured with ansible_python_interpreter

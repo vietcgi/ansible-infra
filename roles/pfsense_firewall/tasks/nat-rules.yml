@@ -1,0 +1,107 @@
+---
+# pfSense Firewall - NAT Rules Configuration Tasks
+
+- name: Configure pfSense NAT Rules
+  block:
+    - name: Display NAT rules configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring NAT Rules
+          ====================
+          Port Forward Rules: {{ pfsense_nat_port_forwards | length | default(0) }}
+          Outbound NAT Rules: {{ pfsense_nat_outbound | length | default(0) }}
+
+    - name: Configure Port Forward (DNAT) rules
+      block:
+        - name: Display port forward configuration
+          ansible.builtin.debug:
+            msg: |
+              Port Forward Rules
+              ==================
+              {% for rule in pfsense_nat_port_forwards %}
+              - {{ rule.descr }}: {{ rule.destination_port }} -> {{ rule.target }}:{{ rule.local_port }}
+              {% endfor %}
+
+        - name: Create port forward rules
+          pfsensible.core.pfsense_nat_port_forward:
+            descr: "{{ item.descr }}"
+            interface: "{{ item.interface }}"
+            source: "{{ item.source | default('any') }}"
+            destination: "{{ item.destination | default('any') }}"
+            protocol: "{{ item.protocol | default('tcp') }}"
+            destination_port: "{{ item.destination_port }}"
+            target: "{{ item.target }}"
+            local_port: "{{ item.local_port }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_nat_port_forwards }}"
+          register: port_forward_results
+
+        - name: Display port forward configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ Port Forward Rules Configured
+              ===============================
+              {% for result in port_forward_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_nat_port_forwards | length | default(0) > 0
+
+    - name: Configure Outbound NAT (SNAT) rules
+      block:
+        - name: Display outbound NAT configuration
+          ansible.builtin.debug:
+            msg: |
+              Outbound NAT Rules
+              ==================
+              {% for rule in pfsense_nat_outbound %}
+              - {{ rule.descr }}: {{ rule.source | default('any') }} via {{ rule.interface }}
+              {% endfor %}
+
+        - name: Create outbound NAT rules
+          pfsensible.core.pfsense_nat_outbound:
+            descr: "{{ item.descr }}"
+            interface: "{{ item.interface }}"
+            source: "{{ item.source | default('any') }}"
+            destination: "{{ item.destination | default('any') }}"
+            address: "{{ item.address | default(omit) }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_nat_outbound }}"
+          register: outbound_nat_results
+
+        - name: Display outbound NAT configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ Outbound NAT Rules Configured
+              ===============================
+              {% for result in outbound_nat_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_nat_outbound | length | default(0) > 0
+
+    - name: Display NAT configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ NAT Configuration Complete
+          ===========================
+          Port Forward (DNAT) Rules: {{ pfsense_nat_port_forwards | length | default(0) }}
+          Outbound NAT (SNAT) Rules: {{ pfsense_nat_outbound | length | default(0) }}
+
+          NAT Behavior:
+          - Port Forward: Maps external port to internal IP:port
+          - Outbound NAT: Translates internal source IPs to external IP
+
+          To verify:
+          1. Web UI: Firewall > NAT > Port Forward (inbound)
+          2. Web UI: Firewall > NAT > Outbound (outbound)
+          3. Monitor: Status > System Logs > NAT
+
+          Associated Firewall Rules:
+          For port forwarding to work, also create allow rules on the inbound interface
+          pointing to the target IP:port combination.
+
+  rescue:
+    - name: Handle NAT rules configuration error
+      ansible.builtin.fail:
+        msg: "pfSense NAT rules configuration failed: {{ ansible_failed_result.msg }}"

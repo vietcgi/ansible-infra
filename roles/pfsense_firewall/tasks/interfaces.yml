@@ -1,0 +1,98 @@
+---
+# pfSense Firewall - Interface Configuration Tasks
+
+- name: Configure pfSense Network Interfaces
+  block:
+    - name: Display interface configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring Network Interfaces
+          ===============================
+          Total Interfaces to Configure: {{ pfsense_interfaces | length }}
+
+          {% for iface in pfsense_interfaces %}
+          Interface {{ loop.index }}: {{ iface.descr }}
+          - Physical Interface: {{ iface.interface }}
+          - Type: {{ iface.type | default('standard') }}
+          {% if iface.ipv4_type == 'static' %}- IPv4: {{ iface.ipv4_address }}/{{ iface.ipv4_prefixlen | default(24) }}
+          {% else %}- IPv4: {{ iface.ipv4_type }}
+          {% endif %}
+          {% if iface.ipv6_type == 'static' %}- IPv6: {{ iface.ipv6_address }}/{{ iface.ipv6_prefixlen | default(64) }}
+          {% endif %}
+          {% endfor %}
+
+    - name: Identify VLANs to configure
+      ansible.builtin.set_fact:
+        vlan_interfaces: "{{ pfsense_interfaces | selectattr('type', 'equalto', 'vlan') | list }}"
+
+    - name: Configure VLAN interfaces
+      block:
+        - name: Create VLAN interfaces
+          pfsensible.core.pfsense_vlan:
+            interface: "{{ item.interface }}"
+            vlan_id: "{{ item.vlan_id }}"
+            descr: "{{ item.descr }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ vlan_interfaces }}"
+          register: vlan_config_results
+
+        - name: Display VLAN configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ VLAN Interfaces Configured
+              ============================
+              {% for result in vlan_config_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: vlan_interfaces | length > 0
+
+    - name: Identify standard interfaces to configure
+      ansible.builtin.set_fact:
+        standard_interfaces: "{{ pfsense_interfaces | rejectattr('type', 'equalto', 'vlan') | list }}"
+
+    - name: Configure standard network interfaces
+      block:
+        - name: Create/update interfaces
+          pfsensible.core.pfsense_interface:
+            descr: "{{ item.descr }}"
+            interface: "{{ item.interface }}"
+            enable: "{{ item.enable | default(true) }}"
+            ipv4_type: "{{ item.ipv4_type | default('none') }}"
+            ipv4_address: "{{ item.ipv4_address | default(omit) }}"
+            ipv4_prefixlen: "{{ item.ipv4_prefixlen | default(omit) }}"
+            ipv6_type: "{{ item.ipv6_type | default('none') }}"
+            ipv6_address: "{{ item.ipv6_address | default(omit) }}"
+            ipv6_prefixlen: "{{ item.ipv6_prefixlen | default(omit) }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ standard_interfaces }}"
+          register: iface_config_results
+
+        - name: Display interface configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ Network Interfaces Configured
+              ==============================
+              {% for result in iface_config_results.results %}
+              - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: standard_interfaces | length > 0
+
+    - name: Display interface configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Interface Configuration Complete
+          ==================================
+          Standard Interfaces: {{ standard_interfaces | default([]) | length }}
+          VLAN Interfaces: {{ vlan_interfaces | default([]) | length }}
+
+          Next Steps:
+          1. Verify interface assignment in Web UI
+          2. Configure interface groups if needed (for multi-interface rules)
+          3. Set default gateway for routing
+
+  rescue:
+    - name: Handle interface configuration error
+      ansible.builtin.fail:
+        msg: "pfSense interface configuration failed: {{ ansible_failed_result.msg }}"

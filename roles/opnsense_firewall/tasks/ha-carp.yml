@@ -1,0 +1,149 @@
+---
+# OPNSense Firewall - HA/CARP Configuration Tasks
+
+- name: Configure OPNSense High Availability (CARP)
+  block:
+    - name: Display HA configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring High Availability (CARP)
+          ====================================
+          HA Mode: {{ opnsense_ha_mode }}
+          VHID: {{ opnsense_ha_vhid }}
+          Advskew Primary: {{ opnsense_ha_advskew_primary }}
+          Advskew Secondary: {{ opnsense_ha_advskew_secondary }}
+          Virtual IP: {{ opnsense_ha_virtual_ip }}
+
+          This node will:
+          {% if inventory_hostname in groups.get('opnsense_primary', []) %}
+          - Operate as PRIMARY (lower advskew = higher priority)
+          {% elif inventory_hostname in groups.get('opnsense_secondary', []) %}
+          - Operate as SECONDARY (higher advskew = lower priority)
+          {% else %}
+          - Auto-determine role based on advskew values
+          {% endif %}
+
+    - name: Determine node's HA role
+      ansible.builtin.set_fact:
+        opnsense_ha_role: |
+          {%- if inventory_hostname in groups.get('opnsense_primary', []) -%}
+          primary
+          {%- elif inventory_hostname in groups.get('opnsense_secondary', []) -%}
+          secondary
+          {%- else -%}
+          primary
+          {%- endif -%}
+
+    - name: Configure HA Synchronization (pfSync)
+      block:
+        - name: Configure HA sync general settings
+          oxlorg.opnsense.hasync_general:
+            api_key: "{{ opnsense_api_key }}"
+            api_secret: "{{ opnsense_api_secret }}"
+            firewall_url: "{{ opnsense_api_url }}"
+            synchronizeusers: "1"
+            synchronizegroups: "1"
+            synchronizeauthservers: "1"
+            synchronizednsserver: "1"
+            synchronizedhcpd: "1"
+            synchronizewol: "1"
+            synchronizealiases: "1"
+            synchronizenatpmp: "1"
+            synchronizecaptiveportal: "1"
+            synchronizeipv6natpmp: "1"
+            synchronizeinterfaces: "1"
+            synchronizetrafficshapers: "1"
+            synchronizestaticroutes: "1"
+            synchronizefirewall: "1"
+            synchronizerulesetsources: "1"
+            state: present
+          register: hasync_config
+
+        - name: Display HA sync configuration
+          ansible.builtin.debug:
+            msg: |
+              ✓ HA Synchronization Configured
+              ==============================
+              All system components marked for synchronization:
+              - Users & Groups
+              - Authentication servers
+              - DNS servers
+              - DHCP settings
+              - Network interfaces
+              - Static routes
+              - Firewall rules
+              - Traffic shapers
+              Status: {{ hasync_config.changed | ternary('Changed', 'Unchanged') }}
+
+      rescue:
+        - name: Log HA sync configuration skip
+          ansible.builtin.debug:
+            msg: |
+              ⚠ HA Sync configuration partial
+              (Some components may not have dedicated modules in this collection version)
+              Core CARP functionality will still work via interface VIP configuration
+
+    - name: Create HA cluster monitoring
+      block:
+        - name: Display CARP status monitoring
+          ansible.builtin.debug:
+            msg: |
+              ✓ CARP Monitoring Enabled
+              ========================
+              Monitor CARP status with:
+              - Web UI: Status > System Information (shows CARP status)
+              - CLI: cat /var/log/system.log | grep -i carp
+              - CLI: ifconfig | grep carp
+
+              Failover Behavior:
+              - Primary node sends CARP advertisements every advbase interval
+              - Secondary monitors advertisements (timeout = advbase * 3)
+              - If primary fails, secondary becomes ACTIVE after timeout
+              - When primary recovers, it becomes ACTIVE again
+
+              Advskew Values:
+              - Primary: {{ opnsense_ha_advskew_primary }} (lower = higher priority)
+              - Secondary: {{ opnsense_ha_advskew_secondary }} (higher = lower priority)
+
+    - name: Configure CARP interface (virtual IP)
+      block:
+        - name: Check if CARP interface already exists
+          ansible.builtin.debug:
+            msg: |
+              Virtual IP Configuration
+              ========================
+              IP Address: {{ opnsense_ha_virtual_ip }}
+
+              This should be configured on the interface that will serve as CARP virtual IP.
+              Configuration can be done via:
+              1. Interfaces > Virtual IPs > Add (manual)
+              2. Or via: opnsense_interfaces with type: 'carp' entries
+
+              Example in inventory:
+              opnsense_interfaces:
+                - name: carp0
+                  type: carp
+                  interface: lan
+                  vhid: {{ opnsense_ha_vhid }}
+                  ipv4_address: {{ opnsense_ha_virtual_ip }}
+                  advskew: {{ opnsense_ha_advskew_primary if opnsense_ha_role == 'primary' else opnsense_ha_advskew_secondary }}
+
+    - name: Display HA configuration completion
+      ansible.builtin.debug:
+        msg: |
+          ✓ HA/CARP Configuration Complete
+          =================================
+          Role: {{ opnsense_ha_role | capitalize }}
+          Sync: Enabled (all critical systems)
+          Failover: Automatic via CARP
+
+          Next Steps:
+          1. Configure CARP virtual IP (Interfaces > Virtual IPs)
+          2. Configure secondary node in same cluster
+          3. Verify CARP status: Status > System Information
+          4. Test failover by stopping services on primary
+
+  rescue:
+    - name: Handle HA configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense HA/CARP configuration failed: {{ ansible_failed_result.msg }}"

@@ -1,0 +1,100 @@
+---
+# OPNSense Firewall - Firewall Rules Configuration Tasks
+
+- name: Configure OPNSense Firewall Rules
+  block:
+    - name: Display firewall rules configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring Firewall Rules
+          ==========================
+          Total Rules to Configure: {{ opnsense_firewall_rules | length }}
+
+          {% for rule in opnsense_firewall_rules %}
+          Rule {{ loop.index }}: {{ rule.description | default(rule.action + ' ' + rule.protocol) }}
+          - Action: {{ rule.action }}
+          - Protocol: {{ rule.protocol }}
+          - Source: {{ rule.source | default('any') }}
+          - Destination: {{ rule.destination | default('any') }}
+          - Port: {{ rule.port | default('any') }}
+          {% endfor %}
+
+    - name: Create firewall rule aliases (if needed)
+      block:
+        - name: Identify unique aliases needed
+          ansible.builtin.set_fact:
+            rule_aliases: "{{ rule_aliases | default([]) + [item] }}"
+          loop: "{{ opnsense_firewall_rules | selectattr('alias', 'defined') | map(attribute='alias') | unique | list }}"
+
+        - name: Create network aliases for rules
+          oxlorg.opnsense.alias:
+            api_key: "{{ opnsense_api_key }}"
+            api_secret: "{{ opnsense_api_secret }}"
+            firewall_url: "{{ opnsense_api_url }}"
+            name: "{{ item.name }}"
+            type: "{{ item.type | default('network') }}"
+            content: "{{ item.content }}"
+            description: "{{ item.description | default('') }}"
+            state: present
+          loop: "{{ opnsense_firewall_rules | selectattr('alias', 'defined') | map(attribute='alias') | unique | list }}"
+          when: opnsense_firewall_rules | selectattr('alias', 'defined') | list | length > 0
+
+      rescue:
+        - name: Log alias creation skip
+          ansible.builtin.debug:
+            msg: "⚠ Network alias creation skipped (optional step)"
+
+    - name: Configure individual firewall rules
+      oxlorg.opnsense.rule:
+        api_key: "{{ opnsense_api_key }}"
+        api_secret: "{{ opnsense_api_secret }}"
+        firewall_url: "{{ opnsense_api_url }}"
+        action: "{{ item.action }}"
+        direction: "{{ item.direction | default('in') }}"
+        ipprotocol: "{{ item.ipprotocol | default('inet') }}"
+        protocol: "{{ item.protocol }}"
+        interface: "{{ item.interface }}"
+        source: "{{ item.source | default('any') }}"
+        destination: "{{ item.destination | default('any') }}"
+        source_port: "{{ item.source_port | default('any') }}"
+        destination_port: "{{ item.port | default('any') }}"
+        description: "{{ item.description | default('') }}"
+        state: "{{ item.state | default('present') }}"
+      loop: "{{ opnsense_firewall_rules }}"
+      register: rule_config_results
+
+    - name: Display firewall rules configuration results
+      ansible.builtin.debug:
+        msg: |
+          ✓ Firewall Rules Configured
+          ===========================
+          Total Rules Created/Updated: {{ rule_config_results.results | selectattr('changed', 'equalto', true) | list | length }}
+          Total Rules Unchanged: {{ rule_config_results.results | selectattr('changed', 'equalto', false) | list | length }}
+
+          Configured Rules:
+          {% for result in rule_config_results.results %}
+          - {{ result.item.description | default(result.item.action + ' ' + result.item.protocol) }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+          {% endfor %}
+
+    - name: Display firewall configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Firewall Rules Complete
+          =========================
+          Rules marked for management by Ansible
+          (These are separate from Web UI rules)
+
+          Important Notes:
+          - Rules are applied in order (top to bottom)
+          - First matching rule wins
+          - Reload is automatic after each rule change
+          - Manual rules in Web UI are NOT affected
+
+          To view all rules:
+          - Web UI: Firewall > Rules (shows all rules including manual)
+          - Or access: Firewall > Rules > <Interface> > View
+
+  rescue:
+    - name: Handle firewall rules configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense firewall rules configuration failed: {{ ansible_failed_result.msg }}"

@@ -1,0 +1,53 @@
+---
+# OPNSense Firewall Role - Main Task Orchestration
+
+- name: OPNSense Firewall Configuration
+  block:
+    - name: Include validation tasks
+      ansible.builtin.include_tasks: validate.yml
+
+    - name: Include system configuration tasks
+      ansible.builtin.include_tasks: system.yml
+
+    - name: Include interface configuration tasks
+      ansible.builtin.include_tasks: interfaces.yml
+      when: opnsense_interfaces | length > 0
+
+    - name: Include HA/CARP configuration tasks
+      ansible.builtin.include_tasks: ha-carp.yml
+      when: opnsense_ha_enabled | bool
+
+    - name: Include firewall rules tasks
+      ansible.builtin.include_tasks: firewall-rules.yml
+      when: opnsense_firewall_rules | length > 0
+
+    - name: Include NAT rules tasks
+      ansible.builtin.include_tasks: nat-rules.yml
+      when: opnsense_nat_rules | length > 0
+
+    - name: Include Wireguard VPN tasks
+      ansible.builtin.include_tasks: wireguard-vpn.yml
+      when: opnsense_wireguard_enabled | bool
+
+    - name: Include backup tasks
+      ansible.builtin.include_tasks: backup.yml
+      when: opnsense_backup_enabled | bool
+
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ OPNSense Configuration Complete
+          ==================================
+          Firewall: {{ inventory_hostname }}
+          Hostname: {{ opnsense_hostname }}
+          Domain: {{ opnsense_domain }}
+          Interfaces Configured: {{ opnsense_interfaces | length }}
+          Firewall Rules: {{ opnsense_firewall_rules | length }}
+          NAT Rules: {{ opnsense_nat_rules | length }}
+          HA Enabled: {{ opnsense_ha_enabled }}
+          Wireguard Enabled: {{ opnsense_wireguard_enabled }}
+
+  rescue:
+    - name: Handle OPNSense configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense configuration failed: {{ ansible_failed_result.msg }}"

@@ -1,0 +1,95 @@
+---
+# pfSense Firewall - Routing Configuration Tasks
+
+- name: Configure pfSense Routing
+  block:
+    - name: Display routing configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring Routing
+          ===================
+          Gateways to Configure: {{ pfsense_gateways | length | default(0) }}
+          Routes to Configure: {{ pfsense_routes | length | default(0) }}
+
+    - name: Configure gateways
+      block:
+        - name: Create/update gateways
+          pfsensible.core.pfsense_gateway:
+            name: "{{ item.name }}"
+            interface: "{{ item.interface }}"
+            gateway: "{{ item.gateway }}"
+            monitor_disable: "{{ item.monitor_disable | default(false) }}"
+            weight: "{{ item.weight | default(1) }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_gateways }}"
+          register: gateway_config_results
+
+        - name: Display gateway configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ Gateways Configured
+              ====================
+              {% for result in gateway_config_results.results %}
+              - {{ result.item.name }} ({{ result.item.interface }}): {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_gateways | length | default(0) > 0
+
+    - name: Set default gateway
+      block:
+        - name: Configure default gateway
+          pfsensible.core.pfsense_default_gateway:
+            ipv4_gateway: "{{ pfsense_default_gateway_ipv4 }}"
+            ipv6_gateway: "{{ pfsense_default_gateway_ipv6 | default(omit) }}"
+          register: default_gw_result
+
+        - name: Display default gateway result
+          ansible.builtin.debug:
+            msg: |
+              ✓ Default Gateway Configured
+              ============================
+              IPv4 Gateway: {{ pfsense_default_gateway_ipv4 }}
+              Status: {{ default_gw_result.changed | ternary('Changed', 'Unchanged') }}
+
+      when: pfsense_default_gateway_ipv4 is defined
+
+    - name: Configure static routes
+      block:
+        - name: Create/update static routes
+          pfsensible.core.pfsense_route:
+            destination: "{{ item.destination }}"
+            gateway: "{{ item.gateway }}"
+            descr: "{{ item.descr | default('') }}"
+            state: "{{ item.state | default('present') }}"
+          loop: "{{ pfsense_routes }}"
+          register: route_config_results
+
+        - name: Display static route configuration results
+          ansible.builtin.debug:
+            msg: |
+              ✓ Static Routes Configured
+              ==========================
+              {% for result in route_config_results.results %}
+              - {{ result.item.destination }} via {{ result.item.gateway }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+              {% endfor %}
+
+      when: pfsense_routes | length | default(0) > 0
+
+    - name: Display routing configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Routing Configuration Complete
+          ================================
+          Gateways: {{ pfsense_gateways | length | default(0) }}
+          Default Gateway: {{ pfsense_default_gateway_ipv4 | default('none') }}
+          Static Routes: {{ pfsense_routes | length | default(0) }}
+
+          Verify routing:
+          1. Status > Gateways > Gateway Status
+          2. Status > Routes (show routing table)
+          3. Diagnostic > Routing (route lookup tests)
+
+  rescue:
+    - name: Handle routing configuration error
+      ansible.builtin.fail:
+        msg: "pfSense routing configuration failed: {{ ansible_failed_result.msg }}"

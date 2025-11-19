@@ -8,27 +8,156 @@
         that:
           - wireguard_sites is defined
           - wireguard_sites | length >= 2
-        fail_msg: "Site-to-site requires at least 2 sites"
+          - inventory_hostname in [item.value.gateway for item in wireguard_sites | dict2items]
+        fail_msg: |
+          Site-to-site requires:
+          1. At least 2 sites defined in wireguard_sites
+          2. Current host ({{ inventory_hostname }}) must be a gateway in one of the sites
 
-    - name: Display site-to-site topology
+    - name: Validate each site has required configuration
+      ansible.builtin.assert:
+        that:
+          - item.value.gateway is defined
+          - item.value.vpn_network is defined
+          - item.value.endpoint is defined
+          - item.value.public_key is defined or item.value.location is defined
+          - item.value.networks is defined and item.value.networks | length > 0
+        fail_msg: "Site '{{ item.key }}' missing required fields: gateway, vpn_network, endpoint, public_key, networks"
+      loop: "{{ wireguard_sites | dict2items }}"
+
+    - name: Identify current site
+      ansible.builtin.set_fact:
+        current_site_name: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) | map(attribute='key') | first }}"
+        current_site_data: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) | map(attribute='value') | first }}"
+
+    - name: Validate current site identified
+      ansible.builtin.assert:
+        that:
+          - current_site_name is defined
+          - current_site_data is defined
+        fail_msg: "Could not identify current host as gateway in any site. Current host: {{ inventory_hostname }}"
+
+    - name: Build list of remote sites (for peering)
+      ansible.builtin.set_fact:
+        remote_sites: "{{ wireguard_sites | dict2items | rejectattr('key', 'equalto', current_site_name) | map(attribute='value') | list }}"
+
+    - name: Validate at least one remote site exists
+      ansible.builtin.assert:
+        that:
+          - remote_sites | length > 0
+        fail_msg: "No remote sites found for gateway {{ inventory_hostname }}"
+
+    - name: Collect gateway public keys from all remote sites
+      ansible.builtin.set_fact:
+        gateway_public_keys: "{{ gateway_public_keys | default({}) | combine({item.gateway: item.public_key}) }}"
+      loop: "{{ remote_sites }}"
+
+    - name: Get gateway's public key (for peers to connect to this gateway)
+      ansible.builtin.set_fact:
+        this_gateway_public_key: "{{ current_site_data.public_key }}"
+
+    - name: Display site-to-site topology configuration
       ansible.builtin.debug:
         msg: |
-          Site-to-Site Wireguard Topology
-          ================================
-          Total Sites: {{ wireguard_sites | length }}
-          Sites:
-          {% for site_key, site_data in wireguard_sites.items() %}
-          - {{ site_data.location }}: {{ site_data.gateway }} ({{ site_data.networks | join(', ') }})
-          {% endfor %}
-          
-          Each site has its own VPN subnet.
-          Gateways route traffic between sites.
+          Site-to-Site Wireguard Topology - GATEWAY NODE
+          ===============================================
+          Current Site: {{ current_site_name }}
+          Location: {{ current_site_data.location }}
+          Gateway Node: {{ inventory_hostname }}
 
-    - name: Configure inter-site routes
+          Gateway VPN Network: {{ current_site_data.vpn_network }}
+          Gateway Public Endpoint: {{ current_site_data.endpoint }}
+
+          Protected Networks Behind This Gateway:
+          {% for network in current_site_data.networks %}
+            - {{ network }}
+          {% endfor %}
+
+          Remote Sites to Peer With: {{ remote_sites | length }}
+          {% for remote_site in remote_sites %}
+
+          Remote Site: {{ remote_site.location }}
+          - Gateway Node: {{ remote_site.gateway }}
+          - VPN Network: {{ remote_site.vpn_network }}
+          - Public Endpoint: {{ remote_site.endpoint }}
+          - Protected Networks: {{ remote_site.networks | join(', ') }}
+          - VPN IP: {{ remote_site.vpn_network.split('/')[0] }}
+          {% endfor %}
+
+          Traffic Flow:
+          - Local traffic from {{ current_site_data.networks | join(', ') }}: Direct via local interface
+          - Traffic to remote sites: Encrypted through Wireguard tunnel to each remote gateway
+          - Remote sites reach this location via {{ current_site_data.vpn_network }}
+
+          Peering Strategy:
+          - This gateway peers with all other gateways (mesh topology)
+          - AllowedIPs for each peer includes their VPN network + protected networks
+          - IP forwarding required to route between sites
+
+    - name: Build inter-site routing configuration
+      ansible.builtin.set_fact:
+        wireguard_inter_site_routes: |
+          {%- set routes = [] -%}
+          {%- for remote_site in remote_sites -%}
+          {%- set route_entry = {
+              'from_network': current_site_data.vpn_network,
+              'to_network': remote_site.vpn_network,
+              'via_gateway': remote_site.gateway,
+              'via_endpoint': remote_site.endpoint,
+              'protected_networks': remote_site.networks
+            } -%}
+          {%- set _ = routes.append(route_entry) -%}
+          {%- endfor -%}
+          {{- routes -}}
+
+    - name: Validate routing configuration
+      ansible.builtin.assert:
+        that:
+          - wireguard_inter_site_routes | length == remote_sites | length
+        fail_msg: "Route count mismatch: expected {{ remote_sites | length }}, got {{ wireguard_inter_site_routes | length }}"
+
+    - name: Display inter-site routing plan
       ansible.builtin.debug:
-        msg: "Route: {{ item.from }} → {{ item.to }} via {{ item.via }}"
-      loop: "{{ wireguard_site_routes }}"
-      when: wireguard_site_routes | length > 0
+        msg: |
+          Inter-Site Routing Configuration
+          ==================================
+          {% for route in wireguard_inter_site_routes %}
+
+          Route {{ loop.index }}:
+          From Site Network: {{ route.from_network }}
+          To Site Network: {{ route.to_network }}
+          Via Gateway: {{ route.via_gateway }} ({{ route.via_endpoint }})
+          Protected Networks At Destination: {{ route.protected_networks | join(', ') }}
+
+          Routing Rules (to be applied via PostUp):
+          - ip route add {{ route.to_network }} via {{ route.to_network.split('/')[0] }} dev {{ wireguard_interface }}
+          - ip route add {{ route.protected_networks | join(' ') | replace(' ', ' dev ' + wireguard_interface + ' && ip route add ') }} dev {{ wireguard_interface }}
+          {% endfor %}
+
+    - name: Validate IP forwarding will be enabled
+      ansible.builtin.assert:
+        that:
+          - wireguard_enable_ip_forward | default(true) | bool
+        fail_msg: "Site-to-site topology requires IP forwarding (wireguard_enable_ip_forward: true)"
+
+    - name: Store site-to-site configuration for template rendering
+      ansible.builtin.set_fact:
+        wireguard_site_to_site_config:
+          current_site: "{{ current_site_name }}"
+          current_site_data: "{{ current_site_data }}"
+          remote_sites: "{{ remote_sites }}"
+          inter_site_routes: "{{ wireguard_inter_site_routes }}"
+          is_gateway: true
+
+    - name: Display final configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Site-to-Site Configuration Validated
+          ✓ {{ remote_sites | length }} remote site(s) identified
+          ✓ {{ wireguard_inter_site_routes | length }} routes planned
+          ✓ IP forwarding: ENABLED
+          ✓ Gateway public key: {{ this_gateway_public_key[:16] }}...
+          ✓ Ready for Wireguard configuration template
 
   rescue:
     - name: Handle site-to-site configuration error

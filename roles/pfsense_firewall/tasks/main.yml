@@ -1,0 +1,52 @@
+---
+# pfSense Firewall Role - Main Task Orchestration
+
+- name: pfSense Firewall Configuration
+  block:
+    - name: Include validation tasks
+      ansible.builtin.include_tasks: validate.yml
+
+    - name: Include system configuration tasks
+      ansible.builtin.include_tasks: system.yml
+
+    - name: Include interface configuration tasks
+      ansible.builtin.include_tasks: interfaces.yml
+      when: pfsense_interfaces | length > 0
+
+    - name: Include routing configuration tasks
+      ansible.builtin.include_tasks: routing.yml
+
+    - name: Include firewall rules tasks
+      ansible.builtin.include_tasks: firewall-rules.yml
+      when: pfsense_firewall_rules | length > 0
+
+    - name: Include NAT rules tasks
+      ansible.builtin.include_tasks: nat-rules.yml
+      when: pfsense_nat_rules | length > 0
+
+    - name: Include HA/CARP configuration tasks
+      ansible.builtin.include_tasks: ha-carp.yml
+      when: pfsense_ha_enabled | bool
+
+    - name: Include VPN configuration tasks
+      ansible.builtin.include_tasks: vpn.yml
+      when: pfsense_vpn_enabled | default(false) | bool
+
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ pfSense Configuration Complete
+          ================================
+          Firewall: {{ inventory_hostname }}
+          Hostname: {{ pfsense_hostname }}
+          Domain: {{ pfsense_domain }}
+          Interfaces Configured: {{ pfsense_interfaces | length }}
+          Firewall Rules: {{ pfsense_firewall_rules | length }}
+          NAT Rules: {{ pfsense_nat_rules | length }}
+          HA Enabled: {{ pfsense_ha_enabled }}
+          VPN Enabled: {{ pfsense_vpn_enabled | default(false) }}
+
+  rescue:
+    - name: Handle pfSense configuration error
+      ansible.builtin.fail:
+        msg: "pfSense configuration failed: {{ ansible_failed_result.msg }}"

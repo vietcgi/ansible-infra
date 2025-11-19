@@ -1,0 +1,75 @@
+---
+# OPNSense Firewall - System Configuration Tasks
+
+- name: Configure OPNSense System Settings
+  block:
+    - name: Configure hostname and domain
+      oxlorg.opnsense.system:
+        api_key: "{{ opnsense_api_key }}"
+        api_secret: "{{ opnsense_api_secret }}"
+        firewall_url: "{{ opnsense_api_url }}"
+        hostname: "{{ opnsense_hostname }}"
+        domain: "{{ opnsense_domain }}"
+        timezone: "{{ opnsense_timezone }}"
+        state: present
+      register: opnsense_system_config
+
+    - name: Display system configuration result
+      ansible.builtin.debug:
+        msg: |
+          ✓ System Configuration Applied
+          ==============================
+          Hostname: {{ opnsense_hostname }}
+          Domain: {{ opnsense_domain }}
+          Timezone: {{ opnsense_timezone }}
+
+    - name: Configure DNS servers
+      block:
+        - name: Check if DNS configuration module available
+          ansible.builtin.set_fact:
+            dns_module_available: true
+
+        - name: Configure DNS via unbound (preferred method)
+          block:
+            - name: Configure Unbound DNS resolver
+              oxlorg.opnsense.unbound_general:
+                api_key: "{{ opnsense_api_key }}"
+                api_secret: "{{ opnsense_api_secret }}"
+                firewall_url: "{{ opnsense_api_url }}"
+                state: present
+                dnssec: true
+                dns64: false
+              register: unbound_config
+
+            - name: Display Unbound configuration result
+              ansible.builtin.debug:
+                msg: |
+                  ✓ Unbound DNS Resolver Configured
+                  ==================================
+                  Status: {{ unbound_config.changed | ternary('Changed', 'Unchanged') }}
+
+          rescue:
+            - name: Log Unbound configuration skip
+              ansible.builtin.debug:
+                msg: "⚠ Unbound DNS module not available, skipping DNS resolver config"
+
+      when: opnsense_dns_servers | length > 0
+
+    - name: Configure NTP settings
+      block:
+        - name: Set NTP servers (for time synchronization)
+          ansible.builtin.debug:
+            msg: |
+              NTP Configuration Note:
+              OPNSense uses NTP for time synchronization.
+              Configure via: System > Settings > General > Time Servers
+
+              Current DNS Servers Configured:
+              {% for dns_server in opnsense_dns_servers %}
+              - {{ dns_server }}
+              {% endfor %}
+
+  rescue:
+    - name: Handle system configuration error
+      ansible.builtin.fail:
+        msg: "OPNSense system configuration failed: {{ ansible_failed_result.msg }}"

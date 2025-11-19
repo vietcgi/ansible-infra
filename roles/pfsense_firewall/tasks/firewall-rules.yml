@@ -1,0 +1,100 @@
+---
+# pfSense Firewall - Firewall Rules Configuration Tasks
+
+- name: Configure pfSense Firewall Rules
+  block:
+    - name: Display firewall rules configuration plan
+      ansible.builtin.debug:
+        msg: |
+          Configuring Firewall Rules
+          ==========================
+          Total Rules to Configure: {{ pfsense_firewall_rules | length }}
+
+          {% for rule in pfsense_firewall_rules %}
+          Rule {{ loop.index }}: {{ rule.name }}
+          - Action: {{ rule.action }}
+          - Interface: {{ rule.interface }}
+          - Protocol: {{ rule.protocol }}
+          - Source: {{ rule.source | default('any') }}
+          - Destination: {{ rule.destination | default('any') }}
+          {% endfor %}
+
+    - name: Create firewall rule aliases (if needed)
+      block:
+        - name: Identify unique aliases needed
+          ansible.builtin.set_fact:
+            rule_aliases: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias') | unique | list }}"
+
+        - name: Create aliases for firewall rules
+          pfsensible.core.pfsense_alias:
+            name: "{{ item.name }}"
+            type: "{{ item.type | default('host') }}"
+            address: "{{ item.address }}"
+            descr: "{{ item.descr | default('') }}"
+            state: present
+          loop: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias') | unique | list }}"
+          when: pfsense_firewall_rules | selectattr('source_alias', 'defined') | list | length > 0
+
+      rescue:
+        - name: Log alias creation skip
+          ansible.builtin.debug:
+            msg: "⚠ Network alias creation skipped (optional step)"
+
+    - name: Configure individual firewall rules
+      pfsensible.core.pfsense_rule:
+        name: "{{ item.name }}"
+        action: "{{ item.action }}"
+        interface: "{{ item.interface }}"
+        protocol: "{{ item.protocol }}"
+        source: "{{ item.source | default('any') }}"
+        destination: "{{ item.destination | default('any') }}"
+        destination_port: "{{ item.destination_port | default(omit) }}"
+        after: "{{ item.after | default(omit) }}"
+        state: "{{ item.state | default('present') }}"
+        statetype: "{{ item.statetype | default('keep state') }}"
+      loop: "{{ pfsense_firewall_rules }}"
+      register: rule_config_results
+
+    - name: Display firewall rules configuration results
+      ansible.builtin.debug:
+        msg: |
+          ✓ Firewall Rules Configured
+          ===========================
+          Total Rules Created/Updated: {{ rule_config_results.results | selectattr('changed', 'equalto', true) | list | length }}
+          Total Rules Unchanged: {{ rule_config_results.results | selectattr('changed', 'equalto', false) | list | length }}
+
+          Configured Rules:
+          {% for result in rule_config_results.results %}
+          - {{ result.item.name }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
+          {% endfor %}
+
+    - name: Display firewall configuration summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Firewall Rules Complete
+          =========================
+          Rules marked for management by Ansible
+          (These are separate from Web UI rules)
+
+          Important Notes:
+          - Rules are applied in order (top to bottom)
+          - First matching rule wins
+          - Stateful filtering enabled by default
+          - Manual rules in Web UI are NOT affected
+
+          To view all rules:
+          1. Web UI: Firewall > Rules > <Interface>
+          2. Filter by "Ansible-managed" if needed
+
+          Common Source/Destination Formats:
+          - any
+          - <IP address> (e.g., 192.168.1.100)
+          - <network/subnet> (e.g., 192.168.1.0/24)
+          - NET:LAN (behind interface)
+          - (self) (firewall itself)
+          - ALIAS:<name> (by alias)
+
+  rescue:
+    - name: Handle firewall rules configuration error
+      ansible.builtin.fail:
+        msg: "pfSense firewall rules configuration failed: {{ ansible_failed_result.msg }}"
