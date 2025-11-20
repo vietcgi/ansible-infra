@@ -17,7 +17,7 @@
       ansible.builtin.include_tasks: keys.yml
 
     - name: Configure topology-specific settings
-      ansible.builtin.include_tasks: "topology-{{ wireguard_topology }}.yml"
+      ansible.builtin.include_tasks: "topology-{{ wireguard_topology | replace('_', '-') }}.yml"
 
     - name: Configure Wireguard interface
       ansible.builtin.include_tasks: configure.yml
