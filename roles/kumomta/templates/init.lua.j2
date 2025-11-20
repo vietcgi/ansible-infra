@@ -89,3 +89,9 @@ end)
 
 -- NOTE: get_egress_source handler is automatically provided by policy-extras.sources
 -- when sources:setup() is called. Do not define it here to avoid handler conflicts.
+
+-- Define routing strategy - this tells KumoMTA which hosts can accept messages
+kumo.on('get_routes', function(domain)
+  -- Route all domains to their MX records (standard mail routing)
+  return kumo.make_routing_domain(domain)
+end)
