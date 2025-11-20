@@ -20,7 +20,7 @@
 
     - name: Download KumoMTA .deb package from GitHub releases
       ansible.builtin.get_url:
-        url: "https://github.com/kumocorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version }}.Ubuntu22.04_amd64.deb"
+        url: "https://github.com/kumocorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version | replace('-', '.') }}.Ubuntu22.04_amd64.deb"
         dest: "/tmp/kumomta.deb"
         force: true
       register: kumomta_download
