@@ -1,40 +1,34 @@
 ---
-# Email Delivery Platform - Complete Configuration
+# Email Delivery Platform - Complete Configuration Framework
+# No hardcoded values - all variables must be provided via inventory or command line
 
-# Domain & Infrastructure
-email_domain: "vietcgi.nguoivietcali.com"
-email_server_ip: "108.181.38.69"
+# Domain & Infrastructure (REQUIRED - must be set in inventory or -e)
+email_domain: ""                     # REQUIRED: e.g., "example.com"
+email_server_ip: ""                  # REQUIRED: e.g., "192.0.2.1"
 email_hostname: "{{ email_domain }}"
 
-# Cloudflare DNS Configuration
-cloudflare_api_token: "{{ vault_cloudflare_api_token }}"  # Set via ansible-vault
-cloudflare_zone_id: "{{ vault_cloudflare_zone_id }}"      # Set via ansible-vault
-cloudflare_email_records:
-  - name: "@"
-    type: "A"
-    content: "{{ email_server_ip }}"
-    ttl: 3600
-    proxied: false
+# Cloudflare DNS Configuration (REQUIRED - must be set via Ansible Vault)
+cloudflare_api_token: "{{ vault_cloudflare_api_token }}"  # REQUIRED: from vault
+cloudflare_zone_id: "{{ vault_cloudflare_zone_id }}"      # REQUIRED: from vault
+cloudflare_email_records: []  # Auto-generated, do not modify
 
 # DKIM Configuration
 dkim_selector: "default"
 dkim_key_size: 2048
 
-# DMARC Configuration
-dmarc_policy: "quarantine"  # none, quarantine, reject
+# DMARC Configuration (Optional - set custom emails or use defaults)
+dmarc_policy: "quarantine"           # Options: none, quarantine, reject
 dmarc_subdomain_policy: "quarantine"
-dmarc_report_email: "postmaster@{{ email_domain }}"
-dmarc_forensics_email: "security@{{ email_domain }}"
-dmarc_percent: 100
+dmarc_report_email: ""               # Optional: e.g., "dmarc-reports@example.com"
+dmarc_forensics_email: ""            # Optional: e.g., "dmarc-forensics@example.com"
+dmarc_percent: 100                   # Percentage of emails to apply policy
 
-# SPF Configuration
-spf_include_domains: []  # Additional domains to include in SPF
+# SPF Configuration (Optional - for including other mail servers)
+spf_include_domains: []              # Optional: e.g., ["sendgrid.net", "mail.example.com"]
 
 # Let's Encrypt TLS Certificates
-letsencrypt_email: "admin@{{ email_domain }}"
-letsencrypt_domains:
-  - "{{ email_domain }}"
-  - "mail.{{ email_domain }}"
+letsencrypt_email: ""                # REQUIRED: e.g., "admin@example.com"
+letsencrypt_domains: []              # Auto-generated from email_domain if not set
 
 # KumoMTA Integration
 kumomta_enabled: true
