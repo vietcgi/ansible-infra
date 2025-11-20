@@ -30,6 +30,7 @@
         - "{{ kumomta_config_dir }}"
         - "{{ kumomta_queue_dir }}"
         - "{{ kumomta_log_dir }}"
+        - /opt/kumomta/etc
 
     - name: Get KumoMTA .deb download URL from GitHub API
       ansible.builtin.uri:
