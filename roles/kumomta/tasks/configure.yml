@@ -57,7 +57,7 @@
 
     - name: Validate KumoMTA configuration syntax
       ansible.builtin.command:
-        cmd: "{{ kumomta_home }}/sbin/kumomta --validate-config {{ kumomta_config_dir }}/kumomta.conf"
+        cmd: "{{ kumomta_home }}/sbin/kumod --validate-config {{ kumomta_config_dir }}/kumomta.conf"
       register: config_validation
       changed_when: false
       failed_when: config_validation.rc != 0
