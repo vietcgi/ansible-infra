@@ -70,9 +70,6 @@ kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
 
     -- Route through the default egress pool (defined in sources.toml)
     egress_pool = 'default',
-
-    -- SMTP protocol configuration (will use MX records for domain)
-    protocol = 'smtp',
   }
 end)
 
