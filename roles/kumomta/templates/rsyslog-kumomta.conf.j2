@@ -5,7 +5,7 @@
 :programname, isequal, "kumomta" {{ kumomta_log_dir }}/kumomta-syslog.log
 
 # Also forward to remote syslog if configured
-{% if kumomta_remote_syslog_enabled | bool %}
+{% if kumomta_remote_syslog_enabled | bool and kumomta_remote_syslog_host | length > 0 %}
 :programname, isequal, "kumomta" @@{{ kumomta_remote_syslog_host }}:{{ kumomta_remote_syslog_port }}
 {% endif %}
 

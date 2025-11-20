@@ -5,6 +5,7 @@
   ansible.builtin.systemd:
     name: kumomta.service
     state: restarted
+    daemon_reload: false
   become: true
 
 - name: reload systemd
@@ -16,4 +17,5 @@
   ansible.builtin.systemd:
     name: rsyslog
     state: restarted
+    daemon_reload: false
   become: true

@@ -8,6 +8,7 @@
         update_cache: true
         cache_valid_time: 3600
       when: ansible_os_family == "Debian"
+      become: true
 
     - name: Install KumoMTA dependencies (Debian)
       ansible.builtin.apt:
@@ -20,6 +21,7 @@
           - ca-certificates
         state: present
       when: ansible_os_family == "Debian"
+      become: true
 
     - name: Download KumoMTA binary
       ansible.builtin.get_url:
@@ -47,12 +49,14 @@
         mode: '0755'
         remote_src: true
       notify: restart kumomta
+      become: true
 
     - name: Create symbolic link
       ansible.builtin.file:
         src: "{{ kumomta_home }}/kumomta"
         dest: /usr/local/bin/kumomta
         state: link
+      become: true
 
     - name: Verify KumoMTA installation
       ansible.builtin.command:

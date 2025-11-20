@@ -9,6 +9,7 @@
     group: root
     mode: '0644'
   notify: reload systemd
+  become: true
 
 - name: Create systemd socket file (submission)
   ansible.builtin.template:
@@ -18,10 +19,12 @@
     group: root
     mode: '0644'
   notify: reload systemd
+  become: true
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
+  become: true
 
 - name: Enable KumoMTA service
   ansible.builtin.systemd:
@@ -29,6 +32,7 @@
     enabled: "{{ kumomta_service_enabled | bool }}"
     state: "{{ kumomta_service_state }}"
   when: kumomta_state == "present"
+  become: true
 
 - name: Enable KumoMTA submission socket
   ansible.builtin.systemd:
@@ -36,3 +40,4 @@
     enabled: "{{ kumomta_service_enabled | bool }}"
     state: started
   when: kumomta_state == "present"
+  become: true
