@@ -49,7 +49,8 @@
 
     - name: Display API test result
       ansible.builtin.debug:
-        msg: "Cloudflare API validation: {{ 'PASSED' if cf_api_test.status == 200 else 'FAILED' }}"
+        msg: "Cloudflare API validation: {{ 'PASSED' if cf_api_test is not skipped and cf_api_test.status == 200 else 'SKIPPED or FAILED' }}"
+      when: cf_api_test is defined
 
 # ============================================================================
 # Configure Cloudflare DNS Management
