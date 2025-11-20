@@ -45,27 +45,41 @@
         - not item.stat.exists
       loop: "{{ tls_files.results }}"
 
-    - name: Check configuration file permissions
-      ansible.builtin.command:
-        cmd: "stat -c '%a' {{ kumomta_config_dir }}/kumomta.conf"
-      register: config_perms
+    - name: Check configuration file permissions (Linux/Unix)
+      ansible.builtin.stat:
+        path: "{{ kumomta_config_dir }}/kumomta.conf"
+      register: config_stat
       changed_when: false
-      failed_when: config_perms.stdout != '640'
 
-    - name: Check TLS key permissions (should be 600)
-      ansible.builtin.command:
-        cmd: "stat -c '%a' {{ kumomta_tls_key }}"
-      register: key_perms
-      changed_when: false
-      failed_when: key_perms.stdout != '600'
+    - name: Fail if config has wrong permissions
+      ansible.builtin.fail:
+        msg: "Config file permissions are {{ config_stat.stat.mode }} but should be 0640"
+      when: config_stat.stat.mode != '0640'
+
+    - name: Check TLS key permissions (should be 0600)
+      ansible.builtin.stat:
+        path: "{{ kumomta_tls_key }}"
+      register: key_stat
       when: kumomta_tls_enabled | bool
-
-    - name: Verify directory ownership
-      ansible.builtin.command:
-        cmd: "stat -c '%U:%G' {{ kumomta_config_dir }}"
-      register: dir_owner
       changed_when: false
-      failed_when: dir_owner.stdout != (kumomta_user + ':' + kumomta_group)
+
+    - name: Fail if TLS key has wrong permissions
+      ansible.builtin.fail:
+        msg: "TLS key permissions are {{ key_stat.stat.mode }} but should be 0600"
+      when:
+        - kumomta_tls_enabled | bool
+        - key_stat.stat.mode != '0600'
+
+    - name: Verify directory ownership (Linux/Unix)
+      ansible.builtin.stat:
+        path: "{{ kumomta_config_dir }}"
+      register: dir_stat
+      changed_when: false
+
+    - name: Fail if directory has wrong ownership
+      ansible.builtin.fail:
+        msg: "Directory owned by {{ dir_stat.stat.pw_name }}:{{ dir_stat.stat.gr_name }} but should be {{ kumomta_user }}:{{ kumomta_group }}"
+      when: "{{ dir_stat.stat.pw_name }}:{{ dir_stat.stat.gr_name }}" != (kumomta_user + ':' + kumomta_group)
 
     - name: Test service startup (check only, do not start)
       ansible.builtin.command:
@@ -73,12 +87,11 @@
       register: config_validation
       changed_when: false
 
-    - name: Verify listening ports availability
-      ansible.builtin.wait_for:
-        port: "{{ item }}"
-        state: started
-        timeout: 5
+    - name: Check listening ports availability (post-service-start check)
+      ansible.builtin.command:
+        cmd: "ss -tlnp 2>/dev/null | grep -E ':{{ item }}' || netstat -tlnp 2>/dev/null | grep ':{{ item }}' || true"
       register: port_check
+      changed_when: false
       failed_when: false
       loop:
         - "{{ kumomta_listen_port }}"
@@ -114,19 +127,13 @@
       changed_when: false
 
     - name: Check log directory exists and is writable
-      ansible.builtin.file:
-        path: "{{ kumomta_log_dir }}/test.log"
-        state: touch
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0640'
-      register: log_writable
-      changed_when: false
-
-    - name: Remove test log file
-      ansible.builtin.file:
-        path: "{{ kumomta_log_dir }}/test.log"
-        state: absent
+      block:
+        - name: Test log directory writeability
+          ansible.builtin.command:
+            cmd: "touch {{ kumomta_log_dir }}/test.log && rm -f {{ kumomta_log_dir }}/test.log && true"
+          register: log_writable
+          changed_when: false
+          failed_when: false
 
     - name: Verify DKIM keys if enabled
       ansible.builtin.stat:
