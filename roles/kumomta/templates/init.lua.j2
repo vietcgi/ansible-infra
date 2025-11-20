@@ -61,10 +61,29 @@ kumo.on('queue_message_received', function(msg)
   -- Message will be delivered with configured queue settings
 end)
 
--- Configure queue delivery settings
+-- Define egress sources (sending IPs)
+kumo.on('get_egress_source', function(source_name)
+  return kumo.make_egress_source {
+    name = source_name,
+    ehlo_domain = '{{ kumomta_ehlo_domain | default("example.com") }}',
+  }
+end)
+
+-- Define egress pools for routing
+kumo.on('get_egress_pool', function(domain, tenant, campaign, owner)
+  return kumo.make_egress_pool {
+    name = 'default',
+    entries = {
+      { name = 'default-source' }
+    }
+  }
+end)
+
+-- Configure queue delivery settings with egress pool
 kumo.on('get_queue_config', function(domain, tenant, campaign, owner)
   return kumo.make_queue_config({
     max_age = '5m',
+    egress_pool = 'default'
   })
 end)
 
