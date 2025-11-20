@@ -49,6 +49,11 @@ kumo.on('init', function()
     log_dir = '{{ kumomta_log_dir }}',
     max_segment_duration = '10s',
   }
+
+  -- Define the default egress pool for message delivery
+  kumo.define_egress_pool {
+    name = 'default',
+  }
 end)
 
 -- Apply queue configuration when message is received
