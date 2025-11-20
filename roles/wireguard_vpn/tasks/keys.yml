@@ -7,7 +7,8 @@
       ansible.builtin.file:
         path: /etc/wireguard
         state: directory
-        mode: '0700'
+        mode: '0755'
+      become: true
 
     - name: Generate private key
       ansible.builtin.shell: |
@@ -36,6 +37,7 @@
         owner: root
         group: root
         mode: '0600'
+      become: true
       when: wireguard_generate_keys | default(true) | bool
 
     - name: Save public key to file
@@ -45,6 +47,7 @@
         owner: root
         group: root
         mode: '0644'
+      become: true
       when: wireguard_generate_keys | default(true) | bool
 
     - name: Display key generation status

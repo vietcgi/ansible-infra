@@ -22,6 +22,24 @@
         mode: '0600'
       notify: restart wireguard
 
+    - name: Configure Wireguard interface IP address
+      ansible.builtin.shell: |
+        # Get the VPN IP for this node
+        VPN_IP="{{ wireguard_full_mesh_nodes[inventory_hostname].vpn_ip }}/32"
+
+        # Create the interface
+        ip link add dev {{ wireguard_interface }} type wireguard || true
+
+        # Add the IP address
+        ip addr add ${VPN_IP} dev {{ wireguard_interface }} 2>/dev/null || true
+
+        # Bring the interface up
+        ip link set {{ wireguard_interface }} up
+      args:
+        executable: /bin/bash
+      become: true
+      changed_when: false
+
     - name: Enable Wireguard service
       ansible.builtin.systemd:
         name: "wg-quick@{{ wireguard_interface }}"
