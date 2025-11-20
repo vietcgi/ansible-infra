@@ -1,0 +1,38 @@
+---
+# KumoMTA Service Management
+
+- name: Create systemd service file
+  ansible.builtin.template:
+    src: kumomta.service.j2
+    dest: /etc/systemd/system/kumomta.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+
+- name: Create systemd socket file (submission)
+  ansible.builtin.template:
+    src: kumomta-submission.socket.j2
+    dest: /etc/systemd/system/kumomta-submission.socket
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable KumoMTA service
+  ansible.builtin.systemd:
+    name: kumomta.service
+    enabled: "{{ kumomta_service_enabled | bool }}"
+    state: "{{ kumomta_service_state }}"
+  when: kumomta_state == "present"
+
+- name: Enable KumoMTA submission socket
+  ansible.builtin.systemd:
+    name: kumomta-submission.socket
+    enabled: "{{ kumomta_service_enabled | bool }}"
+    state: started
+  when: kumomta_state == "present"

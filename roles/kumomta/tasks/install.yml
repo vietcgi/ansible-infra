@@ -1,0 +1,75 @@
+---
+# KumoMTA Installation Tasks
+
+- name: Install KumoMTA
+  block:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install KumoMTA dependencies (Debian)
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - build-essential
+          - libssl-dev
+          - pkg-config
+          - ca-certificates
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Download KumoMTA binary
+      ansible.builtin.get_url:
+        url: "https://github.com/kumocorp/kumomta/releases/download/{{ kumomta_version }}/kumomta-{{ kumomta_version }}-x86_64-linux"
+        dest: "/tmp/kumomta-{{ kumomta_version }}"
+        mode: '0755'
+        force: true
+      register: kumomta_download
+      retries: 3
+      delay: 10
+
+    - name: Verify downloaded binary
+      ansible.builtin.command:
+        cmd: "file /tmp/kumomta-{{ kumomta_version }}"
+      register: file_check
+      changed_when: false
+      failed_when: "'ELF' not in file_check.stdout"
+
+    - name: Install KumoMTA binary
+      ansible.builtin.copy:
+        src: "/tmp/kumomta-{{ kumomta_version }}"
+        dest: "{{ kumomta_home }}/kumomta"
+        owner: root
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        remote_src: true
+      notify: restart kumomta
+
+    - name: Create symbolic link
+      ansible.builtin.file:
+        src: "{{ kumomta_home }}/kumomta"
+        dest: /usr/local/bin/kumomta
+        state: link
+
+    - name: Verify KumoMTA installation
+      ansible.builtin.command:
+        cmd: "{{ kumomta_home }}/kumomta --version"
+      register: kumomta_version_check
+      changed_when: false
+
+    - name: Display installed version
+      ansible.builtin.debug:
+        msg: "{{ kumomta_version_check.stdout }}"
+
+    - name: Clean up download
+      ansible.builtin.file:
+        path: "/tmp/kumomta-{{ kumomta_version }}"
+        state: absent
+
+  rescue:
+    - name: Handle installation error
+      ansible.builtin.fail:
+        msg: "Failed to install KumoMTA: {{ ansible_failed_result.msg }}"

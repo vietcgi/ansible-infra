@@ -1,0 +1,69 @@
+---
+# KumoMTA Configuration Tasks
+
+- name: Configure KumoMTA
+  block:
+    - name: Template KumoMTA main configuration
+      ansible.builtin.template:
+        src: kumomta.conf.j2
+        dest: "{{ kumomta_config_dir }}/kumomta.conf"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Template KumoMTA Lua policy script
+      ansible.builtin.template:
+        src: policy.lua.j2
+        dest: "{{ kumomta_config_dir }}/policy.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Template KumoMTA queue configuration
+      ansible.builtin.template:
+        src: queue.lua.j2
+        dest: "{{ kumomta_config_dir }}/queue.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Create logging configuration
+      ansible.builtin.template:
+        src: logging.toml.j2
+        dest: "{{ kumomta_config_dir }}/logging.toml"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Set proper directory permissions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0700'
+        state: directory
+        recurse: true
+      loop:
+        - "{{ kumomta_config_dir }}"
+        - "{{ kumomta_queue_dir }}"
+        - "{{ kumomta_log_dir }}"
+
+    - name: Validate KumoMTA configuration syntax
+      ansible.builtin.command:
+        cmd: "{{ kumomta_home }}/kumomta --validate-config {{ kumomta_config_dir }}/kumomta.conf"
+      register: config_validation
+      changed_when: false
+      failed_when: config_validation.rc != 0
+
+    - name: Display configuration validation status
+      ansible.builtin.debug:
+        msg: "Configuration validation: OK"
+
+  rescue:
+    - name: Handle configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure KumoMTA: {{ ansible_failed_result.msg }}"

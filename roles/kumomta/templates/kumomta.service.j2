@@ -1,0 +1,40 @@
+[Unit]
+Description=KumoMTA Email Delivery Service
+Documentation=https://github.com/kumocorp/kumomta
+After=network.target
+
+[Service]
+Type=simple
+User={{ kumomta_user }}
+Group={{ kumomta_group }}
+WorkingDirectory={{ kumomta_home }}
+
+# Service startup
+ExecStart={{ kumomta_home }}/kumomta --config {{ kumomta_config_dir }}/kumomta.conf
+
+# Process management
+Restart=on-failure
+RestartSec=10s
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Security and isolation
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+ReadWritePaths={{ kumomta_queue_dir }} {{ kumomta_log_dir }} {{ kumomta_config_dir }}
+
+# Process tracking
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kumomta
+
+# Performance tuning
+CPUQuota={{ kumomta_cpu_quota }}
+MemoryLimit={{ kumomta_memory_limit }}
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+---
+# KumoMTA Service Handlers
+
+- name: restart kumomta
+  ansible.builtin.systemd:
+    name: kumomta.service
+    state: restarted
+  become: true
+
+- name: reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: restart rsyslog
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: restarted
+  become: true

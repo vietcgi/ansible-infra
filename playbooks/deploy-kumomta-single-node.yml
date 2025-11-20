@@ -1,0 +1,113 @@
+---
+# KumoMTA Single Node Deployment
+# Deploy KumoMTA on a single mail server
+
+- name: Deploy KumoMTA - Single Node
+  hosts: mail_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    # Installation
+    kumomta_enabled: true
+    kumomta_version: "1.1.2"
+
+    # Network
+    kumomta_hostname: "{{ inventory_hostname }}"
+    kumomta_listen_port: 25
+    kumomta_submit_port: 587
+    kumomta_tls_port: 465
+
+    # Security
+    kumomta_tls_enabled: true
+    kumomta_dkim_enabled: true
+
+    # Performance
+    kumomta_worker_threads: 4
+    kumomta_max_connections: 1000
+    kumomta_max_concurrent_connections_per_domain: 50
+
+    # Queue Management
+    kumomta_queue_strategy: "exponential_backoff"
+    kumomta_queue_retry_interval: 300
+    kumomta_queue_max_attempts: 20
+
+    # Monitoring
+    kumomta_monitoring_enabled: true
+    kumomta_metrics_enabled: true
+
+    # Bounce Handling
+    kumomta_bounce_handling_enabled: true
+    kumomta_fbl_enabled: true
+
+    # Backup
+    kumomta_backup_enabled: true
+    kumomta_backup_hour: 2
+    kumomta_backup_minute: 0
+
+    # Service
+    kumomta_service_enabled: true
+    kumomta_service_state: started
+
+  pre_tasks:
+    - name: Validate host connectivity
+      ansible.builtin.wait_for:
+        port: 22
+        state: started
+        timeout: 10
+      delegate_to: "{{ inventory_hostname }}"
+      run_once: false
+
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          Deploying KumoMTA Single Node
+          ===============================
+          Hostname: {{ kumomta_hostname }}
+          SMTP Port: {{ kumomta_listen_port }}
+          Submission Port: {{ kumomta_submit_port }}
+          TLS Port: {{ kumomta_tls_port }}
+          Metrics Port: {{ kumomta_metrics_port }}
+          TLS: {{ 'Enabled' if kumomta_tls_enabled else 'Disabled' }}
+          DKIM: {{ 'Enabled' if kumomta_dkim_enabled else 'Disabled' }}
+          Monitoring: {{ 'Enabled' if kumomta_monitoring_enabled else 'Disabled' }}
+
+  roles:
+    - kumomta
+
+  post_tasks:
+    - name: Wait for service to be fully started
+      ansible.builtin.wait_for:
+        port: "{{ kumomta_listen_port }}"
+        state: started
+        timeout: 30
+
+    - name: Verify service health
+      ansible.builtin.command:
+        cmd: "systemctl is-active kumomta.service"
+      register: service_status
+      changed_when: false
+      failed_when: service_status.rc != 0
+
+    - name: Display post-deployment status
+      ansible.builtin.debug:
+        msg: |
+          ✓ KumoMTA Single Node Deployment Complete
+          ===========================================
+
+          Service Status: {{ service_status.stdout }}
+          Configuration: Valid
+          Queue Directory: {{ kumomta_queue_dir }}
+          Log Directory: {{ kumomta_log_dir }}
+
+          Next Steps:
+          1. Monitor metrics at http://{{ inventory_hostname }}:{{ kumomta_metrics_port }}/metrics
+          2. Configure DNS records (SPF, DKIM, DMARC)
+          3. Set up firewall rules for SMTP ports
+          4. Configure monitoring/alerting
+          5. Test email delivery
+
+          Useful Commands:
+          - systemctl status kumomta.service
+          - journalctl -u kumomta.service -f
+          - {{ kumomta_home }}/kumomta --version

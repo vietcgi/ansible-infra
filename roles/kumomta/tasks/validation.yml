@@ -1,0 +1,175 @@
+---
+# KumoMTA Validation and Health Checks
+
+- name: Perform health checks
+  block:
+    - name: Verify KumoMTA binary is executable
+      ansible.builtin.command:
+        cmd: "{{ kumomta_home }}/kumomta --version"
+      register: kumomta_version_output
+      changed_when: false
+
+    - name: Verify configuration files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: config_files
+      loop:
+        - "{{ kumomta_config_dir }}/kumomta.conf"
+        - "{{ kumomta_config_dir }}/policy.lua"
+        - "{{ kumomta_config_dir }}/queue.lua"
+      failed_when: not item.stat.exists
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Verify TLS certificates exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: tls_files
+      loop:
+        - "{{ kumomta_tls_certificate }}"
+        - "{{ kumomta_tls_key }}"
+      when: kumomta_tls_enabled | bool
+      failed_when: not item.stat.exists
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Check configuration file permissions
+      ansible.builtin.command:
+        cmd: "stat -c '%a' {{ kumomta_config_dir }}/kumomta.conf"
+      register: config_perms
+      changed_when: false
+      failed_when: config_perms.stdout != '640'
+
+    - name: Check TLS key permissions (should be 600)
+      ansible.builtin.command:
+        cmd: "stat -c '%a' {{ kumomta_tls_key }}"
+      register: key_perms
+      changed_when: false
+      failed_when: key_perms.stdout != '600'
+      when: kumomta_tls_enabled | bool
+
+    - name: Verify directory ownership
+      ansible.builtin.command:
+        cmd: "stat -c '%U:%G' {{ kumomta_config_dir }}"
+      register: dir_owner
+      changed_when: false
+      failed_when: dir_owner.stdout != (kumomta_user + ':' + kumomta_group)
+
+    - name: Test service startup (check only, do not start)
+      ansible.builtin.command:
+        cmd: "{{ kumomta_home }}/kumomta --validate-config {{ kumomta_config_dir }}/kumomta.conf"
+      register: config_validation
+      changed_when: false
+
+    - name: Verify listening ports availability
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
+        state: started
+        timeout: 5
+      register: port_check
+      failed_when: false
+      loop:
+        - "{{ kumomta_listen_port }}"
+        - "{{ kumomta_submit_port }}"
+        - "{{ kumomta_tls_port }}"
+      loop_control:
+        label: "Port {{ item }}"
+
+    - name: Check systemd service status
+      ansible.builtin.systemd:
+        name: kumomta.service
+      register: service_status
+      changed_when: false
+
+    - name: Verify service is enabled
+      ansible.builtin.command:
+        cmd: "systemctl is-enabled kumomta.service"
+      register: service_enabled
+      changed_when: false
+      failed_when: service_enabled.rc != 0
+
+    - name: Verify socket activation is enabled
+      ansible.builtin.command:
+        cmd: "systemctl is-enabled kumomta-submission.socket"
+      register: socket_enabled
+      changed_when: false
+      failed_when: socket_enabled.rc != 0
+
+    - name: Check disk space for queue directory
+      ansible.builtin.command:
+        cmd: "df -h {{ kumomta_queue_dir }}"
+      register: disk_space
+      changed_when: false
+
+    - name: Check log directory exists and is writable
+      ansible.builtin.file:
+        path: "{{ kumomta_log_dir }}/test.log"
+        state: touch
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      register: log_writable
+      changed_when: false
+
+    - name: Remove test log file
+      ansible.builtin.file:
+        path: "{{ kumomta_log_dir }}/test.log"
+        state: absent
+
+    - name: Verify DKIM keys if enabled
+      ansible.builtin.stat:
+        path: "{{ kumomta_dkim_key }}"
+      register: dkim_key
+      when: kumomta_dkim_enabled | bool
+      failed_when: not dkim_key.stat.exists
+
+    - name: Check selinux context if applicable
+      ansible.builtin.command:
+        cmd: "getenforce"
+      register: selinux_status
+      changed_when: false
+      failed_when: false
+
+    - name: Create validation report
+      ansible.builtin.template:
+        src: validation-report.txt.j2
+        dest: "{{ kumomta_config_dir }}/validation-report.txt"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+
+    - name: Display validation report
+      ansible.builtin.debug:
+        msg: |
+          ================== KumoMTA Validation Report ==================
+
+          Binary Version: {{ kumomta_version_output.stdout }}
+          Configuration: Valid
+          Permissions: Correct (640 for configs, 600 for keys)
+          Ownership: {{ kumomta_user }}:{{ kumomta_group }}
+          Service Status: {{ service_status.status | default('unknown') }}
+          Socket Status: Enabled
+
+          Disk Space ({{ kumomta_queue_dir }}):
+          {{ disk_space.stdout }}
+
+          Ports Configuration:
+            - SMTP (25): {{ kumomta_listen_port }}
+            - Submission (587): {{ kumomta_submit_port }}
+            - TLS (465): {{ kumomta_tls_port }}
+            - Admin: {{ kumomta_admin_port }}
+            - Metrics: {{ kumomta_metrics_port }}
+
+          Features:
+            - TLS: {{ 'Enabled' if kumomta_tls_enabled else 'Disabled' }}
+            - DKIM: {{ 'Enabled' if kumomta_dkim_enabled else 'Disabled' }}
+            - Monitoring: {{ 'Enabled' if kumomta_monitoring_enabled else 'Disabled' }}
+            - Clustering: {{ 'Enabled' if kumomta_clustering_enabled else 'Disabled' }}
+            - Bounce Handling: {{ 'Enabled' if kumomta_bounce_handling_enabled else 'Disabled' }}
+
+          ============================================================
+
+  rescue:
+    - name: Handle validation error
+      ansible.builtin.fail:
+        msg: "Validation failed: {{ ansible_failed_result.msg }}"

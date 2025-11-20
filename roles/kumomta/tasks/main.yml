@@ -1,0 +1,101 @@
+---
+# KumoMTA Email Delivery - Main Tasks
+
+- name: KumoMTA Email Delivery Setup
+  block:
+    - name: Validate KumoMTA configuration
+      ansible.builtin.assert:
+        that:
+          - kumomta_enabled | bool
+          - kumomta_listen_port | int > 0
+          - kumomta_listen_port | int < 65536
+          - kumomta_user | length > 0
+          - kumomta_config_dir | length > 0
+        fail_msg: "KumoMTA configuration validation failed"
+
+    - name: Create KumoMTA system group
+      ansible.builtin.group:
+        name: "{{ kumomta_group }}"
+        state: present
+
+    - name: Create KumoMTA system user
+      ansible.builtin.user:
+        name: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        home: "{{ kumomta_home }}"
+        shell: /usr/sbin/nologin
+        state: present
+        system: true
+
+    - name: Install KumoMTA dependencies
+      ansible.builtin.include_tasks: install.yml
+
+    - name: Create KumoMTA directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+      loop:
+        - "{{ kumomta_config_dir }}"
+        - "{{ kumomta_config_dir }}/certs"
+        - "{{ kumomta_config_dir }}/dkim"
+        - "{{ kumomta_queue_dir }}"
+        - "{{ kumomta_log_dir }}"
+      become: true
+
+    - name: Generate self-signed certificates if needed
+      ansible.builtin.include_tasks: certificates.yml
+      when: kumomta_tls_enabled | bool
+
+    - name: Configure KumoMTA
+      ansible.builtin.include_tasks: configure.yml
+
+    - name: Set up service management
+      ansible.builtin.include_tasks: service.yml
+
+    - name: Configure monitoring and observability
+      ansible.builtin.include_tasks: monitoring.yml
+      when: kumomta_monitoring_enabled | bool
+
+    - name: Set up bounce and FBL handling
+      ansible.builtin.include_tasks: bounce_handling.yml
+      when: kumomta_bounce_handling_enabled | bool
+
+    - name: Configure clustering
+      ansible.builtin.include_tasks: clustering.yml
+      when: kumomta_clustering_enabled | bool
+
+    - name: Set up backup and retention
+      ansible.builtin.include_tasks: backup.yml
+      when: kumomta_backup_enabled | bool
+
+    - name: Perform health checks
+      ansible.builtin.include_tasks: validation.yml
+
+    - name: Display deployment status
+      ansible.builtin.debug:
+        msg: |
+          KumoMTA Email Delivery Setup Complete
+          =====================================
+          Hostname: {{ kumomta_hostname }}
+          Listen Port: {{ kumomta_listen_port }}
+          SMTP Port: {{ kumomta_submit_port }}
+          TLS Port: {{ kumomta_tls_port }}
+          Admin Port: {{ kumomta_admin_port }}
+          Metrics Port: {{ kumomta_metrics_port }}
+          Max Connections: {{ kumomta_max_connections }}
+          Queue Size: {{ kumomta_max_queue_size | filesizeformat }}
+          TLS: {{ 'enabled' if kumomta_tls_enabled else 'disabled' }}
+          Monitoring: {{ 'enabled' if kumomta_monitoring_enabled else 'disabled' }}
+          Status: Ready
+
+  rescue:
+    - name: Display setup error
+      ansible.builtin.debug:
+        msg: "KumoMTA setup failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail with details
+      ansible.builtin.fail:
+        msg: "KumoMTA setup encountered an error. Check logs above."

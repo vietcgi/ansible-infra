@@ -1,0 +1,14 @@
+[Unit]
+Description=KumoMTA Submission Socket
+Documentation=https://github.com/kumocorp/kumomta
+Requires=kumomta.service
+After=kumomta.service
+
+[Socket]
+ListenStream=0.0.0.0:{{ kumomta_submit_port }}
+Accept=true
+NoDelay=true
+MaxConnections={{ kumomta_submission_max_connections }}
+
+[Install]
+WantedBy=sockets.target

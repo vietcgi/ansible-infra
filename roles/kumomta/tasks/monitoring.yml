@@ -1,0 +1,85 @@
+---
+# KumoMTA Monitoring and Observability Configuration
+
+- name: Configure Prometheus metrics export
+  block:
+    - name: Create Prometheus configuration directory
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}/metrics"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Create Prometheus scrape configuration
+      ansible.builtin.copy:
+        dest: "{{ kumomta_config_dir }}/metrics/prometheus.yml"
+        content: |
+          global:
+            scrape_interval: {{ kumomta_metrics_scrape_interval }}
+            evaluation_interval: {{ kumomta_metrics_evaluation_interval }}
+
+          scrape_configs:
+            - job_name: 'kumomta'
+              static_configs:
+                - targets: ['localhost:{{ kumomta_metrics_port }}']
+              scrape_interval: {{ kumomta_metrics_scrape_interval }}
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Template Grafana dashboard configuration
+      ansible.builtin.template:
+        src: kumomta-grafana-dashboard.json.j2
+        dest: "{{ kumomta_config_dir }}/metrics/kumomta-dashboard.json"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      when: kumomta_grafana_enabled | bool
+
+    - name: Configure syslog logging
+      ansible.builtin.template:
+        src: rsyslog-kumomta.conf.j2
+        dest: /etc/rsyslog.d/30-kumomta.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart rsyslog
+      when: kumomta_syslog_enabled | bool
+
+    - name: Set up log rotation
+      ansible.builtin.template:
+        src: kumomta-logrotate.j2
+        dest: /etc/logrotate.d/kumomta
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create metrics alerts configuration
+      ansible.builtin.template:
+        src: kumomta-alerts.yml.j2
+        dest: "{{ kumomta_config_dir }}/metrics/kumomta-alerts.yml"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      when: kumomta_alerts_enabled | bool
+
+    - name: Export KumoMTA metrics for collection
+      ansible.builtin.blockinfile:
+        path: "{{ kumomta_config_dir }}/kumomta.conf"
+        marker: "# {mark} MONITORING CONFIGURATION"
+        block: |
+          # Metrics Configuration
+          metrics_address = "0.0.0.0:{{ kumomta_metrics_port }}"
+          metrics_histograms_enabled = {{ kumomta_metrics_histograms | lower }}
+
+          # Logging Configuration
+          log_level = "{{ kumomta_log_level }}"
+          log_format = "{{ kumomta_log_format }}"
+      notify: restart kumomta
+
+  rescue:
+    - name: Handle monitoring configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure monitoring: {{ ansible_failed_result.msg }}"

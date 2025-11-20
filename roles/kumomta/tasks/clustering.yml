@@ -1,0 +1,110 @@
+---
+# KumoMTA Clustering Configuration
+
+- name: Configure KumoMTA clustering
+  block:
+    - name: Validate cluster configuration
+      ansible.builtin.assert:
+        that:
+          - kumomta_cluster_peers | length > 0
+          - kumomta_cluster_consensus_port | int > 0
+          - kumomta_cluster_data_port | int > 0
+        fail_msg: "Cluster configuration is incomplete"
+
+    - name: Create cluster configuration
+      ansible.builtin.template:
+        src: cluster-config.lua.j2
+        dest: "{{ kumomta_config_dir }}/cluster-config.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Set up peer discovery
+      ansible.builtin.template:
+        src: peer-discovery.lua.j2
+        dest: "{{ kumomta_config_dir }}/peer-discovery.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Configure cluster consensus protocol
+      ansible.builtin.template:
+        src: consensus-config.lua.j2
+        dest: "{{ kumomta_config_dir }}/consensus-config.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Create cluster health check script
+      ansible.builtin.template:
+        src: cluster-health-check.sh.j2
+        dest: "{{ kumomta_config_dir }}/cluster-health-check.sh"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+
+    - name: Configure cluster metrics aggregation
+      ansible.builtin.template:
+        src: cluster-metrics.lua.j2
+        dest: "{{ kumomta_config_dir }}/cluster-metrics.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Set up queue distribution policy
+      ansible.builtin.template:
+        src: queue-distribution.lua.j2
+        dest: "{{ kumomta_config_dir }}/queue-distribution.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Configure load balancing
+      ansible.builtin.template:
+        src: load-balancing.lua.j2
+        dest: "{{ kumomta_config_dir }}/load-balancing.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Create cluster join script
+      ansible.builtin.template:
+        src: cluster-join.sh.j2
+        dest: "{{ kumomta_config_dir }}/cluster-join.sh"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+
+    - name: Set up firewall rules for cluster communication
+      block:
+        - name: Allow cluster consensus port
+          ansible.builtin.ufw:
+            rule: allow
+            port: "{{ kumomta_cluster_consensus_port }}"
+            proto: tcp
+            direction: in
+          when: kumomta_cluster_ufw_enabled | bool
+
+        - name: Allow cluster data port
+          ansible.builtin.ufw:
+            rule: allow
+            port: "{{ kumomta_cluster_data_port }}"
+            proto: tcp
+            direction: in
+          when: kumomta_cluster_ufw_enabled | bool
+
+      rescue:
+        - name: Log UFW configuration warning
+          ansible.builtin.debug:
+            msg: "UFW not available or not enabled; manual firewall configuration may be required"
+
+  rescue:
+    - name: Handle clustering configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure clustering: {{ ansible_failed_result.msg }}"

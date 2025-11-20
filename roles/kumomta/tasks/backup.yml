@@ -1,0 +1,122 @@
+---
+# KumoMTA Backup and Retention Configuration
+
+- name: Configure backup and retention
+  block:
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: "{{ kumomta_backup_dir }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Create backup script
+      ansible.builtin.template:
+        src: kumomta-backup.sh.j2
+        dest: "{{ kumomta_backup_dir }}/backup.sh"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create restore script
+      ansible.builtin.template:
+        src: kumomta-restore.sh.j2
+        dest: "{{ kumomta_backup_dir }}/restore.sh"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Schedule backup via cron
+      ansible.builtin.cron:
+        name: "KumoMTA backup"
+        user: root
+        hour: "{{ kumomta_backup_hour }}"
+        minute: "{{ kumomta_backup_minute }}"
+        job: "{{ kumomta_backup_dir }}/backup.sh > /var/log/kumomta-backup.log 2>&1"
+        state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
+
+    - name: Configure backup retention policy
+      ansible.builtin.template:
+        src: backup-retention.lua.j2
+        dest: "{{ kumomta_config_dir }}/backup-retention.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+
+    - name: Set up incremental backup support
+      ansible.builtin.file:
+        path: "{{ kumomta_backup_dir }}/incremental"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Configure backup compression
+      ansible.builtin.template:
+        src: backup-compression.lua.j2
+        dest: "{{ kumomta_config_dir }}/backup-compression.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+
+    - name: Create backup verification script
+      ansible.builtin.template:
+        src: backup-verify.sh.j2
+        dest: "{{ kumomta_backup_dir }}/verify.sh"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Configure remote backup target
+      block:
+        - name: Test remote backup connectivity
+          ansible.builtin.command:
+            cmd: "ping -c 1 {{ kumomta_remote_backup_host }}"
+          changed_when: false
+          when: kumomta_remote_backup_enabled | bool
+
+        - name: Create remote backup configuration
+          ansible.builtin.template:
+            src: remote-backup-config.lua.j2
+            dest: "{{ kumomta_config_dir }}/remote-backup-config.lua"
+            owner: "{{ kumomta_user }}"
+            group: "{{ kumomta_group }}"
+            mode: '0640'
+          when: kumomta_remote_backup_enabled | bool
+
+      rescue:
+        - name: Log remote backup configuration warning
+          ansible.builtin.debug:
+            msg: "Remote backup target not reachable; local backup only"
+
+    - name: Schedule backup verification
+      ansible.builtin.cron:
+        name: "KumoMTA backup verification"
+        user: root
+        hour: "{{ kumomta_backup_verify_hour }}"
+        minute: "{{ kumomta_backup_verify_minute }}"
+        job: "{{ kumomta_backup_dir }}/verify.sh > /var/log/kumomta-backup-verify.log 2>&1"
+        state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
+
+    - name: Configure retention policy for queue data
+      ansible.builtin.template:
+        src: queue-retention.lua.j2
+        dest: "{{ kumomta_config_dir }}/queue-retention.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Set up archived logs directory
+      ansible.builtin.file:
+        path: "{{ kumomta_log_dir }}/archived"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+  rescue:
+    - name: Handle backup configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure backup: {{ ansible_failed_result.msg }}"

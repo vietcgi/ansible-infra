@@ -1,0 +1,13 @@
+{{ kumomta_log_dir }}/*.log {
+    daily
+    missingok
+    rotate {{ kumomta_log_retention_days }}
+    compress
+    delaycompress
+    notifempty
+    create 0640 {{ kumomta_user }} {{ kumomta_group }}
+    sharedscripts
+    postrotate
+        systemctl reload kumomta.service > /dev/null 2>&1 || true
+    endscript
+}

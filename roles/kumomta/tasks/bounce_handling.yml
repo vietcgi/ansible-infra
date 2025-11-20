@@ -1,0 +1,97 @@
+---
+# KumoMTA Bounce and Feedback Loop (FBL) Handling
+
+- name: Configure bounce handling
+  block:
+    - name: Create bounce directory
+      ansible.builtin.file:
+        path: "{{ kumomta_bounce_dir }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Template bounce policy configuration
+      ansible.builtin.template:
+        src: bounce-policy.lua.j2
+        dest: "{{ kumomta_config_dir }}/bounce-policy.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Create bounce handler script
+      ansible.builtin.template:
+        src: bounce-handler.sh.j2
+        dest: "{{ kumomta_bounce_dir }}/handler.sh"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+
+    - name: Configure permanent failure (5xx) handling
+      ansible.builtin.template:
+        src: permanent-failure-policy.lua.j2
+        dest: "{{ kumomta_config_dir }}/permanent-failure-policy.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Configure transient failure (4xx) handling
+      ansible.builtin.template:
+        src: transient-failure-policy.lua.j2
+        dest: "{{ kumomta_config_dir }}/transient-failure-policy.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+  rescue:
+    - name: Handle bounce configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure bounce handling: {{ ansible_failed_result.msg }}"
+
+- name: Configure feedback loop (FBL) handling
+  block:
+    - name: Create FBL directory
+      ansible.builtin.file:
+        path: "{{ kumomta_fbl_dir }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+      when: kumomta_fbl_enabled | bool
+
+    - name: Template FBL processor script
+      ansible.builtin.template:
+        src: fbl-processor.lua.j2
+        dest: "{{ kumomta_config_dir }}/fbl-processor.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+      when: kumomta_fbl_enabled | bool
+
+    - name: Create FBL suppression list
+      ansible.builtin.file:
+        path: "{{ kumomta_fbl_suppression_list }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+        state: touch
+      changed_when: false
+
+    - name: Configure FBL reporting
+      ansible.builtin.template:
+        src: fbl-reporting.lua.j2
+        dest: "{{ kumomta_config_dir }}/fbl-reporting.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+      when: kumomta_fbl_reporting_enabled | bool
+
+  rescue:
+    - name: Handle FBL configuration error
+      ansible.builtin.fail:
+        msg: "Failed to configure FBL handling: {{ ansible_failed_result.msg }}"

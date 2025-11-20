@@ -1,0 +1,156 @@
+---
+# KumoMTA Cluster Deployment
+# Deploy KumoMTA in a high-availability cluster configuration
+
+- name: Deploy KumoMTA - Cluster
+  hosts: kumomta_cluster
+  become: true
+  gather_facts: true
+
+  vars:
+    # Installation
+    kumomta_enabled: true
+    kumomta_version: "1.1.2"
+
+    # Network
+    kumomta_hostname: "{{ inventory_hostname }}"
+    kumomta_listen_port: 25
+    kumomta_submit_port: 587
+    kumomta_tls_port: 465
+
+    # Security
+    kumomta_tls_enabled: true
+    kumomta_dkim_enabled: true
+
+    # Performance - Higher for cluster
+    kumomta_worker_threads: 8
+    kumomta_max_connections: 5000
+    kumomta_max_concurrent_connections_per_domain: 200
+
+    # Queue Management
+    kumomta_queue_strategy: "aggressive_retries"
+    kumomta_queue_retry_interval: 300
+    kumomta_queue_max_attempts: 20
+
+    # Clustering
+    kumomta_clustering_enabled: true
+    kumomta_cluster_consensus_port: 9100
+    kumomta_cluster_data_port: 9101
+
+    # Monitoring
+    kumomta_monitoring_enabled: true
+    kumomta_metrics_enabled: true
+    kumomta_grafana_enabled: true
+
+    # Bounce Handling
+    kumomta_bounce_handling_enabled: true
+    kumomta_fbl_enabled: true
+
+    # Backup
+    kumomta_backup_enabled: true
+    kumomta_backup_hour: 2
+    kumomta_backup_minute: 0
+    kumomta_remote_backup_enabled: true
+
+    # Service
+    kumomta_service_enabled: true
+    kumomta_service_state: started
+    kumomta_memory_limit: "4G"
+
+  pre_tasks:
+    - name: Validate cluster peers configuration
+      ansible.builtin.assert:
+        that:
+          - kumomta_cluster_peers is defined
+          - kumomta_cluster_peers | length >= 2
+        fail_msg: "Cluster requires at least 2 peers defined in kumomta_cluster_peers"
+
+    - name: Display cluster deployment information
+      ansible.builtin.debug:
+        msg: |
+          Deploying KumoMTA Cluster
+          ==========================
+          Cluster Peers: {{ kumomta_cluster_peers | join(', ') }}
+          Consensus Port: {{ kumomta_cluster_consensus_port }}
+          Data Port: {{ kumomta_cluster_data_port }}
+          Worker Threads: {{ kumomta_worker_threads }}
+          Max Connections: {{ kumomta_max_connections }}
+          Memory Limit: {{ kumomta_memory_limit }}
+
+  roles:
+    - kumomta
+
+  post_tasks:
+    - name: Wait for service startup
+      ansible.builtin.wait_for:
+        port: "{{ kumomta_listen_port }}"
+        state: started
+        timeout: 30
+
+    - name: Verify cluster connectivity
+      block:
+        - name: Check cluster consensus port
+          ansible.builtin.wait_for:
+            port: "{{ kumomta_cluster_consensus_port }}"
+            state: started
+            timeout: 10
+
+        - name: Check cluster data port
+          ansible.builtin.wait_for:
+            port: "{{ kumomta_cluster_data_port }}"
+            state: started
+            timeout: 10
+
+      rescue:
+        - name: Log cluster connectivity warning
+          ansible.builtin.debug:
+            msg: "Cluster ports may not be fully accessible; check firewall rules"
+
+    - name: Verify service status
+      ansible.builtin.systemd:
+        name: kumomta.service
+      register: service_status
+
+    - name: Display post-deployment status
+      ansible.builtin.debug:
+        msg: |
+          ✓ KumoMTA Cluster Node Deployed
+          ================================
+
+          Hostname: {{ inventory_hostname }}
+          Service Status: {{ service_status.status.ActiveState | default('unknown') }}
+
+          Ports:
+          - SMTP: {{ kumomta_listen_port }}
+          - Submission: {{ kumomta_submit_port }}
+          - TLS: {{ kumomta_tls_port }}
+          - Cluster Consensus: {{ kumomta_cluster_consensus_port }}
+          - Cluster Data: {{ kumomta_cluster_data_port }}
+          - Metrics: {{ kumomta_metrics_port }}
+
+          Next Steps:
+          1. Verify all cluster nodes are online
+          2. Check cluster health: http://{{ inventory_hostname }}:{{ kumomta_admin_port }}/cluster
+          3. Configure load balancer for SMTP traffic
+          4. Set up Prometheus to scrape metrics from all nodes
+          5. Configure Grafana dashboards for cluster monitoring
+
+- name: Verify Cluster Health
+  hosts: "{{ groups['kumomta_cluster'][0] }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Get cluster status
+      ansible.builtin.command:
+        cmd: "curl -s http://localhost:{{ kumomta_admin_port }}/cluster/status || echo 'Cluster API not yet available'"
+      register: cluster_status
+      changed_when: false
+
+    - name: Display cluster health
+      ansible.builtin.debug:
+        msg: |
+          Cluster Status:
+          {{ cluster_status.stdout }}
+
+  run_once: true

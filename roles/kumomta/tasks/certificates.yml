@@ -1,0 +1,63 @@
+---
+# KumoMTA TLS Certificate Management
+
+- name: Generate TLS certificates
+  block:
+    - name: Check if certificate exists
+      ansible.builtin.stat:
+        path: "{{ kumomta_tls_certificate }}"
+      register: cert_stat
+
+    - name: Generate private key
+      ansible.builtin.command:
+        cmd: "openssl genrsa -out {{ kumomta_tls_key }} 2048"
+      when: not cert_stat.stat.exists
+      become: true
+
+    - name: Generate self-signed certificate
+      ansible.builtin.command:
+        cmd: |
+          openssl req -new -x509 -key {{ kumomta_tls_key }} \
+          -out {{ kumomta_tls_certificate }} \
+          -days 365 \
+          -subj "/C=US/ST=State/L=City/O=Organization/CN={{ kumomta_hostname }}"
+      when: not cert_stat.stat.exists
+      become: true
+
+    - name: Set certificate permissions
+      ansible.builtin.file:
+        path: "{{ kumomta_tls_certificate }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0644'
+        state: file
+
+    - name: Set key permissions
+      ansible.builtin.file:
+        path: "{{ kumomta_tls_key }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0600'
+        state: file
+
+    - name: Generate DKIM private key
+      ansible.builtin.command:
+        cmd: "openssl genrsa -out {{ kumomta_dkim_key }} 2048"
+      args:
+        creates: "{{ kumomta_dkim_key }}"
+      become: true
+      when: kumomta_dkim_enabled | bool
+
+    - name: Set DKIM key permissions
+      ansible.builtin.file:
+        path: "{{ kumomta_dkim_key }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0600'
+        state: file
+      when: kumomta_dkim_enabled | bool
+
+  rescue:
+    - name: Handle certificate generation error
+      ansible.builtin.fail:
+        msg: "Failed to generate certificates: {{ ansible_failed_result.msg }}"

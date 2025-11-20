@@ -1,0 +1,114 @@
+---
+# KumoMTA Email Delivery - Default Variables
+
+# Installation
+kumomta_enabled: true
+kumomta_version: "0.1.0"  # Latest version
+kumomta_install_method: "binary"  # binary or source
+kumomta_user: "kumomta"
+kumomta_group: "kumomta"
+kumomta_home: "/opt/kumomta"
+kumomta_config_dir: "/etc/kumomta"
+kumomta_queue_dir: "/var/spool/kumomta"
+kumomta_log_dir: "/var/log/kumomta"
+kumomta_state: "present"
+
+# Service Configuration
+kumomta_service_enabled: true
+kumomta_service_state: "started"
+kumomta_service_restart_policy: "on-failure"
+
+# Core SMTP Configuration
+kumomta_listen_port: 25
+kumomta_submit_port: 587
+kumomta_tls_port: 465
+kumomta_admin_port: 8008
+kumomta_metrics_port: 9184
+
+kumomta_hostname: "{{ ansible_fqdn }}"
+kumomta_domain: "{{ ansible_domain | default('example.com') }}"
+kumomta_max_connections: 1000
+kumomta_max_queue_size: 50000000  # 50GB
+
+# Queue Management
+kumomta_queue_strategy: "fs"  # filesystem based
+kumomta_queue_retry_interval: 300  # 5 minutes
+kumomta_queue_max_attempts: 72  # 3 days with backoff
+kumomta_queue_expiration: 259200  # 3 days
+
+# Performance Tuning
+kumomta_worker_threads: "{{ ansible_processor_vcpus | default(4) }}"
+kumomta_max_concurrent_connections_per_domain: 20
+kumomta_connection_timeout: 300
+kumomta_io_timeout: 300
+kumomta_max_message_size: 104857600  # 100MB
+
+# TLS/Security
+kumomta_tls_enabled: true
+kumomta_tls_certificate: "{{ kumomta_config_dir }}/certs/kumomta.crt"
+kumomta_tls_key: "{{ kumomta_config_dir }}/certs/kumomta.key"
+kumomta_tls_mode: "opportunistic"  # opportunistic or require
+kumomta_dkim_enabled: true
+kumomta_dkim_selector: "default"
+kumomta_dkim_key: "{{ kumomta_config_dir }}/dkim/default.key"
+
+# Authentication
+kumomta_auth_enabled: true
+kumomta_auth_mechanism: "plain"  # plain or login
+kumomta_require_auth: false  # Require for relay
+kumomta_allowed_relayers: []  # IP addresses allowed to relay
+
+# Monitoring & Observability
+kumomta_monitoring_enabled: true
+kumomta_prometheus_enabled: true
+kumomta_prometheus_metrics_port: 9184
+kumomta_logging_level: "info"  # debug, info, warn, error
+kumomta_logging_format: "json"  # json or text
+kumomta_syslog_enabled: true
+kumomta_syslog_server: "{{ hostvars.get('syslog_server', 'localhost') }}"
+kumomta_syslog_port: 514
+
+# Bounce & FBL (Feedback Loop) Handling
+kumomta_bounce_handling_enabled: true
+kumomta_bounce_email: "postmaster@{{ kumomta_domain }}"
+kumomta_fbl_enabled: true
+kumomta_fbl_database: "{{ kumomta_queue_dir }}/fbl.db"
+
+# IPv6
+kumomta_ipv6_enabled: false
+kumomta_ipv4_only: true
+
+# Clustering
+kumomta_clustering_enabled: false
+kumomta_cluster_peers: []  # List of cluster peers
+kumomta_cluster_heartbeat_interval: 5
+kumomta_cluster_heartbeat_timeout: 15
+
+# Policies & Rules
+kumomta_rate_limiting_enabled: true
+kumomta_rate_limit_per_hour: 1000000  # 1M per hour
+kumomta_rate_limit_per_minute: 100000  # 100K per minute
+kumomta_rate_limit_per_second: 5000    # 5K per second
+
+# List Management
+kumomta_list_management_enabled: true
+kumomta_list_unsubscribe_header: true
+kumomta_list_unsubscribe_post: true
+
+# Integration
+kumomta_webhook_enabled: true
+kumomta_webhook_port: 8010
+kumomta_webhook_verify_ssl: true
+
+# Database (for metrics/statistics)
+kumomta_metrics_database: "{{ kumomta_queue_dir }}/metrics.db"
+kumomta_metrics_retention_days: 90
+
+# Backup
+kumomta_backup_enabled: true
+kumomta_backup_dir: "/backups/kumomta"
+kumomta_backup_schedule: "0 2 * * *"  # 2 AM daily
+
+# Template variables for Lua configuration
+kumomta_lua_modules: []  # Custom Lua modules to load
+kumomta_lua_startup_script: ""  # Inline Lua startup code
