@@ -77,6 +77,37 @@ kumo.define_listener {
 }
 {% endif %}
 
+-- CRITICAL: Accept and queue messages from SMTP
+-- Without this handler, messages won't be queued
+kumo.on('smtp_server_message_received', function(msg)
+    msg:set_drop_queue('default')
+    kumo.continue()
+end)
+
+-- CRITICAL: Configure queue behavior
+-- Without this handler, messages won't be delivered
+kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+    return kumo.make_queue_config {
+        -- Message aging and retry strategy
+        max_age = '7 days',
+        retry_interval = '5 minutes',
+        max_retry_interval = '20 minutes',
+        egress_pool = 'default',
+    }
+end)
+
+-- CRITICAL: Configure message routing
+-- Without this handler, messages won't know where to go
+kumo.on('get_routes', function(domain)
+    return kumo.make_routing_domain(domain)
+end)
+
+-- CRITICAL: Enable automatic delivery scheduling
+-- Without this handler, queued messages will never be delivered
+kumo.on('get_scheduled_event', function(meta)
+    return kumo.make_scheduled_event(0)
+end)
+
 -- Load policy script if it exists
 if kumo.file_exists("{{ kumomta_config_dir }}/policy.lua") then
     dofile("{{ kumomta_config_dir }}/policy.lua")
