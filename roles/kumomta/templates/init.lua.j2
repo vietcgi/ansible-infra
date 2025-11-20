@@ -52,10 +52,10 @@ kumo.on('init', function()
 end)
 
 -- Apply queue configuration when message is received
+-- Messages are implicitly accepted when handler completes
 kumo.on('smtp_server_message_received', function(msg)
   queue_helper:apply(msg)
-  -- Accept the message for delivery
-  msg:accept()
+  -- Message is automatically accepted (no rejection)
 end)
 
 -- Define queue configuration (retry intervals, max age, egress pool assignment)
