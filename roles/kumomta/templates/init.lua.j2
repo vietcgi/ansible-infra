@@ -63,16 +63,12 @@ end)
 
 -- Configure queue delivery settings
 kumo.on('get_queue_config', function(domain, tenant, campaign, owner)
-  local config = kumo.make_queue_config({
+  return kumo.make_queue_config({
     max_age = '5m',
-    max_retry_interval = '5m',
   })
-  config:set_max_rate('100/s')
-  return config
 end)
 
 -- Log bounce messages
 kumo.on('bounce', function(msg)
   kumo.log(kumo.LOG_INFO, 'bounce: ' .. msg.bounce_reason)
-  -- Bounce has been logged, message handling continues
 end)
