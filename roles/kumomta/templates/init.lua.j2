@@ -65,7 +65,7 @@ end)
 
 -- Define queue configuration (retry intervals, max age, egress pool assignment)
 -- This is CRITICAL for message delivery - without this, messages won't be routed
--- Note: get_egress_pool handler is already defined by policy-extras.sources module
+-- Note: get_egress_pool handler is provided by policy-extras.sources module
 kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     -- Message aging and retry strategy
@@ -80,10 +80,6 @@ end)
 
 -- Enable automatic message delivery attempt scheduling
 -- Without this, queued messages will never be delivered
-kumo.on('get_egress_pool', function(msg, egress_source)
-  return { name = 'default' }
-end)
-
 kumo.on('get_scheduled_event', function(meta)
   -- Return immediately to attempt delivery
   return kumo.make_scheduled_event(0)
