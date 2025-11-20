@@ -18,6 +18,19 @@
       when: ansible_os_family == "Debian"
       become: true
 
+    - name: Create KumoMTA directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: kumomta
+        group: kumomta
+        mode: '0755'
+      become: true
+      loop:
+        - "{{ kumomta_config_dir }}"
+        - "{{ kumomta_queue_dir }}"
+        - "{{ kumomta_log_dir }}"
+
     - name: Get KumoMTA .deb download URL from GitHub API
       ansible.builtin.uri:
         url: "https://api.github.com/repos/kumocorp/kumomta/releases/tags/{{ kumomta_version }}"
