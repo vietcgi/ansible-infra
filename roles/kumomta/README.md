@@ -267,6 +267,119 @@ Manually trigger backup:
 /var/backups/kumomta/backup.sh
 ```
 
+## Clustering Operations
+
+### Setting Up a Cluster
+
+1. Configure cluster peers on all nodes:
+```yaml
+kumomta_clustering_enabled: true
+kumomta_cluster_peers:
+  - "mail1.example.com:9100"
+  - "mail2.example.com:9100"
+  - "mail3.example.com:9100"
+```
+
+2. Ensure cluster ports are open between nodes:
+```bash
+# Open ports 9100 (consensus) and 9101 (data) for inter-node communication
+firewall-cmd --add-port=9100/tcp --permanent
+firewall-cmd --add-port=9101/tcp --permanent
+```
+
+3. Run cluster join script:
+```bash
+/etc/kumomta/cluster-join.sh
+```
+
+### Troubleshooting Cluster Issues
+
+Check peer connectivity:
+```bash
+/etc/kumomta/cluster-health-check.sh
+```
+
+Monitor cluster status:
+```bash
+curl -s http://localhost:8008/api/cluster/status | jq
+```
+
+### Handling Cluster Node Failures
+
+If a node goes down:
+1. Fix the issue on the failed node
+2. Restart KumoMTA: `systemctl restart kumomta`
+3. Cluster will automatically resync from healthy peers
+4. Monitor progress: `tail -f /var/log/kumomta/cluster.log`
+
+## Backup and Recovery
+
+### Automated Backups
+
+Backups run automatically via cron. To verify:
+```bash
+ls -lh /var/backups/kumomta/backup-*.tar.gz
+```
+
+### Manual Backup
+
+```bash
+/var/backups/kumomta/kumomta-backup.sh
+```
+
+### Restore from Backup
+
+```bash
+# Stop the service
+systemctl stop kumomta.service
+
+# Restore from backup
+/var/backups/kumomta/kumomta-restore.sh /var/backups/kumomta/backup-20231201-020000.tar.gz
+
+# Restart the service
+systemctl start kumomta.service
+
+# Verify restoration
+systemctl status kumomta.service
+```
+
+### Remote Backups
+
+Enable remote backups in variables:
+```yaml
+kumomta_remote_backup_enabled: true
+kumomta_remote_backup_host: "backup.example.com"
+kumomta_remote_backup_port: 22
+kumomta_remote_backup_protocol: "sftp"
+kumomta_remote_backup_path: "/backups/kumomta"
+```
+
+## Certificate Renewal
+
+### Self-Signed Certificates
+
+Renewal happens automatically before expiration. To force renewal:
+```bash
+ansible-playbook playbooks/kumomta-renew-certs.yml
+```
+
+### Using Custom Certificates
+
+1. Place your certificate and key files in:
+   - Certificate: `/etc/kumomta/certs/kumomta.crt`
+   - Key: `/etc/kumomta/certs/kumomta.key`
+
+2. Update variables:
+```yaml
+kumomta_tls_certificate: "/etc/kumomta/certs/kumomta.crt"
+kumomta_tls_key: "/etc/kumomta/certs/kumomta.key"
+```
+
+3. Reload configuration:
+```bash
+systemctl reload kumomta.service
+```
+
 ## Troubleshooting
 
 ### Service fails to start
@@ -279,6 +392,11 @@ Check configuration:
 Check logs:
 ```bash
 journalctl -u kumomta.service -n 50
+```
+
+Check for port conflicts:
+```bash
+ss -tlnp | grep -E ":(25|587|465|8008|9184)"
 ```
 
 ### High CPU Usage

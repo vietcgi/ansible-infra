@@ -14,7 +14,8 @@ max_message_size = {{ kumomta_max_message_size }}
 
 [listener.submission]
 listen_address = "0.0.0.0:{{ kumomta_submit_port }}"
-require_auth = true
+require_auth = {{ 'true' if kumomta_require_auth else 'false' }}
+tls_mode = "{{ kumomta_tls_mode }}"
 concurrency = {{ kumomta_submission_max_connections }}
 max_message_size = {{ kumomta_max_message_size }}
 
@@ -45,12 +46,38 @@ max_size = {{ kumomta_max_queue_size }}
 retry_interval = {{ kumomta_queue_retry_interval }}
 max_attempts = {{ kumomta_queue_max_attempts }}
 expiration_time = {{ kumomta_queue_expiration }}
+retention_hours = {{ kumomta_queue_retention_hours }}
+concurrency_per_domain = {{ kumomta_max_concurrent_connections_per_domain }}
 
 [policy]
 policy_script = "{{ kumomta_config_dir }}/policy.lua"
+queue_script = "{{ kumomta_config_dir }}/queue.lua"
+
+[rate_limiting]
+enabled = {{ kumomta_rate_limiting_enabled | lower }}
+per_hour = {{ kumomta_rate_limit_per_hour }}
+per_minute = {{ kumomta_rate_limit_per_minute }}
+per_second = {{ kumomta_rate_limit_per_second }}
+window_seconds = {{ kumomta_rate_limit_window }}
+connections_per_ip = {{ kumomta_rate_limit_count }}
+
+[authentication]
+enabled = {{ kumomta_auth_enabled | lower }}
+mechanism = "{{ kumomta_auth_mechanism }}"
+{% if kumomta_allowed_relayers %}
+allowed_relayers = [
+{%- for relay_ip in kumomta_allowed_relayers %}
+  "{{ relay_ip }}",
+{%- endfor %}
+]
+{% endif %}
 
 [logging]
 config_file = "{{ kumomta_config_dir }}/logging.toml"
+level = "{{ kumomta_logging_level }}"
+format = "{{ kumomta_logging_format }}"
+rotation_size = "{{ kumomta_log_rotation_size }}"
+retention_days = {{ kumomta_log_retention_days }}
 
 {% if kumomta_monitoring_enabled %}
 [metrics]
