@@ -75,6 +75,10 @@ end)
 
 -- Enable automatic message delivery attempt scheduling
 -- Without this, queued messages will never be delivered
+kumo.on('get_egress_pool', function(msg, egress_source)
+  return 'default'
+end)
+
 kumo.on('get_scheduled_event', function(meta)
   -- Return immediately to attempt delivery
   return kumo.make_scheduled_event(0)
