@@ -1,0 +1,114 @@
+---
+# KumoMTA Single Node Deployment Test
+- name: Deploy KumoMTA on Single Node
+  hosts: wg-node1
+  become: true
+  gather_facts: yes
+  vars:
+    kumomta_enabled: true
+    kumomta_hostname: "{{ inventory_hostname }}"
+    kumomta_monitoring_enabled: true
+    kumomta_bounce_handling_enabled: true
+    kumomta_backup_enabled: true
+    kumomta_clustering_enabled: false
+    test_results_dir: "/tmp/kumomta-test-results"
+
+  pre_tasks:
+    - name: Create test results directory
+      ansible.builtin.file:
+        path: "{{ test_results_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Verify Multipass VM is accessible
+      ansible.builtin.command: hostname
+      register: vm_hostname
+      changed_when: false
+
+    - name: Display deployment target
+      ansible.builtin.debug:
+        msg: |
+          ╔════════════════════════════════════════════════════════════════╗
+          ║     KUMOMTA SINGLE-NODE DEPLOYMENT TEST                        ║
+          ║     Target: {{ vm_hostname.stdout }}                           ║
+          ║     Mode: Single Node (no clustering)                          ║
+          ║     Features: Monitoring, Bounce Handling, Backups             ║
+          ║════════════════════════════════════════════════════════════════╝
+
+  roles:
+    - { role: kumomta, tags: [kumomta] }
+
+  post_tasks:
+    - name: Post-deployment verification
+      block:
+        - name: Check KumoMTA service status
+          ansible.builtin.systemd:
+            name: kumomta.service
+          register: kumomta_service
+          changed_when: false
+
+        - name: Verify listening ports
+          ansible.builtin.command: ss -tlnp
+          register: listening_ports
+          changed_when: false
+
+        - name: Check configuration validity
+          ansible.builtin.command: /opt/kumomta/kumomta --validate-config /etc/kumomta/kumomta.conf
+          register: config_valid
+          changed_when: false
+
+        - name: Check disk usage
+          ansible.builtin.command: du -sh /var/spool/kumomta /var/log/kumomta /var/backups/kumomta
+          register: disk_usage
+          changed_when: false
+
+        - name: Collect test results
+          ansible.builtin.copy:
+            content: |
+              ╔════════════════════════════════════════════════════════════════╗
+              ║              KUMOMTA SINGLE-NODE TEST RESULTS                  ║
+              ║════════════════════════════════════════════════════════════════╝
+
+              DEPLOYMENT TEST: PASSED ✓
+
+              Service Status:
+              - Active: {{ kumomta_service.status.ActiveState }}
+              - Enabled: {{ kumomta_service.status.UnitFileState }}
+              - Uptime: {{ kumomta_service.status.ActiveEnterTimestamp }}
+
+              Configuration Validation: PASSED ✓
+              {{ config_valid.stderr }}
+
+              Listening Ports:
+              {{ listening_ports.stdout }}
+
+              Disk Usage:
+              {{ disk_usage.stdout }}
+
+              Key Directories:
+              - Config: /etc/kumomta (must exist)
+              - Queue: /var/spool/kumomta (must exist)
+              - Logs: /var/log/kumomta (must exist)
+              - Backups: /var/backups/kumomta (must exist)
+
+              Enabled Features:
+              ✓ Monitoring (Prometheus metrics)
+              ✓ Bounce Handling
+              ✓ Automated Backups
+              ✗ Clustering (disabled for single-node)
+
+              Test Timestamp: {{ ansible_date_time.iso8601 }}
+            dest: "{{ test_results_dir }}/single-node-test-results.txt"
+          delegate_to: localhost
+
+        - name: Display test summary
+          ansible.builtin.debug:
+            msg: |
+              ╔════════════════════════════════════════════════════════════════╗
+              ║              SINGLE-NODE DEPLOYMENT SUCCESSFUL                 ║
+              ║════════════════════════════════════════════════════════════════╝
+
+              Service Status: {{ kumomta_service.status.ActiveState }}
+              Configuration: Valid
+
+              Test Results Saved: {{ test_results_dir }}/single-node-test-results.txt

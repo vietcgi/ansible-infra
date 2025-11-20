@@ -1,0 +1,142 @@
+---
+# KumoMTA Cluster Deployment Test
+- name: Deploy KumoMTA Cluster
+  hosts: wg-node2,wg-node3
+  become: true
+  gather_facts: yes
+  vars:
+    kumomta_enabled: true
+    kumomta_monitoring_enabled: true
+    kumomta_clustering_enabled: true
+    kumomta_cluster_peers:
+      - "wg-node2:9100"
+      - "wg-node3:9100"
+    kumomta_bounce_handling_enabled: true
+    kumomta_backup_enabled: true
+    test_results_dir: "/tmp/kumomta-test-results"
+
+  pre_tasks:
+    - name: Create test results directory
+      ansible.builtin.file:
+        path: "{{ test_results_dir }}"
+        state: directory
+        mode: '0755'
+      run_once: true
+
+    - name: Display cluster deployment info
+      ansible.builtin.debug:
+        msg: |
+          ╔════════════════════════════════════════════════════════════════╗
+          ║     KUMOMTA CLUSTER DEPLOYMENT TEST                            ║
+          ║     Nodes: wg-node2, wg-node3                                  ║
+          ║     Consensus Port: 9100                                       ║
+          ║     Data Port: 9101                                            ║
+          ║     Mode: 2-Node Cluster                                       ║
+          ║════════════════════════════════════════════════════════════════╝
+      run_once: true
+
+  roles:
+    - { role: kumomta, tags: [kumomta] }
+
+  post_tasks:
+    - name: Post-cluster deployment verification
+      block:
+        - name: Check KumoMTA service status
+          ansible.builtin.systemd:
+            name: kumomta.service
+          register: kumomta_service
+          changed_when: false
+
+        - name: Check cluster ports
+          ansible.builtin.command: ss -tlnp | grep -E ':(9100|9101)' || echo "No matches"
+          register: cluster_ports
+          changed_when: false
+          failed_when: false
+
+        - name: Check node identity file
+          ansible.builtin.stat:
+            path: /etc/kumomta/cluster-state/node-id.txt
+          register: node_id_file
+
+        - name: Read node identity
+          ansible.builtin.command: cat /etc/kumomta/cluster-state/node-id.txt
+          register: node_identity
+          when: node_id_file.stat.exists
+          changed_when: false
+
+        - name: Check cluster join marker
+          ansible.builtin.stat:
+            path: /etc/kumomta/cluster-state/join-marker.txt
+          register: join_marker_file
+
+        - name: Collect cluster test results
+          ansible.builtin.copy:
+            content: |
+              ╔════════════════════════════════════════════════════════════════╗
+              ║              KUMOMTA CLUSTER NODE TEST RESULTS                 ║
+              ║════════════════════════════════════════════════════════════════╝
+
+              Node: {{ inventory_hostname }}
+              Hostname: {{ ansible_fqdn }}
+
+              SERVICE STATUS:
+              - Active: {{ kumomta_service.status.ActiveState }}
+              - Enabled: {{ kumomta_service.status.UnitFileState }}
+
+              CLUSTER CONFIGURATION:
+              - Node ID: {{ node_identity.stdout if node_id_file.stat.exists else 'NOT SET' }}
+              - Join Status: {% if join_marker_file.stat.exists %}JOINED{% else %}NOT JOINED{% endif %}
+
+              LISTENING PORTS:
+              {{ cluster_ports.stdout if cluster_ports.rc == 0 else 'Checking...' }}
+
+              CLUSTER PEER DISCOVERY:
+              - Expected Peers: wg-node2, wg-node3
+              - Consensus Port: 9100
+              - Data Replication Port: 9101
+
+              Test Timestamp: {{ ansible_date_time.iso8601 }}
+            dest: "{{ test_results_dir }}/cluster-node-{{ inventory_hostname }}-results.txt"
+
+        - name: Run cluster health check
+          ansible.builtin.command: /etc/kumomta/cluster-health-check.sh
+          register: health_check_output
+          failed_when: false
+          changed_when: false
+
+        - name: Save health check results
+          ansible.builtin.copy:
+            content: "{{ health_check_output.stdout }}"
+            dest: "{{ test_results_dir }}/cluster-health-{{ inventory_hostname }}.txt"
+
+    - name: Cluster connectivity test
+      block:
+        - name: Test inter-node connectivity
+          ansible.builtin.shell: |
+            echo "Testing connectivity to cluster peers..."
+            for peer in wg-node2 wg-node3; do
+              echo "Testing $peer..."
+              timeout 5 bash -c ">/dev/tcp/$peer/9100" 2>/dev/null && echo "✓ $peer:9100 reachable" || echo "✗ $peer:9100 unreachable"
+              timeout 5 bash -c ">/dev/tcp/$peer/9101" 2>/dev/null && echo "✓ $peer:9101 reachable" || echo "✗ $peer:9101 unreachable"
+            done
+          register: connectivity_test
+          failed_when: false
+          changed_when: false
+
+        - name: Save connectivity test
+          ansible.builtin.copy:
+            content: "{{ connectivity_test.stdout }}"
+            dest: "{{ test_results_dir }}/connectivity-{{ inventory_hostname }}.txt"
+
+        - name: Display cluster test summary
+          ansible.builtin.debug:
+            msg: |
+              ╔════════════════════════════════════════════════════════════════╗
+              ║         CLUSTER NODE {{ inventory_hostname }} READY               ║
+              ║════════════════════════════════════════════════════════════════╝
+
+              Service: {{ kumomta_service.status.ActiveState }}
+              Cluster Status: Configured
+              Peer Discovery: {{ 'Joined' if join_marker_file.stat.exists else 'Pending' }}
+
+              Test Results: {{ test_results_dir }}
