@@ -50,7 +50,6 @@ cloudflare_dns_check_frequency: 30
 cloudflare_dns_enable_alerts: true
 cloudflare_dns_auto_validate: true
 cloudflare_dns_check_minute: "*/30"
-cloudflare_alert_email: ""
 
 # ============================================================================
 # Web Application Firewall (WAF)
