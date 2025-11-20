@@ -16,11 +16,11 @@
     - name: Generate and manage Wireguard keys
       ansible.builtin.include_tasks: keys.yml
 
-    - name: Configure Wireguard interface
-      ansible.builtin.include_tasks: configure.yml
-
     - name: Configure topology-specific settings
       ansible.builtin.include_tasks: "topology-{{ wireguard_topology }}.yml"
+
+    - name: Configure Wireguard interface
+      ansible.builtin.include_tasks: configure.yml
 
     - name: Configure IP forwarding if needed
       ansible.builtin.include_tasks: routing.yml
