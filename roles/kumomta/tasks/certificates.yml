@@ -16,11 +16,7 @@
 
     - name: Generate self-signed certificate
       ansible.builtin.command:
-        cmd: |
-          openssl req -new -x509 -key {{ kumomta_tls_key }} \
-          -out {{ kumomta_tls_certificate }} \
-          -days 365 \
-          -subj "/C=US/ST=State/L=City/O=Organization/CN={{ kumomta_hostname }}"
+        cmd: "openssl req -new -x509 -key {{ kumomta_tls_key }} -out {{ kumomta_tls_certificate }} -days 365 -subj '/C=US/ST=State/L=City/O=Organization/CN={{ kumomta_hostname }}'"
       when: not cert_stat.stat.exists
       become: true
 
