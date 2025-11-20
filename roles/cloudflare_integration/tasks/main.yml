@@ -22,6 +22,8 @@
         cmd: "ansible-galaxy collection install --force community.general"
       changed_when: false
       register: galaxy_general
+      delegate_to: localhost
+      run_once: true
 
     - name: Verify collection installation
       ansible.builtin.debug:
