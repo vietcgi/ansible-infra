@@ -45,10 +45,17 @@ kumo.on('init', function()
     path = '{{ kumomta_queue_dir }}/meta',
   }
 
-  kumo.configure_local_logs {
-    log_dir = '{{ kumomta_log_dir }}',
-    max_segment_duration = '10s',
-  }
+  -- Configure logging with error handling
+  local log_configured, log_error = pcall(function()
+    kumo.configure_local_logs {
+      log_dir = '{{ kumomta_log_dir }}',
+      max_segment_duration = '10s',
+    }
+  end)
+  if not log_configured then
+    -- If logging fails, continue without it - don't crash the service
+    print('Warning: failed to configure local logs: ' .. tostring(log_error))
+  end
 end)
 
 -- Apply queue configuration when message is received
@@ -78,4 +85,10 @@ end)
 kumo.on('get_scheduled_event', function(meta)
   -- Return immediately to attempt delivery
   return kumo.make_scheduled_event(0)
+end)
+
+-- Define egress source for outbound delivery
+-- This specifies which IP/hostname to use when sending to recipient servers
+kumo.on('get_egress_source', function(msg)
+  return kumo.make_egress_source('local')
 end)
