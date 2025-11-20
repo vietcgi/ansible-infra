@@ -3,6 +3,12 @@
 -- This is the main entry point for KumoMTA configuration
 
 local kumo = require 'kumo'
+local queue = require 'policy-extras.queue'
+local sources = require 'policy-extras.sources'
+
+-- Load queue and sources configuration
+local queue_helper = queue:setup({'/opt/kumomta/etc/queue.toml'})
+sources:setup({'/opt/kumomta/etc/sources.toml'})
 
 kumo.on('init', function()
   kumo.start_esmtp_listener {
@@ -41,5 +47,28 @@ kumo.on('init', function()
   kumo.configure_local_logs {
     log_dir = '{{ kumomta_log_dir }}',
     max_segment_duration = '10s',
+  }
+end)
+
+-- Apply queue configuration when message is received
+kumo.on('smtp_server_message_received', function(msg)
+  queue_helper:apply(msg)
+end)
+
+-- Define queue configuration (retry intervals, max age, egress pool assignment)
+-- This is CRITICAL for message delivery - without this, messages won't be routed
+-- Note: get_egress_pool handler is already defined by policy-extras.sources module
+kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+  return kumo.make_queue_config {
+    -- Message aging and retry strategy
+    max_age = '7 days',                         -- Maximum time to keep retrying
+    retry_interval = '5 minutes',                -- Initial retry interval
+    max_retry_interval = '20 minutes',           -- Maximum time between retries
+
+    -- Route through the default egress pool (defined in sources.toml)
+    egress_pool = 'default',
+
+    -- SMTP protocol configuration (will use MX records for domain)
+    protocol = 'smtp',
   }
 end)
