@@ -12,6 +12,15 @@
         mode: '0640'
       notify: restart kumomta
 
+    - name: Template KumoMTA main configuration
+      ansible.builtin.template:
+        src: kumomta.conf.j2
+        dest: "{{ kumomta_config_dir }}/kumomta.conf"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
     - name: Template KumoMTA Lua policy script
       ansible.builtin.template:
         src: policy.lua.j2
