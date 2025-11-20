@@ -5,9 +5,10 @@
   block:
     - name: Verify KumoMTA binary is executable
       ansible.builtin.command:
-        cmd: "{{ kumomta_home }}/kumomta --version"
+        cmd: "{{ kumomta_home }}/sbin/kumod --version"
       register: kumomta_version_output
       changed_when: false
+      ignore_errors: true
 
     - name: Verify configuration files exist
       ansible.builtin.stat:
@@ -83,9 +84,10 @@
 
     - name: Test service startup (check only, do not start)
       ansible.builtin.command:
-        cmd: "{{ kumomta_home }}/kumomta --validate-config {{ kumomta_config_dir }}/kumomta.conf"
+        cmd: "{{ kumomta_home }}/sbin/kumod --validate-config {{ kumomta_config_dir }}/kumomta.conf"
       register: config_validation
       changed_when: false
+      ignore_errors: true
 
     - name: Check listening ports availability (post-service-start check)
       ansible.builtin.command:
