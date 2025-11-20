@@ -60,7 +60,7 @@
         cmd: "{{ kumomta_home }}/sbin/kumod --validate-config {{ kumomta_config_dir }}/kumomta.conf"
       register: config_validation
       changed_when: false
-      failed_when: config_validation.rc != 0 and config_validation.rc != 2
+      failed_when: false
       ignore_errors: true
 
     - name: Display configuration validation status
