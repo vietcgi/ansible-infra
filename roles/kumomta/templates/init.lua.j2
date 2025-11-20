@@ -46,21 +46,26 @@ end)
 
 -- Accept all SMTP messages
 kumo.on('smtp_server_message_received', function(msg)
-  kumo.continue()
+  -- Accept message by default (no rejection)
+end)
+
+-- Decide whether to enqueue messages
+kumo.on('should_enqueue_message', function(msg)
+  msg:set_drop_queue('default')
+  return true
 end)
 
 -- Queue messages for delivery
 kumo.on('queue_message_received', function(msg)
   msg:set_drop_queue('default')
-  kumo.continue()
+  -- Message will be delivered with configured queue settings
 end)
 
 -- Configure queue delivery settings
 kumo.on('get_queue_config', function(domain, tenant, campaign, owner)
   local config = kumo.make_queue_config({
     max_age = '5m',
-    max_retry_duration = '5m',
-    max_attempts = 5,
+    max_retry_interval = '5m',
   })
   config:set_max_rate('100/s')
   return config
@@ -69,5 +74,5 @@ end)
 -- Log bounce messages
 kumo.on('bounce', function(msg)
   kumo.log(kumo.LOG_INFO, 'bounce: ' .. msg.bounce_reason)
-  kumo.continue()
+  -- Bounce has been logged, message handling continues
 end)
