@@ -18,23 +18,23 @@ kumo.define_spool {
     path = "{{ kumomta_queue_dir }}/important",
 }
 
--- Setup listeners for different protocols
-kumo.define_listener {
+-- Setup SMTP listeners for receiving mail
+kumo.start_esmtp_listener {
     listen = "0.0.0.0:{{ kumomta_listen_port }}",
-    hostname_override = "{{ kumomta_hostname }}",
+    hostname = "{{ kumomta_hostname }}",
     relay_hosts = {'0.0.0.0/0'},
 }
 
-kumo.define_listener {
+kumo.start_esmtp_listener {
     listen = "0.0.0.0:{{ kumomta_submit_port }}",
-    hostname_override = "{{ kumomta_hostname }}",
+    hostname = "{{ kumomta_hostname }}",
     require_authz = {{ 'true' if kumomta_require_auth else 'false' }},
 }
 
 {% if kumomta_tls_enabled %}
-kumo.define_listener {
+kumo.start_esmtps_listener {
     listen = "0.0.0.0:{{ kumomta_tls_port }}",
-    hostname_override = "{{ kumomta_hostname }}",
+    hostname = "{{ kumomta_hostname }}",
     tls_certificate = "{{ kumomta_tls_certificate }}",
     tls_private_key = "{{ kumomta_tls_key }}",
 }
@@ -64,17 +64,15 @@ kumo.dkim_sign {
 }
 {% endif %}
 
--- Admin listener for metrics and admin API
-kumo.define_listener {
+-- Admin listener for HTTP API
+kumo.start_http_listener {
     listen = "0.0.0.0:{{ kumomta_admin_port }}",
-    protocol = "http",
 }
 
 {% if kumomta_monitoring_enabled %}
 -- Metrics listener
-kumo.define_listener {
+kumo.start_metrics_listener {
     listen = "0.0.0.0:{{ kumomta_metrics_port }}",
-    protocol = "metrics",
 }
 {% endif %}
 

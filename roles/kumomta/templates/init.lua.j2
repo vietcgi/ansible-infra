@@ -26,9 +26,9 @@ kumo.define_spool {
   path = '{{ kumomta_queue_dir }}/default',
 }
 
--- NOTE: SMTP listeners are automatically set up by policy-extras.sources module
--- Do NOT use kumo.start_esmtp_listener() - that function does not exist in v2025.10.06
--- The sources:setup() call above handles listener configuration
+-- NOTE: SMTP listeners are set up by policy-extras.sources module via sources.toml
+-- Listeners are created using kumo.start_esmtp_listener() and kumo.start_esmtps_listener()
+-- which ARE available in v2025.10.06. Sources module handles this automatically.
 
 -- CRITICAL: Accept and queue messages from SMTP
 kumo.on('smtp_server_message_received', function(msg)
