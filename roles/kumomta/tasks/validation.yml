@@ -17,9 +17,14 @@
         - "{{ kumomta_config_dir }}/kumomta.conf"
         - "{{ kumomta_config_dir }}/policy.lua"
         - "{{ kumomta_config_dir }}/queue.lua"
-      failed_when: not item.stat.exists
       loop_control:
-        label: "{{ item.path }}"
+        label: "{{ item }}"
+
+    - name: Fail if config files missing
+      ansible.builtin.fail:
+        msg: "Configuration file missing: {{ item.item }}"
+      when: not item.stat.exists
+      loop: "{{ config_files.results }}"
 
     - name: Verify TLS certificates exist
       ansible.builtin.stat:
@@ -29,9 +34,16 @@
         - "{{ kumomta_tls_certificate }}"
         - "{{ kumomta_tls_key }}"
       when: kumomta_tls_enabled | bool
-      failed_when: not item.stat.exists
       loop_control:
-        label: "{{ item.path }}"
+        label: "{{ item }}"
+
+    - name: Fail if TLS files missing
+      ansible.builtin.fail:
+        msg: "TLS file missing: {{ item.item }}"
+      when:
+        - kumomta_tls_enabled | bool
+        - not item.stat.exists
+      loop: "{{ tls_files.results }}"
 
     - name: Check configuration file permissions
       ansible.builtin.command:

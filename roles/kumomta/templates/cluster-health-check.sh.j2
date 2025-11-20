@@ -1,0 +1,4 @@
+#!/bin/bash
+for peer in {{ kumomta_cluster_peers | join(' ') }}; do
+  nc -z "${peer%:*}" "${peer#*:}" && echo "✓ $peer" || echo "✗ $peer"
+done

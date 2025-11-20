@@ -17,6 +17,8 @@ kumomta_state: "present"
 kumomta_service_enabled: true
 kumomta_service_state: "started"
 kumomta_service_restart_policy: "on-failure"
+kumomta_cpu_quota: "100%"
+kumomta_memory_limit: "2G"
 
 # Core SMTP Configuration
 kumomta_listen_port: 25
@@ -39,6 +41,7 @@ kumomta_queue_expiration: 259200  # 3 days
 # Performance Tuning
 kumomta_worker_threads: "{{ ansible_processor_vcpus | default(4) }}"
 kumomta_max_concurrent_connections_per_domain: 20
+kumomta_submission_max_connections: 500
 kumomta_connection_timeout: 300
 kumomta_io_timeout: 300
 kumomta_max_message_size: 104857600  # 100MB
@@ -64,15 +67,34 @@ kumomta_prometheus_enabled: true
 kumomta_prometheus_metrics_port: 9184
 kumomta_logging_level: "info"  # debug, info, warn, error
 kumomta_logging_format: "json"  # json or text
+kumomta_log_rotation_size: "100M"
+kumomta_log_retention_days: 30
+kumomta_debug_logging: false
+kumomta_verbose_logging: false
+kumomta_metrics_enabled: true
+kumomta_metrics_interval: 60
+kumomta_metrics_scrape_interval: "15s"
+kumomta_metrics_evaluation_interval: "15s"
+kumomta_grafana_enabled: false
+kumomta_alerts_enabled: false
+kumomta_metrics_histograms: true
 kumomta_syslog_enabled: true
 kumomta_syslog_server: "{{ hostvars.get('syslog_server', 'localhost') }}"
 kumomta_syslog_port: 514
+kumomta_remote_syslog_enabled: false
+kumomta_remote_syslog_host: ""
+kumomta_remote_syslog_port: 514
 
 # Bounce & FBL (Feedback Loop) Handling
 kumomta_bounce_handling_enabled: true
 kumomta_bounce_email: "postmaster@{{ kumomta_domain }}"
+kumomta_bounce_dir: "{{ kumomta_queue_dir }}/bounces"
+kumomta_bounce_notify_sender: true
 kumomta_fbl_enabled: true
 kumomta_fbl_database: "{{ kumomta_queue_dir }}/fbl.db"
+kumomta_fbl_dir: "{{ kumomta_queue_dir }}/fbl"
+kumomta_fbl_suppression_list: "{{ kumomta_config_dir }}/fbl-suppression.txt"
+kumomta_fbl_reporting_enabled: true
 
 # IPv6
 kumomta_ipv6_enabled: false
@@ -83,12 +105,19 @@ kumomta_clustering_enabled: false
 kumomta_cluster_peers: []  # List of cluster peers
 kumomta_cluster_heartbeat_interval: 5
 kumomta_cluster_heartbeat_timeout: 15
+kumomta_cluster_consensus_port: 9100
+kumomta_cluster_data_port: 9101
+kumomta_cluster_ufw_enabled: false
 
 # Policies & Rules
 kumomta_rate_limiting_enabled: true
 kumomta_rate_limit_per_hour: 1000000  # 1M per hour
 kumomta_rate_limit_per_minute: 100000  # 100K per minute
 kumomta_rate_limit_per_second: 5000    # 5K per second
+kumomta_rate_limit_window: 3600  # Rate limit window in seconds
+kumomta_rate_limit_count: 100  # Connections per window per IP
+kumomta_suppressed_domains: []  # List of suppressed recipient domains
+kumomta_suppression_list_path: "{{ kumomta_config_dir }}/suppression.txt"
 
 # List Management
 kumomta_list_management_enabled: true
@@ -106,8 +135,16 @@ kumomta_metrics_retention_days: 90
 
 # Backup
 kumomta_backup_enabled: true
-kumomta_backup_dir: "/backups/kumomta"
+kumomta_backup_dir: "/var/backups/kumomta"
 kumomta_backup_schedule: "0 2 * * *"  # 2 AM daily
+kumomta_backup_hour: 2
+kumomta_backup_minute: 0
+kumomta_backup_verify_hour: 3
+kumomta_backup_verify_minute: 0
+kumomta_remote_backup_enabled: false
+kumomta_remote_backup_host: ""
+kumomta_backup_log_file: "/var/log/kumomta-backup.log"
+kumomta_backup_verify_log_file: "/var/log/kumomta-backup-verify.log"
 
 # Template variables for Lua configuration
 kumomta_lua_modules: []  # Custom Lua modules to load

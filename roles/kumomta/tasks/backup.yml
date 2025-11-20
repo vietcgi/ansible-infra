@@ -33,7 +33,7 @@
         user: root
         hour: "{{ kumomta_backup_hour }}"
         minute: "{{ kumomta_backup_minute }}"
-        job: "{{ kumomta_backup_dir }}/backup.sh > /var/log/kumomta-backup.log 2>&1"
+        job: "{{ kumomta_backup_dir }}/backup.sh > {{ kumomta_backup_log_file }} 2>&1"
         state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
 
     - name: Configure backup retention policy
@@ -96,7 +96,7 @@
         user: root
         hour: "{{ kumomta_backup_verify_hour }}"
         minute: "{{ kumomta_backup_verify_minute }}"
-        job: "{{ kumomta_backup_dir }}/verify.sh > /var/log/kumomta-backup-verify.log 2>&1"
+        job: "{{ kumomta_backup_dir }}/verify.sh > {{ kumomta_backup_verify_log_file }} 2>&1"
         state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
 
     - name: Configure retention policy for queue data

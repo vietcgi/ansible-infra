@@ -41,8 +41,14 @@
         - "{{ kumomta_config_dir }}"
         - "{{ kumomta_config_dir }}/certs"
         - "{{ kumomta_config_dir }}/dkim"
+        - "{{ kumomta_config_dir }}/metrics"
         - "{{ kumomta_queue_dir }}"
+        - "{{ kumomta_queue_dir }}/incremental"
         - "{{ kumomta_log_dir }}"
+        - "{{ kumomta_log_dir }}/archived"
+        - "{{ kumomta_bounce_dir }}"
+        - "{{ kumomta_fbl_dir }}"
+        - "{{ kumomta_backup_dir }}"
       become: true
 
     - name: Generate self-signed certificates if needed

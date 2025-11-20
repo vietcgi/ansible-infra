@@ -1,0 +1,3 @@
+#!/bin/bash
+BACKUP_DIR="{{ kumomta_backup_dir }}"
+for f in "$BACKUP_DIR"/*.tar.gz; do tar -tzf "$f" > /dev/null && echo "✓ $f" || echo "✗ $f"; done

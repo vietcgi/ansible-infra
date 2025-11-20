@@ -1,0 +1,6 @@
+groups:
+  - name: kumomta
+    interval: 30s
+    rules:
+      - alert: KumoMTAHighQueueSize
+        expr: kumomta_queue_size > 10000
