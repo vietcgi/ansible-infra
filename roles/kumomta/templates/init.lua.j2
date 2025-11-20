@@ -43,3 +43,31 @@ kumo.on('init', function()
     max_segment_duration = '10s',
   }
 end)
+
+-- Accept all SMTP messages
+kumo.on('smtp_server_message_received', function(msg)
+  kumo.continue()
+end)
+
+-- Queue messages for delivery
+kumo.on('queue_message_received', function(msg)
+  msg:set_drop_queue('default')
+  kumo.continue()
+end)
+
+-- Configure queue delivery settings
+kumo.on('get_queue_config', function(domain, tenant, campaign, owner)
+  local config = kumo.make_queue_config({
+    max_age = '5m',
+    max_retry_duration = '5m',
+    max_attempts = 5,
+  })
+  config:set_max_rate('100/s')
+  return config
+end)
+
+-- Log bounce messages
+kumo.on('bounce', function(msg)
+  kumo.log(kumo.LOG_INFO, 'bounce: ' .. msg.bounce_reason)
+  kumo.continue()
+end)
