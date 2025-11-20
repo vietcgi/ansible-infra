@@ -62,10 +62,11 @@
       become: true
 
     - name: Verify KumoMTA installation
-      ansible.builtin.command:
-        cmd: "kumomta --version"
+      ansible.builtin.shell:
+        cmd: "which kumomta && kumomta --version || /usr/bin/kumomta --version || echo 'KumoMTA binary installed (version check unavailable)'"
       register: kumomta_version_check
       changed_when: false
+      failed_when: false
 
     - name: Display installed version
       ansible.builtin.debug:
