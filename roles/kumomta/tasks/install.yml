@@ -18,9 +18,23 @@
       when: ansible_os_family == "Debian"
       become: true
 
+    - name: Get KumoMTA .deb download URL from GitHub API
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/kumocorp/kumomta/releases/tags/{{ kumomta_version }}"
+        method: GET
+        return_content: true
+        status_code: 200
+      register: github_release
+      retries: 3
+      delay: 5
+
+    - name: Extract .deb download URL
+      set_fact:
+        kumomta_deb_url: "{{ github_release.json.assets | selectattr('name', 'match', '.*Ubuntu22\\.04_amd64\\.deb') | map(attribute='browser_download_url') | first }}"
+
     - name: Download KumoMTA .deb package from GitHub releases
       ansible.builtin.get_url:
-        url: "https://github.com/kumocorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version | replace('-', '.') }}.Ubuntu22.04_amd64.deb"
+        url: "{{ kumomta_deb_url }}"
         dest: "/tmp/kumomta.deb"
         force: true
       register: kumomta_download
