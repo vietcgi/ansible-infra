@@ -94,9 +94,5 @@ kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)
 
--- Define which egress pool to use for message delivery
--- This is CRITICAL - without this, messages won't be delivered
-kumo.on('get_egress_pool', function(msg, domain, egress_source, num_attempts)
-  -- Return the default pool for all messages
-  return 'default'
-end)
+-- NOTE: get_egress_pool handler is automatically provided by policy-extras.sources
+-- when sources:setup() is called. Do not define it here to avoid handler conflicts.
