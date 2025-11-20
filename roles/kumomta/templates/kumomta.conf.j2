@@ -22,6 +22,7 @@ kumo.define_spool {
 kumo.define_listener {
     listen = "0.0.0.0:{{ kumomta_listen_port }}",
     hostname_override = "{{ kumomta_hostname }}",
+    relay_hosts = {'0.0.0.0/0'},
 }
 
 kumo.define_listener {
