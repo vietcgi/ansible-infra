@@ -34,7 +34,7 @@
         ss -tlnp 2>/dev/null | grep -E ":({{ kumomta_listen_port }}|{{ kumomta_submit_port }}|{{ kumomta_tls_port }}|{{ kumomta_admin_port }}|{{ kumomta_metrics_port }})" || echo "No conflicts"
       register: port_check
       changed_when: false
-      failed_when: "'LISTEN' in port_check.stdout and 'kumomta' not in port_check.stdout"
+      failed_when: "'LISTEN' in port_check.stdout and 'kumomta' not in port_check.stdout and 'systemd' not in port_check.stdout"
 
     - name: Check available memory
       ansible.builtin.assert:
