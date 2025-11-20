@@ -32,21 +32,6 @@
       register: kumomta_download
       retries: 3
       delay: 10
-      ignore_errors: true
-
-    - name: Create mock KumoMTA binary (when download fails - test environment)
-      ansible.builtin.copy:
-        dest: "/tmp/kumomta-{{ kumomta_version }}"
-        mode: '0755'
-        content: |
-          #!/bin/bash
-          # Mock KumoMTA binary for testing
-          if [[ "$1" == "--version" ]]; then
-            echo "KumoMTA {{ kumomta_version }} (mock test binary)"
-            exit 0
-          fi
-          exec /bin/true
-      when: kumomta_download is failed
 
     - name: Verify KumoMTA binary is executable
       ansible.builtin.command:

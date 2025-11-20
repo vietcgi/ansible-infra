@@ -3,7 +3,7 @@
 
 # Installation
 kumomta_enabled: true
-kumomta_version: "0.1.0"  # Latest version
+kumomta_version: "2025.10.06-5ec871ab"  # Latest version
 kumomta_install_method: "binary"  # binary or source
 kumomta_user: "kumomta"
 kumomta_group: "kumomta"
