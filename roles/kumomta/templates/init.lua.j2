@@ -7,10 +7,12 @@ local kumo = require 'kumo'
 kumo.on('init', function()
   kumo.start_esmtp_listener {
     listen = '0.0.0.0:{{ kumomta_listen_port }}',
+    relay_hosts = { '0.0.0.0/0' },  -- Allow relay to any destination
   }
 
   kumo.start_esmtp_listener {
     listen = '0.0.0.0:{{ kumomta_submit_port }}',
+    relay_hosts = { '0.0.0.0/0' },  -- Allow relay to any destination
   }
 
   {% if kumomta_tls_enabled %}
@@ -18,6 +20,7 @@ kumo.on('init', function()
     listen = '0.0.0.0:{{ kumomta_tls_port }}',
     tls_certificate = '{{ kumomta_tls_certificate }}',
     tls_private_key = '{{ kumomta_tls_key }}',
+    relay_hosts = { '0.0.0.0/0' },  -- Allow relay to any destination
   }
   {% endif %}
 
