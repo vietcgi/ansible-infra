@@ -123,6 +123,11 @@
         owner: root
         group: root
 
+    - name: Check if crontab is available
+      ansible.builtin.stat:
+        path: /usr/bin/crontab
+      register: crontab_stat
+
     - name: Schedule Cloudflare health checks
       ansible.builtin.cron:
         name: "Cloudflare health check"
@@ -130,6 +135,7 @@
         minute: "0"
         job: "/usr/local/bin/cloudflare-health-check >> /var/log/cloudflare/health-check.log 2>&1"
         state: "{{ 'present' if cloudflare_health_check_enabled | default(true) else 'absent' }}"
+      when: crontab_stat.stat.exists
 
 # ============================================================================
 # Display Summary
