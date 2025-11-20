@@ -24,8 +24,4 @@ galaxy_info:
     - "clustering"
     - "monitoring"
 
-role_name: "kumomta"
-repository_url: "https://github.com/anthropics/kumomta"
-documentation: "README.md"
-
 dependencies: []
