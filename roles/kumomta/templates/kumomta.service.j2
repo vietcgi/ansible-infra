@@ -10,7 +10,7 @@ Group={{ kumomta_group }}
 WorkingDirectory={{ kumomta_home }}
 
 # Service startup
-ExecStart={{ kumomta_home }}/kumomta --policy {{ kumomta_config_dir }}/policy.lua
+ExecStart={{ kumomta_home }}/sbin/kumomta --policy {{ kumomta_config_dir }}/policy.lua
 
 # Process management
 Restart=on-failure

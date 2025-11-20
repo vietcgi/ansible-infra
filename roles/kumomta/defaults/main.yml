@@ -3,7 +3,7 @@
 
 # Installation
 kumomta_enabled: true
-kumomta_version: "2025.10.06.232616.5ec871ab"  # Latest version (must match release asset naming)
+kumomta_version: "2025.10.06-5ec871ab"  # Latest version (must match release asset naming)
 kumomta_install_method: "binary"  # binary (statically compiled, works on any Linux) or source
 kumomta_user: "kumomta"
 kumomta_group: "kumomta"
