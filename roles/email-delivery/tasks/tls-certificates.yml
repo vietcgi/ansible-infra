@@ -1,0 +1,75 @@
+---
+# TLS Certificates Configuration
+
+- name: Setup TLS Certificates
+  block:
+    - name: Install certbot
+      ansible.builtin.apt:
+        name:
+          - certbot
+          - python3-certbot-dns-cloudflare
+        state: present
+      become: true
+
+    - name: Create Cloudflare credentials file
+      ansible.builtin.template:
+        src: cloudflare-credentials.j2
+        dest: /etc/kumomta/cloudflare.ini
+        owner: root
+        group: root
+        mode: '0600'
+      become: true
+
+    - name: Check if certificates exist
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ email_domain }}/fullchain.pem"
+      register: cert_exists
+
+    - name: Obtain Let's Encrypt certificates
+      ansible.builtin.command:
+        cmd: |
+          certbot certonly \
+          --dns-cloudflare \
+          --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini \
+          -d {{ email_domain }} \
+          -d mail.{{ email_domain }} \
+          --agree-tos \
+          -m {{ letsencrypt_email }} \
+          --non-interactive
+      when: not cert_exists.stat.exists
+      become: true
+
+    - name: Create certificate symlinks for KumoMTA
+      ansible.builtin.file:
+        src: "/etc/letsencrypt/live/{{ email_domain }}/{{ item.src }}"
+        dest: "/etc/kumomta/certs/{{ item.dest }}"
+        state: link
+        force: true
+        owner: kumomta
+        group: kumomta
+      loop:
+        - { src: "fullchain.pem", dest: "kumomta.crt" }
+        - { src: "privkey.pem", dest: "kumomta.key" }
+      become: true
+
+    - name: Setup certificate renewal
+      ansible.builtin.cron:
+        name: "Renew TLS certificates"
+        minute: "0"
+        hour: "2"
+        day: "1"
+        job: "certbot renew --quiet --dns-cloudflare --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini && systemctl restart kumomta"
+      become: true
+
+    - name: Display TLS Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ TLS Certificates Configured
+          ✓ Certificate Path: /etc/letsencrypt/live/{{ email_domain }}/
+          ✓ Symlinks Created: /etc/kumomta/certs/
+          ✓ Auto-renewal Enabled: Monthly renewal scheduled
+
+  rescue:
+    - name: Handle TLS Setup Error
+      ansible.builtin.fail:
+        msg: "TLS setup failed: {{ ansible_failed_result.msg }}"

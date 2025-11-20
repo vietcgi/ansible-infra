@@ -1,0 +1,60 @@
+---
+# DKIM Configuration
+
+- name: Setup DKIM Keys and DNS Records
+  block:
+    - name: Check if DKIM key exists
+      ansible.builtin.stat:
+        path: "/etc/kumomta/dkim/{{ dkim_selector }}.key"
+      register: dkim_key_stat
+
+    - name: Generate DKIM private key
+      ansible.builtin.command:
+        cmd: "openssl genrsa -out /etc/kumomta/dkim/{{ dkim_selector }}.key {{ dkim_key_size }}"
+      when: not dkim_key_stat.stat.exists
+      become: true
+
+    - name: Extract DKIM public key
+      ansible.builtin.shell: |
+        openssl rsa -in /etc/kumomta/dkim/{{ dkim_selector }}.key -pubout | \
+        grep -v "PUBLIC KEY" | \
+        tr -d '\n' > /tmp/dkim_public_{{ dkim_selector }}.txt
+      args:
+        creates: "/tmp/dkim_public_{{ dkim_selector }}.txt"
+      changed_when: false
+
+    - name: Read DKIM public key
+      ansible.builtin.slurp:
+        src: "/tmp/dkim_public_{{ dkim_selector }}.txt"
+      register: dkim_public_key
+
+    - name: Create DKIM DNS record
+      community.general.cloudflare_dns:
+        zone: "{{ email_domain }}"
+        record: "{{ dkim_selector }}._domainkey"
+        type: "TXT"
+        value: 'v=DKIM1; k=rsa; p={{ dkim_public_key.content | b64decode }}'
+        ttl: 3600
+        account_api_token: "{{ cloudflare_api_token }}"
+      register: dkim_record_result
+
+    - name: Set DKIM key permissions
+      ansible.builtin.file:
+        path: "/etc/kumomta/dkim/{{ dkim_selector }}.key"
+        owner: kumomta
+        group: kumomta
+        mode: '0600'
+
+    - name: Display DKIM Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ DKIM Key Generated: {{ dkim_selector }}
+          ✓ DKIM DNS Record Created: {{ dkim_selector }}._domainkey
+
+          Public Key (for verification):
+          {{ dkim_public_key.content | b64decode }}
+
+  rescue:
+    - name: Handle DKIM Setup Error
+      ansible.builtin.fail:
+        msg: "DKIM setup failed: {{ ansible_failed_result.msg }}"

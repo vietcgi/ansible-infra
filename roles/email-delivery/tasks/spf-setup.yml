@@ -1,0 +1,25 @@
+---
+# SPF Record Configuration
+
+- name: Setup SPF Records
+  block:
+    - name: Create SPF TXT Record
+      community.general.cloudflare_dns:
+        zone: "{{ email_domain }}"
+        record: "@"
+        type: "TXT"
+        value: "v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all"
+        ttl: 3600
+        account_api_token: "{{ cloudflare_api_token }}"
+      register: spf_record_result
+
+    - name: Display SPF Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ SPF Record Created
+          Value: v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all
+
+  rescue:
+    - name: Handle SPF Setup Error
+      ansible.builtin.fail:
+        msg: "SPF setup failed: {{ ansible_failed_result.msg }}"

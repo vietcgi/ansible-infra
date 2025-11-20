@@ -1,0 +1,226 @@
+-- KumoMTA Email Routing Configuration
+-- Handles intelligent routing of messages to various delivery endpoints
+
+local routing = {}
+
+-- Initialize routing configuration
+function init()
+  kumo.on('init', function()
+    kumo.log(kumo.LOG_INFO, 'Initializing email routing configuration')
+  end)
+end
+
+-- Determine routing path for message
+function kumo.on_message_routing(msg)
+  local domain = msg:get_recipient_domain()
+  local sender = msg:get_sender()
+
+  -- Get route configuration for domain
+  local route = get_domain_route(domain)
+
+  kumo.log(kumo.LOG_DEBUG, string.format(
+    'Routing message from %s to %s via %s', sender, domain, route
+  ))
+
+  return route
+end
+
+-- Get routing configuration for a specific domain
+function get_domain_route(domain)
+  -- Check for domain-specific routing rules
+  if is_local_domain(domain) then
+    return 'local'
+  end
+
+  -- Check for relay rules
+  if should_relay_domain(domain) then
+    return get_relay_route(domain)
+  end
+
+  -- Default: direct delivery via MX lookup
+  return 'direct'
+end
+
+-- Check if domain is local (same as mail server)
+function is_local_domain(domain)
+  local local_domain = '{{ email_domain }}'
+
+  if domain == local_domain then
+    return true
+  end
+
+  -- Check for alternate domains
+  local alternate_domains = {
+    {{ email_alternate_domains | join(', ') }}
+  }
+
+  for _, alt_domain in ipairs(alternate_domains) do
+    if domain == alt_domain then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Check if domain requires relay delivery
+function should_relay_domain(domain)
+  -- Check relay configuration
+  local relay_domains = {
+    -- Define any domains that should be relayed
+    -- 'example.com',
+  }
+
+  for _, relay_domain in ipairs(relay_domains) do
+    if domain == relay_domain then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Get relay configuration for domain
+function get_relay_route(domain)
+  -- Return relay endpoint for domain
+  -- Format: "relay:hostname:port"
+  local relay_host = '{{ kumomta_relay_host | default("") }}'
+  local relay_port = {{ kumomta_relay_port | default(25) }}
+
+  if relay_host == '' then
+    return 'direct'
+  end
+
+  return string.format('relay:%s:%d', relay_host, relay_port)
+end
+
+-- Configure direct delivery via MX lookup
+function kumo.on_configure_mxlookup(msg)
+  local domain = msg:get_recipient_domain()
+
+  kumo.log(kumo.LOG_DEBUG, string.format('Performing MX lookup for domain: %s', domain))
+
+  return {
+    fallback_hosts = { '{{ email_server_ip }}' },
+    ports = { 25, 587, 465 },
+  }
+end
+
+-- Configure local delivery routing
+function kumo.on_configure_local_delivery(msg)
+  local recipient = msg:get_recipient()
+
+  kumo.log(kumo.LOG_DEBUG, string.format('Configuring local delivery for: %s', recipient))
+
+  return {
+    mailbox = '/var/mail/' .. msg:get_recipient_local_part(),
+  }
+end
+
+-- Configure relay delivery
+function kumo.on_configure_relay_delivery(msg, relay_host, relay_port)
+  kumo.log(kumo.LOG_DEBUG, string.format(
+    'Configuring relay delivery to %s:%d', relay_host, relay_port
+  ))
+
+  return {
+    use_tls = {{ kumomta_relay_use_tls | default('false') | lower }},
+    require_tls = {{ kumomta_relay_require_tls | default('false') | lower }},
+  }
+end
+
+-- Smart routing based on sender/recipient
+function kumo.on_intelligent_routing(msg)
+  local sender = msg:get_sender()
+  local recipient = msg:get_recipient()
+  local domain = msg:get_recipient_domain()
+
+  -- Route based on message characteristics
+  local route = 'direct'
+
+  -- Check for bounce messages
+  if sender == 'postmaster@{{ email_domain }}' or sender == '' then
+    route = 'local'
+  end
+
+  -- Check for auto-reply/notification messages
+  if has_auto_reply_header(msg) then
+    route = 'direct'
+  end
+
+  -- Check message priority
+  local priority = msg:get_header('X-Priority') or '3'
+  if priority == '1' or priority == '2' then
+    -- High priority - ensure direct delivery
+    route = 'direct'
+  end
+
+  return route
+end
+
+-- Check if message is auto-reply
+function has_auto_reply_header(msg)
+  local headers = {
+    'Auto-Submitted',
+    'X-AutoReply',
+    'X-AutoResponse',
+  }
+
+  for _, header in ipairs(headers) do
+    local value = msg:get_header(header)
+    if value and value ~= '' then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Configure spam routing (optional)
+function kumo.on_configure_spam_routing(msg)
+  local spam_score = msg:get_meta('spam_score') or '0'
+
+  if tonumber(spam_score) > 5 then
+    kumo.log(kumo.LOG_DEBUG, 'Message marked as spam, special routing applied')
+    return 'spam_queue'
+  end
+
+  return 'normal'
+end
+
+-- Handle routing errors
+function kumo.on_routing_error(msg, error)
+  local domain = msg:get_recipient_domain()
+
+  kumo.log(kumo.LOG_WARN, string.format(
+    'Routing error for %s: %s', domain, error
+  ))
+
+  -- Fallback: attempt direct delivery
+  return 'direct'
+end
+
+-- Load domain routes from configuration file
+function load_domain_routes()
+  -- Read from /etc/kumomta/domain_routes.conf
+  local routes = {}
+
+  -- Parse configuration file and populate routes table
+  -- Format: destination_domain = "route_name"
+
+  return routes
+end
+
+-- Cache routing decisions
+function cache_routing_decision(domain, route, ttl)
+  local key = 'route:' .. domain
+  kumo.cache_set(key, route, ttl or 3600)
+end
+
+-- Get cached routing decision
+function get_cached_routing_decision(domain)
+  local key = 'route:' .. domain
+  return kumo.cache_get(key)
+end
+
+return routing

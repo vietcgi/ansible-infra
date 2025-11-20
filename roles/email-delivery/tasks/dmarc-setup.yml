@@ -1,0 +1,27 @@
+---
+# DMARC Record Configuration
+
+- name: Setup DMARC Records
+  block:
+    - name: Create DMARC TXT Record
+      community.general.cloudflare_dns:
+        zone: "{{ email_domain }}"
+        record: "_dmarc"
+        type: "TXT"
+        value: "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}; pct={{ dmarc_percent }};"
+        ttl: 3600
+        account_api_token: "{{ cloudflare_api_token }}"
+      register: dmarc_record_result
+
+    - name: Display DMARC Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ DMARC Record Created
+          Policy: {{ dmarc_policy }}
+          Report Email: {{ dmarc_report_email }}
+          Forensics Email: {{ dmarc_forensics_email }}
+
+  rescue:
+    - name: Handle DMARC Setup Error
+      ansible.builtin.fail:
+        msg: "DMARC setup failed: {{ ansible_failed_result.msg }}"

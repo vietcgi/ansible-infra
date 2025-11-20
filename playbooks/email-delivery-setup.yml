@@ -1,0 +1,130 @@
+---
+# Email Delivery Setup Playbook
+# Automates complete email server configuration including DNS, certificates, and KumoMTA
+#
+# Requirements:
+# - Ansible vault with cloudflare_api_token and cloudflare_zone_id defined
+# - Target host must be Ubuntu/Debian with sudo access
+# - DNS provider: Cloudflare
+# - Mail server: KumoMTA
+#
+# Usage:
+#   ansible-playbook playbooks/email-delivery-setup.yml \
+#     --ask-vault-pass \
+#     -e "email_domain=example.com" \
+#     -e "email_server_ip=192.0.2.1"
+
+- name: Complete Email Delivery Platform Setup
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Default variables - override via command line or inventory
+    email_domain: "vietcgi.nguoivietcali.com"
+    email_server_ip: "108.181.38.69"
+    letsencrypt_email: "admin@{{ email_domain }}"
+
+    # DKIM Configuration
+    dkim_selector: "default"
+    dkim_key_size: 2048
+
+    # DMARC Configuration
+    dmarc_policy: "quarantine"
+    dmarc_subdomain_policy: "quarantine"
+    dmarc_percent: 100
+    dmarc_report_email: "dmarc-reports@{{ email_domain }}"
+    dmarc_forensics_email: "dmarc-forensics@{{ email_domain }}"
+
+    # SPF Configuration
+    spf_include_domains: []  # Additional domains to include in SPF
+
+    # KumoMTA Configuration
+    kumomta_max_delivery_attempts: 5
+    kumomta_max_retry_delay: 86400
+    kumomta_max_messages_per_minute: 300
+    kumomta_max_message_size: 104857600  # 100MB
+    kumomta_sender_messages_per_minute: 100
+
+  pre_tasks:
+    - name: Validate required variables
+      assert:
+        that:
+          - email_domain is defined and email_domain != ""
+          - email_server_ip is defined and email_server_ip != ""
+          - cloudflare_api_token is defined and cloudflare_api_token != ""
+          - cloudflare_zone_id is defined and cloudflare_zone_id != ""
+        fail_msg: "Missing required variables. Please check vault and command-line variables."
+
+    - name: Display configuration summary
+      debug:
+        msg: |
+          ===== Email Delivery Setup Configuration =====
+          Domain: {{ email_domain }}
+          Server IP: {{ email_server_ip }}
+          DKIM Selector: {{ dkim_selector }}
+          DMARC Policy: {{ dmarc_policy }}
+          LE Email: {{ letsencrypt_email }}
+          ============================================
+
+    - name: Update system packages
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  roles:
+    - role: kumomta
+      tags: [kumomta]
+
+    - role: email-delivery
+      tags: [email-delivery]
+
+  post_tasks:
+    - name: Final health check
+      command: /usr/local/bin/kumomta-health-check.sh
+      register: health_check_result
+      changed_when: false
+
+    - name: Display health check results
+      debug:
+        msg: "{{ health_check_result.stdout }}"
+
+    - name: Display next steps
+      debug:
+        msg: |
+          ===== Email Delivery Setup Complete =====
+
+          Configuration Summary:
+          ✓ DNS Records (A, MX, SPF, DKIM, DMARC) configured in Cloudflare
+          ✓ DKIM keys generated and published
+          ✓ Let's Encrypt certificates obtained via DNS validation
+          ✓ KumoMTA configured for email delivery
+          ✓ Routing and policy scripts deployed
+          ✓ Monitoring and logging configured
+
+          Next Steps:
+          1. Verify DNS propagation:
+             - nslookup {{ email_domain }}
+             - nslookup -type=MX {{ email_domain }}
+             - nslookup -type=TXT _dmarc.{{ email_domain }}
+
+          2. Test email delivery:
+             - Send test email to verify delivery
+             - Check KumoMTA logs: tail -f /var/log/kumomta/kumomta.log
+
+          3. Monitor server status:
+             - Run: /usr/local/bin/kumomta-monitoring-status.sh
+             - Access metrics on: 127.0.0.1:9090 (Prometheus)
+
+          4. Configure monitoring:
+             - Add Prometheus scrape target: {{ email_server_ip }}:9090
+             - Import Prometheus alert rules from: /etc/kumomta/prometheus-alerts.yml
+
+          5. Setup backups:
+             - Backup DKIM keys: /etc/kumomta/dkim/
+             - Backup certificates: /etc/letsencrypt/live/{{ email_domain }}/
+             - Backup configuration: /etc/kumomta/kumomta.conf
+
+          Domain: {{ email_domain }}
+          Server IP: {{ email_server_ip }}
+          =========================================

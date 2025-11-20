@@ -1,0 +1,249 @@
+-- KumoMTA Email Delivery Policy Configuration
+-- Handles message validation, authentication checks, and delivery policy enforcement
+
+local policy = {}
+
+-- Initialize policy module
+function init()
+  kumo.on('init', function()
+    kumo.log(kumo.LOG_INFO, 'Initializing email delivery policy')
+  end)
+end
+
+-- Validate message for delivery
+function kumo.on_message_received(msg)
+  -- Get message metadata
+  local sender = msg:get_sender()
+  local recipients = msg:get_recipients()
+  local domain = msg:get_recipient_domain()
+
+  kumo.log(kumo.LOG_DEBUG, string.format(
+    'Message received from %s to %d recipients in domain %s',
+    sender, #recipients, domain
+  ))
+
+  -- Validate sender
+  if not validate_sender(msg) then
+    return false
+  end
+
+  -- Validate recipients
+  for _, recipient in ipairs(recipients) do
+    if not validate_recipient(msg, recipient) then
+      return false
+    end
+  end
+
+  -- Check message content
+  if not validate_message_content(msg) then
+    return false
+  end
+
+  return true
+end
+
+-- Validate sender configuration
+function validate_sender(msg)
+  local sender = msg:get_sender()
+
+  -- Reject messages without valid sender
+  if not sender or sender == '' then
+    kumo.log(kumo.LOG_WARN, 'Rejecting message without sender')
+    return false
+  end
+
+  -- Validate sender format (basic email format check)
+  if not string.match(sender, '^[^@]+@[^@]+$') then
+    kumo.log(kumo.LOG_WARN, string.format('Invalid sender format: %s', sender))
+    return false
+  end
+
+  -- Check sender reputation (simple check, can be expanded)
+  if is_sender_blocked(sender) then
+    kumo.log(kumo.LOG_WARN, string.format('Sender blocked: %s', sender))
+    return false
+  end
+
+  return true
+end
+
+-- Validate recipient configuration
+function validate_recipient(msg, recipient)
+  -- Reject messages without valid recipient
+  if not recipient or recipient == '' then
+    kumo.log(kumo.LOG_WARN, 'Rejecting message to empty recipient')
+    return false
+  end
+
+  -- Validate recipient format
+  if not string.match(recipient, '^[^@]+@[^@]+$') then
+    kumo.log(kumo.LOG_WARN, string.format('Invalid recipient format: %s', recipient))
+    return false
+  end
+
+  -- Check recipient block list
+  if is_recipient_blocked(recipient) then
+    kumo.log(kumo.LOG_WARN, string.format('Recipient blocked: %s', recipient))
+    return false
+  end
+
+  -- Check message size for this recipient
+  if not check_recipient_message_size(msg, recipient) then
+    return false
+  end
+
+  return true
+end
+
+-- Validate message content
+function validate_message_content(msg)
+  local size = msg:get_body_size()
+  local max_size = {{ kumomta_max_message_size | default(104857600) }} -- 100MB
+
+  -- Check message size
+  if size > max_size then
+    kumo.log(kumo.LOG_WARN, string.format(
+      'Message too large: %d bytes (max %d)', size, max_size
+    ))
+    return false
+  end
+
+  -- Check for required headers
+  if not has_required_headers(msg) then
+    kumo.log(kumo.LOG_WARN, 'Message missing required headers')
+    return false
+  end
+
+  -- Check DKIM/SPF/DMARC compliance
+  if not check_authentication(msg) then
+    kumo.log(kumo.LOG_DEBUG, 'Message failed authentication checks')
+    -- Don't reject, just log - SPF/DKIM failures are often legitimate
+  end
+
+  return true
+end
+
+-- Check if sender is in block list
+function is_sender_blocked(sender)
+  -- TODO: Implement sender block list (database lookup, whitelist)
+  -- For now, accept all senders
+  return false
+end
+
+-- Check if recipient is in block list
+function is_recipient_blocked(recipient)
+  -- TODO: Implement recipient block list
+  -- For now, accept all recipients
+  return false
+end
+
+-- Check message size per recipient
+function check_recipient_message_size(msg, recipient)
+  local size = msg:get_body_size()
+  local max_size = {{ kumomta_max_message_size | default(104857600) }}
+
+  if size > max_size then
+    kumo.log(kumo.LOG_WARN, string.format(
+      'Message size %d exceeds limit for %s', size, recipient
+    ))
+    return false
+  end
+
+  return true
+end
+
+-- Check for required headers
+function has_required_headers(msg)
+  -- Check for From header
+  local from = msg:get_header('From')
+  if not from then
+    return false
+  end
+
+  -- Check for Date header
+  local date = msg:get_header('Date')
+  if not date then
+    return false
+  end
+
+  return true
+end
+
+-- Check authentication (DKIM/SPF/DMARC)
+function check_authentication(msg)
+  local auth_result = msg:get_header('Authentication-Results') or ''
+  local dkim_sig = msg:get_header('DKIM-Signature') or ''
+
+  -- Log authentication status
+  if dkim_sig ~= '' then
+    kumo.log(kumo.LOG_DEBUG, 'Message has DKIM signature')
+  end
+
+  -- All authentication checks pass (we're lenient)
+  return true
+end
+
+-- Handle policy violation
+function handle_policy_violation(msg, reason)
+  kumo.log(kumo.LOG_WARN, string.format(
+    'Policy violation for message from %s: %s',
+    msg:get_sender(), reason
+  ))
+
+  -- Generate policy violation report if needed
+  -- For now, just log it
+  return true
+end
+
+-- Configure domain-specific policy
+function kumo.on_smtp_server_inbound_message_received(msg)
+  local domain = msg:get_recipient_domain()
+
+  -- Allow local delivery within the domain
+  if domain == '{{ email_domain }}' then
+    msg:set_meta('local_delivery', 'true')
+  else
+    msg:set_meta('external_delivery', 'true')
+  end
+
+  return true
+end
+
+-- Rate limiting per sender
+function check_sender_rate_limit(sender)
+  local key = 'sender_rate:' .. sender
+  local current = kumo.cache_get(key) or 0
+  local max_rate = {{ kumomta_sender_messages_per_minute | default(100) }}
+
+  if current >= max_rate then
+    kumo.log(kumo.LOG_WARN, string.format(
+      'Rate limit exceeded for sender %s: %d msg/min', sender, current
+    ))
+    return false
+  end
+
+  kumo.cache_set(key, current + 1, 60)
+  return true
+end
+
+-- Perform final delivery check
+function kumo.on_message_accepted(msg)
+  local sender = msg:get_sender()
+  local recipients = msg:get_recipients()
+
+  -- Check sender rate limit
+  if not check_sender_rate_limit(sender) then
+    kumo.log(kumo.LOG_WARN, 'Rejecting due to rate limit: ' .. sender)
+    return false
+  end
+
+  -- Log accepted message
+  kumo.log(kumo.LOG_INFO, string.format(
+    'Message accepted: from=%s recipients=%d',
+    sender, #recipients
+  ))
+
+  return true
+end
+
+return policy

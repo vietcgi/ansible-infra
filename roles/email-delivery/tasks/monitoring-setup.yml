@@ -1,0 +1,221 @@
+---
+# Monitoring and Observability Configuration
+
+- name: Setup Monitoring and Logging
+  block:
+    - name: Create KumoMTA logging configuration
+      ansible.builtin.blockinfile:
+        path: /etc/kumomta/kumomta.conf
+        marker: "# {mark} LOGGING CONFIGURATION"
+        block: |
+          [logging]
+          log_level = "info"
+          log_format = "json"
+          log_file = "/var/log/kumomta/kumomta.log"
+          max_log_size = 104857600
+          retention_days = 30
+
+          [metrics]
+          enabled = true
+          listen = "127.0.0.1:9090"
+          format = "prometheus"
+      notify: restart kumomta
+
+    - name: Create Prometheus metrics configuration
+      ansible.builtin.copy:
+        content: |
+          # Prometheus scrape configuration for KumoMTA metrics
+          # Add this to your Prometheus configuration:
+          #
+          # scrape_configs:
+          #   - job_name: 'kumomta'
+          #     static_configs:
+          #       - targets: ['{{ email_server_ip }}:9090']
+          #
+          # Key metrics to monitor:
+          # - kumomta_messages_accepted_total
+          # - kumomta_messages_delivered_total
+          # - kumomta_messages_bounced_total
+          # - kumomta_messages_failed_total
+          # - kumomta_queue_depth
+          # - kumomta_delivery_latency_seconds
+          # - kumomta_connection_errors_total
+          # - kumomta_dkim_sign_failures_total
+        dest: /etc/kumomta/prometheus-config.txt
+        owner: kumomta
+        group: kumomta
+        mode: '0640'
+
+    - name: Create health check script
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # KumoMTA Health Check Script
+
+          set -e
+
+          SERVICE_SOCKET="/tmp/kumomta.sock"
+
+          # Check if service is running
+          if ! systemctl is-active --quiet kumomta; then
+            echo "ERROR: KumoMTA service is not running"
+            exit 1
+          fi
+
+          # Check if socket exists
+          if [ ! -S "$SERVICE_SOCKET" ]; then
+            echo "ERROR: KumoMTA socket not found at $SERVICE_SOCKET"
+            exit 1
+          fi
+
+          # Check port bindings
+          PORTS_LISTENING=$(netstat -tuln 2>/dev/null | grep LISTEN | grep -E ":(25|587|465)" || true)
+          if [ -z "$PORTS_LISTENING" ]; then
+            echo "WARNING: Expected SMTP ports (25/587/465) not listening"
+            exit 1
+          fi
+
+          # Check certificate validity
+          if [ -f "/etc/kumomta/certs/kumomta.crt" ]; then
+            EXPIRY=$(openssl x509 -enddate -noout -in /etc/kumomta/certs/kumomta.crt | cut -d= -f2)
+            echo "Certificate valid until: $EXPIRY"
+          fi
+
+          # Check DKIM keys
+          DKIM_KEYS=$(find /etc/kumomta/dkim -name "*.key" 2>/dev/null | wc -l)
+          if [ "$DKIM_KEYS" -eq 0 ]; then
+            echo "WARNING: No DKIM keys found"
+            exit 1
+          fi
+
+          echo "✓ KumoMTA health check passed"
+          echo "✓ Service running"
+          echo "✓ Socket available"
+          echo "✓ Ports listening"
+          echo "✓ DKIM keys: $DKIM_KEYS"
+
+          exit 0
+        dest: /usr/local/bin/kumomta-health-check.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create monitoring alerts configuration
+      ansible.builtin.copy:
+        content: |
+          # KumoMTA Monitoring Alerts
+          # Use these alert rules in Prometheus for alerting
+
+          groups:
+          - name: kumomta_alerts
+            rules:
+            - alert: KumoMTAServiceDown
+              expr: up{job="kumomta"} == 0
+              for: 1m
+              annotations:
+                summary: "KumoMTA service is down"
+                description: "KumoMTA on {{ email_server_ip }} has been unavailable for 1 minute"
+
+            - alert: KumoMTAQueueBacklog
+              expr: kumomta_queue_depth > 1000
+              for: 5m
+              annotations:
+                summary: "KumoMTA queue depth is high"
+                description: "Queue depth has exceeded 1000 messages"
+
+            - alert: KumoMTAHighBounceRate
+              expr: rate(kumomta_messages_bounced_total[5m]) > 0.05
+              for: 10m
+              annotations:
+                summary: "KumoMTA bounce rate is high"
+                description: "More than 5% of messages are bouncing"
+
+            - alert: KumoMTAHighFailureRate
+              expr: rate(kumomta_messages_failed_total[5m]) > 0.02
+              for: 10m
+              annotations:
+                summary: "KumoMTA failure rate is high"
+                description: "More than 2% of messages are failing"
+
+            - alert: KumoMTACertificateExpiring
+              expr: (kumomta_certificate_expiry_seconds - time()) < 604800
+              for: 1h
+              annotations:
+                summary: "KumoMTA certificate expiring soon"
+                description: "Certificate will expire in less than 7 days"
+
+            - alert: KumoMTADKIMSigningFailures
+              expr: rate(kumomta_dkim_sign_failures_total[5m]) > 0
+              for: 5m
+              annotations:
+                summary: "KumoMTA DKIM signing failures detected"
+                description: "DKIM signing is failing for messages"
+        dest: /etc/kumomta/prometheus-alerts.yml
+        owner: kumomta
+        group: kumomta
+        mode: '0640'
+
+    - name: Setup logrotate for KumoMTA logs
+      ansible.builtin.copy:
+        content: |
+          /var/log/kumomta/*.log {
+            daily
+            rotate 30
+            compress
+            delaycompress
+            notifempty
+            create 0640 kumomta kumomta
+            sharedscripts
+            postrotate
+              systemctl reload kumomta > /dev/null 2>&1 || true
+            endscript
+          }
+        dest: /etc/logrotate.d/kumomta
+        owner: root
+        group: root
+        mode: '0644'
+      become: true
+
+    - name: Create monitoring status script
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # Display KumoMTA monitoring and health status
+
+          echo "=== KumoMTA Monitoring Status ==="
+          echo ""
+
+          echo "Service Status:"
+          systemctl status kumomta --no-pager | head -10
+          echo ""
+
+          echo "Recent Logs (last 20 lines):"
+          tail -20 /var/log/kumomta/kumomta.log || echo "No logs available"
+          echo ""
+
+          echo "Queue Depth:"
+          tail -1 /var/log/kumomta/kumomta.log | grep queue_depth || echo "Queue status unavailable"
+          echo ""
+
+          echo "Running health check:"
+          /usr/local/bin/kumomta-health-check.sh
+        dest: /usr/local/bin/kumomta-monitoring-status.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Display Monitoring Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ Monitoring and Logging Configuration
+          ✓ Logging: /var/log/kumomta/kumomta.log
+          ✓ Log Rotation: Daily, 30-day retention
+          ✓ Prometheus Metrics: Enabled on 127.0.0.1:9090
+          ✓ Health Check: /usr/local/bin/kumomta-health-check.sh
+          ✓ Monitoring Status: /usr/local/bin/kumomta-monitoring-status.sh
+          ✓ Alert Rules: /etc/kumomta/prometheus-alerts.yml
+
+  rescue:
+    - name: Handle Monitoring Setup Error
+      ansible.builtin.fail:
+        msg: "Monitoring setup failed: {{ ansible_failed_result.msg }}"

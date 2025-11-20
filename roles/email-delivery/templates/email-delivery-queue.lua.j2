@@ -1,0 +1,187 @@
+-- KumoMTA Email Delivery Queue Configuration
+-- Handles message queuing, retry logic, and delivery to recipient domains
+
+local queue_config = {}
+
+-- Initialize delivery queue configuration
+function init()
+  kumo.on('init', function()
+    kumo.log(kumo.LOG_INFO, 'Initializing email delivery queue')
+  end)
+end
+
+-- Configure per-domain queue behavior
+function kumo.on_define_queue(domain, tenant, campaign)
+  -- Queue name format: domain:tenant:campaign or domain:tenant
+  local queue_name = domain
+  if tenant and tenant ~= '' then
+    queue_name = queue_name .. ':' .. tenant
+  end
+  if campaign and campaign ~= '' then
+    queue_name = queue_name .. ':' .. campaign
+  end
+
+  -- Set delivery strategy per domain
+  local queue = kumo.make_queue(queue_name)
+
+  -- Retry configuration
+  queue:set_max_message_size(104857600) -- 100MB
+
+  -- Connection settings
+  queue:set_connection_timeout(30)
+  queue:set_read_timeout(60)
+  queue:set_write_timeout(60)
+
+  -- Delivery strategy: per-domain with MX lookup
+  queue:set_strategy('per_domain')
+  queue:set_mx_lookup(true)
+
+  return queue
+end
+
+-- Handle message queuing
+function kumo.on_message_queued(msg)
+  local domain = msg:get_recipient_domain()
+  local tenant = msg:get_meta('tenant') or ''
+  local campaign = msg:get_meta('campaign') or ''
+
+  kumo.log(kumo.LOG_DEBUG, string.format(
+    'Message queued: domain=%s tenant=%s campaign=%s size=%d',
+    domain, tenant, campaign, msg:get_body_size()
+  ))
+
+  return true
+end
+
+-- Configure delivery attempts and retry logic
+function kumo.on_bounce(msg, bounce_type, diagnostic_code, user_message)
+  local num_attempts = msg:get_num_attempts()
+  local max_attempts = {{ kumomta_max_delivery_attempts | default(5) }}
+
+  kumo.log(kumo.LOG_INFO, string.format(
+    'Bounce: %s attempt %d/%d - %s',
+    msg:get_recipient(), num_attempts, max_attempts, user_message
+  ))
+
+  if num_attempts >= max_attempts then
+    -- Max attempts exceeded, generate bounce message
+    local bounce_msg = kumo.make_message(
+      'postmaster@{{ email_domain }}',
+      msg:get_recipient(),
+      'Delivery failed: ' .. user_message
+    )
+    kumo.queue_message(bounce_msg)
+    return false -- Don't retry
+  end
+
+  -- Determine retry delay based on attempt number
+  local retry_delay = get_retry_delay(num_attempts)
+  msg:set_next_delivery_attempt(kumo.time.now() + retry_delay)
+
+  return true -- Will retry
+end
+
+-- Calculate exponential backoff retry delay
+function get_retry_delay(attempt)
+  local base_delay = 60 -- 1 minute
+  local max_delay = {{ kumomta_max_retry_delay | default(86400) }} -- 1 day
+
+  -- Exponential backoff: 1m, 2m, 4m, 8m...
+  local delay = base_delay * math.pow(2, attempt - 1)
+
+  -- Cap at max delay
+  if delay > max_delay then
+    delay = max_delay
+  end
+
+  return delay
+end
+
+-- Handle successful delivery
+function kumo.on_message_delivered(msg)
+  local domain = msg:get_recipient_domain()
+  local attempts = msg:get_num_attempts()
+
+  kumo.log(kumo.LOG_INFO, string.format(
+    'Message delivered to %s in %d attempt(s)',
+    domain, attempts
+  ))
+
+  return true
+end
+
+-- Handle permanent delivery failures
+function kumo.on_delivery_failed(msg, reason)
+  kumo.log(kumo.LOG_WARN, string.format(
+    'Permanent delivery failure to %s: %s',
+    msg:get_recipient(), reason
+  ))
+
+  -- Generate non-delivery report (NDR)
+  local ndr = kumo.make_message(
+    'postmaster@{{ email_domain }}',
+    msg:get_sender(),
+    'Delivery failed for message to ' .. msg:get_recipient() .. ': ' .. reason
+  )
+
+  kumo.queue_message(ndr)
+  return true
+end
+
+-- Handle connection-level errors
+function kumo.on_delivery_error(msg, err)
+  local domain = msg:get_recipient_domain()
+  local num_attempts = msg:get_num_attempts()
+  local max_attempts = {{ kumomta_max_delivery_attempts | default(5) }}
+
+  kumo.log(kumo.LOG_WARN, string.format(
+    'Delivery error for %s@%s (attempt %d/%d): %s',
+    msg:get_recipient_local_part(), domain, num_attempts, max_attempts, err
+  ))
+
+  if num_attempts < max_attempts then
+    local retry_delay = get_retry_delay(num_attempts)
+    msg:set_next_delivery_attempt(kumo.time.now() + retry_delay)
+    return true -- Will retry
+  end
+
+  return false -- No more retries
+end
+
+-- Log queue statistics
+function kumo.on_tick()
+  -- This is called periodically by KumoMTA
+  local stats = kumo.get_queue_stats()
+
+  if stats.total_messages > 0 then
+    kumo.log(kumo.LOG_DEBUG, string.format(
+      'Queue stats: total=%d, ready=%d, delivering=%d',
+      stats.total_messages, stats.ready_messages, stats.delivering_messages
+    ))
+  end
+end
+
+-- Rate limiting per domain
+function kumo.on_generate_bounce_address(msg, bounce_type)
+  local domain = msg:get_recipient_domain()
+
+  -- Track delivery rate per domain
+  local key = 'rate:' .. domain
+  local current = kumo.cache_get(key) or 0
+  local max_rate = {{ kumomta_max_messages_per_minute | default(300) }}
+
+  if current >= max_rate then
+    kumo.log(kumo.LOG_WARN, string.format(
+      'Rate limit exceeded for %s: %d messages/min', domain, current
+    ))
+
+    -- Delay delivery for this message
+    msg:set_next_delivery_attempt(kumo.time.now() + 60)
+    return true
+  end
+
+  kumo.cache_set(key, current + 1, 60)
+  return true
+end
+
+return queue_config

@@ -1,0 +1,83 @@
+---
+# Email Routing Configuration
+
+- name: Setup Email Routing
+  block:
+    - name: Create custom routing configuration
+      ansible.builtin.template:
+        src: email-routing-config.lua.j2
+        dest: /etc/kumomta/email-routing.lua
+        owner: kumomta
+        group: kumomta
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Update KumoMTA configuration for routing
+      ansible.builtin.blockinfile:
+        path: /etc/kumomta/kumomta.conf
+        marker: "# {mark} EMAIL ROUTING CONFIGURATION"
+        block: |
+          [relay]
+          enabled = true
+          max_connections_per_domain = 20
+          max_message_size = 104857600
+          connection_timeout = 30
+
+          [routing]
+          use_lua_policy = true
+          policy_script = "/etc/kumomta/email-routing.lua"
+
+          [domain_routes]
+          # Default route to direct delivery
+          default = "direct"
+
+          # Local domain routes (can be configured per domain)
+          # example.com = "relay:smarthost.example.com"
+      notify: restart kumomta
+
+    - name: Create domain routing map file
+      ansible.builtin.copy:
+        content: |
+          # Domain routing configuration
+          # Format: destination_domain = "route_name"
+          # Supported routes: direct, relay:<hostname>, local
+          # Examples:
+          # hotmail.com = "relay:mx-relay.example.com"
+          # gmail.com = "direct"
+        dest: /etc/kumomta/domain_routes.conf
+        owner: kumomta
+        group: kumomta
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Create bounce/retry configuration
+      ansible.builtin.blockinfile:
+        path: /etc/kumomta/kumomta.conf
+        marker: "# {mark} BOUNCE AND RETRY CONFIGURATION"
+        block: |
+          [retry]
+          max_attempts = 5
+          initial_delay = 60
+          max_delay = 86400
+          bounce_after = 432000
+
+          [bounce]
+          generate_dsr = true
+          dsr_email = "postmaster@{{ email_domain }}"
+      notify: restart kumomta
+
+    - name: Display Routing Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ Email Routing Configuration
+          ✓ Routing Script: /etc/kumomta/email-routing.lua
+          ✓ Domain Routes: /etc/kumomta/domain_routes.conf
+          ✓ Relay Configuration: Enabled
+          ✓ Max Connections per Domain: 20
+          ✓ Bounce Handling: Enabled with DSR
+          ✓ Retry Policy: 5 attempts, max 5 days
+
+  rescue:
+    - name: Handle Email Routing Error
+      ansible.builtin.fail:
+        msg: "Email routing configuration failed: {{ ansible_failed_result.msg }}"

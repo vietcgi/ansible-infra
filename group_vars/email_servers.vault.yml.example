@@ -1,0 +1,27 @@
+# Ansible Vault Template for Email Delivery Secrets
+#
+# To create the encrypted vault file:
+# 1. Copy this file and remove .example: cp group_vars/email_servers.vault.yml.example group_vars/email_servers.vault.yml
+# 2. Edit the vault file with your actual Cloudflare credentials
+# 3. Encrypt it: ansible-vault encrypt group_vars/email_servers.vault.yml
+# 4. When running playbooks, use: --ask-vault-pass (you'll be prompted for the vault password)
+#
+# Alternatively, you can create a vault password file:
+# 1. echo "your-vault-password" > ~/.ansible-vault-pass
+# 2. chmod 600 ~/.ansible-vault-pass
+# 3. Run with: --vault-password-file ~/.ansible-vault-pass
+#
+
+# Cloudflare API Token (with DNS edit permissions)
+# Get this from: https://dash.cloudflare.com/profile/api-tokens
+# Required permissions:
+#   - Zone: DNS:Edit
+vault_cloudflare_api_token: "YOUR_CLOUDFLARE_API_TOKEN_HERE"
+
+# Cloudflare Zone ID (numeric ID for your domain)
+# Find this in: https://dash.cloudflare.com -> Select your domain -> Right sidebar
+vault_cloudflare_zone_id: "YOUR_CLOUDFLARE_ZONE_ID_HERE"
+
+# Optional: Cloudflare email and API key (for older certbot versions)
+# vault_cloudflare_email: "your-email@example.com"
+# vault_cloudflare_api_key: "YOUR_CLOUDFLARE_API_KEY_HERE"

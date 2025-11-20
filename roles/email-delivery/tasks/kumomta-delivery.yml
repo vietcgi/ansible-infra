@@ -1,0 +1,60 @@
+---
+# KumoMTA Delivery Configuration
+
+- name: Configure KumoMTA for Email Delivery
+  block:
+    - name: Create email-delivery queue script
+      ansible.builtin.template:
+        src: email-delivery-queue.lua.j2
+        dest: /etc/kumomta/email-delivery-queue.lua
+        owner: kumomta
+        group: kumomta
+        mode: '0644'
+      notify: restart kumomta
+
+    - name: Create email-delivery policy script
+      ansible.builtin.template:
+        src: email-delivery-policy.lua.j2
+        dest: /etc/kumomta/email-delivery-policy.lua
+        owner: kumomta
+        group: kumomta
+        mode: '0644'
+      notify: restart kumomta
+
+    - name: Update KumoMTA configuration for delivery
+      ansible.builtin.blockinfile:
+        path: /etc/kumomta/kumomta.conf
+        marker: "# {mark} EMAIL DELIVERY CONFIGURATION"
+        block: |
+          [delivery]
+          enabled = true
+          strategy = "per_domain"
+          mx_lookup = true
+          connection_timeout = 30
+          read_timeout = 60
+          write_timeout = 60
+
+          [outbound]
+          require_tls = false
+          allow_opportunistic_tls = true
+          dkim_signing = true
+          arc_signing = false
+
+          [routes]
+          default = "direct"
+      notify: restart kumomta
+
+    - name: Display KumoMTA Delivery Status
+      ansible.builtin.debug:
+        msg: |
+          ✓ KumoMTA Delivery Configuration
+          ✓ Queue Script: /etc/kumomta/email-delivery-queue.lua
+          ✓ Policy Script: /etc/kumomta/email-delivery-policy.lua
+          ✓ Delivery Routing: Enabled
+          ✓ DKIM Signing: Enabled
+          ✓ MX Lookup: Enabled
+
+  rescue:
+    - name: Handle KumoMTA Delivery Error
+      ansible.builtin.fail:
+        msg: "KumoMTA delivery configuration failed: {{ ansible_failed_result.msg }}"

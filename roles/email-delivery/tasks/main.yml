@@ -1,0 +1,71 @@
+---
+# Email Delivery Platform Setup
+
+- name: Email Delivery Platform Setup
+  block:
+    - name: Configure Cloudflare DNS Records
+      ansible.builtin.include_tasks: cloudflare-dns.yml
+
+    - name: Configure DKIM Keys and DNS Records
+      ansible.builtin.include_tasks: dkim-setup.yml
+
+    - name: Configure SPF Records
+      ansible.builtin.include_tasks: spf-setup.yml
+
+    - name: Configure DMARC Records
+      ansible.builtin.include_tasks: dmarc-setup.yml
+
+    - name: Configure TLS Certificates
+      ansible.builtin.include_tasks: tls-certificates.yml
+
+    - name: Configure KumoMTA for Delivery
+      ansible.builtin.include_tasks: kumomta-delivery.yml
+
+    - name: Configure Email Routing
+      ansible.builtin.include_tasks: email-routing.yml
+
+    - name: Setup Monitoring
+      ansible.builtin.include_tasks: monitoring-setup.yml
+      when: monitoring_enabled | bool
+
+    - name: Display Configuration Summary
+      ansible.builtin.debug:
+        msg: |
+          ╔════════════════════════════════════════════════════════════════╗
+          ║          EMAIL DELIVERY PLATFORM CONFIGURED                    ║
+          ║════════════════════════════════════════════════════════════════╝
+
+          Domain: {{ email_domain }}
+          Server IP: {{ email_server_ip }}
+          Hostname: {{ email_hostname }}
+
+          DNS Records Configured:
+            ✓ A Record: {{ email_domain }} → {{ email_server_ip }}
+            ✓ MX Record: 10 {{ email_domain }}
+            ✓ SPF Record: v=spf1 mx -all
+            ✓ DKIM Record: selector={{ dkim_selector }}
+            ✓ DMARC Record: p={{ dmarc_policy }}
+
+          TLS Certificates:
+            ✓ Let's Encrypt certificates configured
+            ✓ Domains: {{ letsencrypt_domains | join(', ') }}
+
+          KumoMTA Configuration:
+            ✓ SMTP Listener: port 25
+            ✓ Submission: port 587
+            ✓ TLS/SSL: port 465
+            ✓ DKIM Signing: enabled
+            ✓ Message Delivery: enabled
+
+          Next Steps:
+          1. Verify DNS propagation (24-48 hours)
+          2. Monitor email delivery logs
+          3. Setup DMARC reporting
+          4. Monitor sender reputation
+
+          ═══════════════════════════════════════════════════════════════════
+
+  rescue:
+    - name: Handle Setup Error
+      ansible.builtin.fail:
+        msg: "Email delivery setup failed: {{ ansible_failed_result.msg }}"
