@@ -22,7 +22,6 @@ kumo.on('init', function()
   }
 
 {%- if kumomta_tls_enabled %}
-
   kumo.start_esmtps_listener {
     listen = '0.0.0.0:{{ kumomta_tls_port }}',
     tls_certificate = '{{ kumomta_tls_certificate }}',
@@ -94,4 +93,11 @@ end)
 kumo.on('get_routes', function(domain)
   -- Route all domains to their MX records (standard mail routing)
   return kumo.make_routing_domain(domain)
+end)
+
+-- Define which egress pool to use for message delivery
+-- This is CRITICAL - without this, messages won't be delivered
+kumo.on('get_egress_pool', function(msg, domain, egress_source, num_attempts)
+  -- Return the default pool for all messages
+  return 'default'
 end)
