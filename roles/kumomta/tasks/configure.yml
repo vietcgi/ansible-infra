@@ -46,11 +46,14 @@
         group: "{{ kumomta_group }}"
         mode: '0700'
         state: directory
-        recurse: true
       loop:
         - "{{ kumomta_config_dir }}"
         - "{{ kumomta_queue_dir }}"
         - "{{ kumomta_log_dir }}"
+
+    - name: Fix config file permissions (do not apply recurse)
+      ansible.builtin.shell: find "{{ kumomta_config_dir }}" -maxdepth 1 -type f -exec chmod 0640 {} \;
+      changed_when: false
 
     - name: Validate KumoMTA configuration syntax
       ansible.builtin.command:
