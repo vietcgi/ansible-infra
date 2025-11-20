@@ -1,0 +1,47 @@
+---
+# Test KumoMTA Configuration
+- name: Test KumoMTA Configuration
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    kumomta_config_dir: /etc/kumomta
+    kumomta_home: /opt/kumomta
+
+  tasks:
+    - name: Check kumomta.conf exists
+      stat:
+        path: "{{ kumomta_config_dir }}/kumomta.conf"
+      register: kumomta_conf
+      failed_when: not kumomta_conf.stat.exists
+
+    - name: Check policy.lua exists
+      stat:
+        path: "{{ kumomta_config_dir }}/policy.lua"
+      register: policy_lua
+      failed_when: not policy_lua.stat.exists
+
+    - name: Check queue.lua exists
+      stat:
+        path: "{{ kumomta_config_dir }}/queue.lua"
+      register: queue_lua
+      failed_when: not queue_lua.stat.exists
+
+    - name: Validate kumomta.conf syntax
+      command: "{{ kumomta_home }}/kumomta --validate-config {{ kumomta_config_dir }}/kumomta.conf"
+      register: config_validation
+      changed_when: false
+      failed_when: config_validation.rc != 0
+
+    - name: Check configuration file permissions
+      stat:
+        path: "{{ kumomta_config_dir }}/kumomta.conf"
+      register: conf_perms
+      failed_when: conf_perms.stat.mode != '0640'
+
+    - name: Configuration test passed
+      debug:
+        msg: |
+          ✓ Configuration files exist and are valid
+          ✓ Policy script loaded: {{ policy_lua.stat.exists }}
+          ✓ Queue configuration loaded: {{ queue_lua.stat.exists }}
+          ✓ Configuration syntax validated

@@ -37,6 +37,7 @@ kumomta_queue_strategy: "fs"  # filesystem based
 kumomta_queue_retry_interval: 300  # 5 minutes
 kumomta_queue_max_attempts: 72  # 3 days with backoff
 kumomta_queue_expiration: 259200  # 3 days
+kumomta_queue_retention_hours: 72  # 3 days - retention policy for messages
 
 # Performance Tuning
 kumomta_worker_threads: "{{ ansible_processor_vcpus | default(4) }}"
@@ -143,6 +144,9 @@ kumomta_backup_verify_hour: 3
 kumomta_backup_verify_minute: 0
 kumomta_remote_backup_enabled: false
 kumomta_remote_backup_host: ""
+kumomta_remote_backup_port: 22
+kumomta_remote_backup_protocol: "sftp"  # sftp, rsync, or s3
+kumomta_remote_backup_path: "/backups/kumomta"
 kumomta_backup_log_file: "/var/log/kumomta-backup.log"
 kumomta_backup_verify_log_file: "/var/log/kumomta-backup-verify.log"
 

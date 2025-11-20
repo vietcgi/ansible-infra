@@ -1,1 +1,138 @@
-{"dashboard": {"title": "KumoMTA", "panels": []}}
+{
+  "dashboard": {
+    "title": "KumoMTA Email Delivery",
+    "description": "Real-time monitoring of KumoMTA email delivery platform",
+    "tags": ["kumomta", "email", "delivery"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Messages Queued",
+        "targets": [
+          {
+            "expr": "kumomta_queue_size",
+            "refId": "A"
+          }
+        ],
+        "type": "gauge",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 8}
+      },
+      {
+        "id": 2,
+        "title": "Messages per Minute",
+        "targets": [
+          {
+            "expr": "rate(kumomta_messages_delivered[1m])",
+            "refId": "A"
+          }
+        ],
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 3,
+        "title": "Active Connections",
+        "targets": [
+          {
+            "expr": "kumomta_active_connections",
+            "refId": "A"
+          }
+        ],
+        "type": "graph",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8}
+      },
+      {
+        "id": 4,
+        "title": "Delivery Success Rate",
+        "targets": [
+          {
+            "expr": "100 * kumomta_messages_delivered / (kumomta_messages_delivered + kumomta_messages_failed)",
+            "refId": "A"
+          }
+        ],
+        "type": "gauge",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 8},
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Bounce Rate",
+        "targets": [
+          {
+            "expr": "rate(kumomta_bounces[5m])",
+            "refId": "A"
+          }
+        ],
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "id": 6,
+        "title": "Queue Directory Usage",
+        "targets": [
+          {
+            "expr": "kumomta_queue_disk_usage_bytes / 1024 / 1024 / 1024",
+            "refId": "A"
+          }
+        ],
+        "type": "gauge",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 8},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "gigabytes"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Delivery Latency (P95)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, kumomta_delivery_latency_seconds)",
+            "refId": "A"
+          }
+        ],
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "id": 8,
+        "title": "Error Rate",
+        "targets": [
+          {
+            "expr": "rate(kumomta_errors_total[5m])",
+            "refId": "A"
+          }
+        ],
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8}
+      },
+      {
+        "id": 9,
+        "title": "Cluster Node Status",
+        "targets": [
+          {
+            "expr": "kumomta_cluster_node_status",
+            "refId": "A"
+          }
+        ],
+        "type": "table",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 8},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {}
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

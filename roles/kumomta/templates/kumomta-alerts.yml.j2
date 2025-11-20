@@ -2,5 +2,72 @@ groups:
   - name: kumomta
     interval: 30s
     rules:
+      - alert: KumoMTAServiceDown
+        expr: up{job="kumomta"} == 0
+        for: 2m
+        annotations:
+          summary: "KumoMTA service is down"
+          description: "KumoMTA on {{ $labels.instance }} has been down for more than 2 minutes"
+
       - alert: KumoMTAHighQueueSize
         expr: kumomta_queue_size > 10000
+        for: 5m
+        annotations:
+          summary: "High KumoMTA queue size"
+          description: "Queue size on {{ $labels.instance }} is {{ $value }} messages"
+
+      - alert: KumoMTAHighBounceRate
+        expr: rate(kumomta_bounces[5m]) > 0.1
+        for: 10m
+        annotations:
+          summary: "High bounce rate detected"
+          description: "Bounce rate on {{ $labels.instance }} is {{ $value | humanizePercentage }}"
+
+      - alert: KumoMTAHighDiskUsage
+        expr: kumomta_queue_disk_usage_bytes / kumomta_queue_disk_capacity_bytes > 0.85
+        for: 5m
+        annotations:
+          summary: "High disk usage for queue directory"
+          description: "Disk usage on {{ $labels.instance }} is {{ $value | humanizePercentage }}"
+
+      - alert: KumoMTAConnectionLimitReached
+        expr: kumomta_active_connections / kumomta_max_connections > 0.9
+        for: 2m
+        annotations:
+          summary: "Connection limit nearly reached"
+          description: "Active connections on {{ $labels.instance }} is {{ $value | humanizePercentage }} of max"
+
+      - alert: KumoMTAAuthenticationFailures
+        expr: rate(kumomta_auth_failures[5m]) > 0.01
+        for: 5m
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failures on {{ $labels.instance }} is {{ $value | humanizePercentage }}"
+
+      - alert: KumoMTAClusterPeerDown
+        expr: kumomta_cluster_peer_status{status="down"} == 1
+        for: 3m
+        annotations:
+          summary: "KumoMTA cluster peer is down"
+          description: "Peer {{ $labels.peer }} is unreachable from {{ $labels.instance }}"
+
+      - alert: KumoMTAHighErrorRate
+        expr: rate(kumomta_errors_total[5m]) > 0.01
+        for: 5m
+        annotations:
+          summary: "High error rate in KumoMTA"
+          description: "Error rate on {{ $labels.instance }} is {{ $value | humanizePercentage }}"
+
+      - alert: KumoMTADeliveryLatencyHigh
+        expr: histogram_quantile(0.95, kumomta_delivery_latency_seconds) > 30
+        for: 10m
+        annotations:
+          summary: "High P95 delivery latency"
+          description: "P95 latency on {{ $labels.instance }} is {{ $value }}s (threshold: 30s)"
+
+      - alert: KumoMTAMemoryUsageHigh
+        expr: process_resident_memory_bytes{job="kumomta"} / 1024 / 1024 / 1024 > 1.5
+        for: 5m
+        annotations:
+          summary: "High memory usage by KumoMTA"
+          description: "Memory usage on {{ $labels.instance }} is {{ humanize $value }}GB"

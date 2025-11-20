@@ -1,0 +1,31 @@
+---
+galaxy_info:
+  author: "KumoMTA Team"
+  description: "Comprehensive Ansible role for deploying and managing KumoMTA email delivery platform"
+  company: "KumoMTA"
+  license: "MIT"
+  min_ansible_version: "2.9"
+  platforms:
+    - name: "Ubuntu"
+      versions:
+        - "20.04"
+        - "22.04"
+        - "24.04"
+    - name: "Debian"
+      versions:
+        - "11"
+        - "12"
+  galaxy_tags:
+    - "email"
+    - "kumomta"
+    - "smtp"
+    - "mta"
+    - "mail-transfer-agent"
+    - "clustering"
+    - "monitoring"
+
+role_name: "kumomta"
+repository_url: "https://github.com/anthropics/kumomta"
+documentation: "README.md"
+
+dependencies: []

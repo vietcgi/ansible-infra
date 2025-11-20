@@ -9,9 +9,59 @@
           - kumomta_enabled | bool
           - kumomta_listen_port | int > 0
           - kumomta_listen_port | int < 65536
+          - kumomta_submit_port | int > 0
+          - kumomta_submit_port | int < 65536
+          - kumomta_tls_port | int > 0
+          - kumomta_tls_port | int < 65536
+          - kumomta_admin_port | int > 0
+          - kumomta_admin_port | int < 65536
+          - kumomta_metrics_port | int > 0
+          - kumomta_metrics_port | int < 65536
           - kumomta_user | length > 0
+          - kumomta_group | length > 0
           - kumomta_config_dir | length > 0
+          - kumomta_queue_dir | length > 0
+          - kumomta_log_dir | length > 0
+          - kumomta_home | length > 0
+          - kumomta_max_connections | int > 0
+          - kumomta_max_queue_size | int > 0
+          - kumomta_queue_retry_interval | int > 0
+          - kumomta_queue_max_attempts | int > 0
         fail_msg: "KumoMTA configuration validation failed"
+
+    - name: Check for port conflicts
+      ansible.builtin.shell: |
+        ss -tlnp 2>/dev/null | grep -E ":({{ kumomta_listen_port }}|{{ kumomta_submit_port }}|{{ kumomta_tls_port }}|{{ kumomta_admin_port }}|{{ kumomta_metrics_port }})" || echo "No conflicts"
+      register: port_check
+      changed_when: false
+      failed_when: "'LISTEN' in port_check.stdout and 'kumomta' not in port_check.stdout"
+
+    - name: Check available memory
+      ansible.builtin.assert:
+        that:
+          - ansible_memtotal_mb | int >= 512
+        fail_msg: "Insufficient memory (minimum 512MB required, have {{ ansible_memtotal_mb }}MB)"
+
+    - name: Check available disk space
+      ansible.builtin.shell: |
+        available=$(df {{ kumomta_queue_dir }} | awk 'NR==2 {print $4}' 2>/dev/null || echo 0)
+        if [ $available -lt 1048576 ]; then
+          echo "Insufficient disk space for queue directory (need 1GB, have $(( available / 1024 ))MB)"
+          exit 1
+        fi
+      changed_when: false
+
+    - name: Verify supported OS
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ['Ubuntu', 'Debian']
+        fail_msg: "KumoMTA requires Ubuntu or Debian Linux (detected {{ ansible_distribution }})"
+
+    - name: Check OS version compatibility
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution_major_version | int >= 11 or (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int >= 20)
+        fail_msg: "KumoMTA requires Ubuntu 20.04+ or Debian 11+ (detected {{ ansible_distribution }} {{ ansible_distribution_version }})"
 
     - name: Create KumoMTA system group
       ansible.builtin.group:

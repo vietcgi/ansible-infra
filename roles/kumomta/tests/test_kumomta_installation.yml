@@ -1,0 +1,72 @@
+---
+# Test KumoMTA Installation
+- name: Test KumoMTA Installation
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    kumomta_home: /opt/kumomta
+    kumomta_config_dir: /etc/kumomta
+    kumomta_queue_dir: /var/spool/kumomta
+    kumomta_log_dir: /var/log/kumomta
+    kumomta_user: kumomta
+    kumomta_group: kumomta
+
+  tasks:
+    - name: Check KumoMTA binary exists
+      stat:
+        path: "{{ kumomta_home }}/kumomta"
+      register: kumomta_binary
+      failed_when: not kumomta_binary.stat.exists
+
+    - name: Check KumoMTA binary is executable
+      stat:
+        path: "{{ kumomta_home }}/kumomta"
+      register: kumomta_perms
+      failed_when: not kumomta_perms.stat.executable
+
+    - name: Verify KumoMTA version
+      command: "{{ kumomta_home }}/kumomta --version"
+      register: kumomta_version
+      changed_when: false
+
+    - name: Check kumomta user exists
+      getent:
+        database: passwd
+        key: "{{ kumomta_user }}"
+
+    - name: Check kumomta group exists
+      getent:
+        database: group
+        key: "{{ kumomta_group }}"
+
+    - name: Check config directory exists
+      stat:
+        path: "{{ kumomta_config_dir }}"
+      register: config_dir
+      failed_when: not config_dir.stat.exists or not config_dir.stat.isdir
+
+    - name: Check queue directory exists
+      stat:
+        path: "{{ kumomta_queue_dir }}"
+      register: queue_dir
+      failed_when: not queue_dir.stat.exists or not queue_dir.stat.isdir
+
+    - name: Check log directory exists
+      stat:
+        path: "{{ kumomta_log_dir }}"
+      register: log_dir
+      failed_when: not log_dir.stat.exists or not log_dir.stat.isdir
+
+    - name: Verify directory ownership
+      stat:
+        path: "{{ item }}"
+      register: dir_stat
+      failed_when: "dir_stat.stat.pw_name != kumomta_user or dir_stat.stat.gr_name != kumomta_group"
+      loop:
+        - "{{ kumomta_config_dir }}"
+        - "{{ kumomta_queue_dir }}"
+        - "{{ kumomta_log_dir }}"
+
+    - name: Installation test passed
+      debug:
+        msg: "✓ KumoMTA installation verified successfully"
