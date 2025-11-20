@@ -9,8 +9,8 @@ User={{ kumomta_user }}
 Group={{ kumomta_group }}
 WorkingDirectory={{ kumomta_home }}
 
-# Service startup
-ExecStart={{ kumomta_home }}/sbin/kumod --config {{ kumomta_config_dir }}/kumomta.conf
+# Service startup - use --policy flag to load custom policy/config file
+ExecStart={{ kumomta_home }}/sbin/kumod --policy {{ kumomta_config_dir }}/kumomta.conf
 
 # Process management
 Restart=on-failure
