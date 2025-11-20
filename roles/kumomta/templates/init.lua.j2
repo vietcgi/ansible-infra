@@ -21,14 +21,15 @@ kumo.on('init', function()
     relay_hosts = { '0.0.0.0/0' },  -- Allow relay to any destination
   }
 
-  {% if kumomta_tls_enabled %}
+{%- if kumomta_tls_enabled %}
+
   kumo.start_esmtps_listener {
     listen = '0.0.0.0:{{ kumomta_tls_port }}',
     tls_certificate = '{{ kumomta_tls_certificate }}',
     tls_private_key = '{{ kumomta_tls_key }}',
     relay_hosts = { '0.0.0.0/0' },  -- Allow relay to any destination
   }
-  {% endif %}
+{%- endif %}
 
   kumo.start_http_listener {
     listen = '127.0.0.1:{{ kumomta_admin_port }}',
