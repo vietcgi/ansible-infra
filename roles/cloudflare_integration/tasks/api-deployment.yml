@@ -356,8 +356,7 @@
     msg: |
       ✓ Cloudflare Configuration Deployment Complete
       ================================================
-      Domain: {{ cloudflare_domain }}
-      Zone ID: {{ cloudflare_zone_id_fact }}
+      Zone ID: {{ cloudflare_zone_id | default('not provided') }}
 
       Deployed Features:
       - WAF: {{ 'ENABLED' if cloudflare_waf_enabled else 'DISABLED' }}
