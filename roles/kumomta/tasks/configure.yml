@@ -3,10 +3,10 @@
 
 - name: Configure KumoMTA
   block:
-    - name: Template KumoMTA main configuration
+    - name: Template KumoMTA main init script
       ansible.builtin.template:
-        src: kumomta.conf.j2
-        dest: "{{ kumomta_config_dir }}/kumomta.conf"
+        src: init.lua.j2
+        dest: "{{ kumomta_config_dir }}/init.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
         mode: '0640'
