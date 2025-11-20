@@ -72,9 +72,11 @@
         api_token: "{{ cloudflare_api_token }}"
         state: "{{ item.state | default('present') }}"
       loop: "{{ cloudflare_dns_records | default([]) }}"
-      when: cloudflare_dns_records is defined
+      when:
+        - cloudflare_dns_records is defined
+        - item.value != ""  # Skip records with empty values (e.g., pending DKIM key)
       register: dns_results
-      no_log: true
+      no_log: false
       tags:
         - cloudflare
         - cloudflare_dns
