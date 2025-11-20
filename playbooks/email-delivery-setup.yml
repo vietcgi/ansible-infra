@@ -64,15 +64,20 @@
           - email_domain is defined and email_domain != ""
           - email_server_ip is defined and email_server_ip != ""
           - letsencrypt_email is defined and letsencrypt_email != ""
-          - cloudflare_api_token is defined and cloudflare_api_token != ""
-          - cloudflare_zone_id is defined and cloudflare_zone_id != ""
+          - (vault_cloudflare_api_token is defined and vault_cloudflare_api_token != "") or (cloudflare_api_token is defined and cloudflare_api_token != "")
+          - (vault_cloudflare_zone_id is defined and vault_cloudflare_zone_id != "") or (cloudflare_zone_id is defined and cloudflare_zone_id != "")
         fail_msg: |
           Missing required variables. Please provide:
           - email_domain: Your domain name (e.g., example.com)
           - email_server_ip: Server public IP address (e.g., 192.0.2.1)
           - letsencrypt_email: Email for Let's Encrypt (e.g., admin@example.com)
-          - cloudflare_api_token: From Ansible Vault (vault_cloudflare_api_token)
-          - cloudflare_zone_id: From Ansible Vault (vault_cloudflare_zone_id)
+          - vault_cloudflare_api_token or cloudflare_api_token: Cloudflare API token
+          - vault_cloudflare_zone_id or cloudflare_zone_id: Cloudflare zone ID
+
+    - name: Map vault variables to cloudflare_integration role variables
+      set_fact:
+        cloudflare_api_token: "{{ vault_cloudflare_api_token | default(cloudflare_api_token) }}"
+        cloudflare_zone_id: "{{ vault_cloudflare_zone_id | default(cloudflare_zone_id) }}"
 
     - name: Set default DMARC report emails if not provided
       set_fact:
