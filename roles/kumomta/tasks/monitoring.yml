@@ -77,8 +77,8 @@
           metrics_histograms_enabled = {{ kumomta_metrics_histograms | lower }}
 
           # Logging Configuration
-          log_level = "{{ kumomta_log_level }}"
-          log_format = "{{ kumomta_log_format }}"
+          log_level = "{{ kumomta_logging_level }}"
+          log_format = "{{ kumomta_logging_format }}"
       notify: restart kumomta
 
   rescue:
