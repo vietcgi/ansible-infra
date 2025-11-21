@@ -3,6 +3,11 @@
 
 local kumo = require 'kumo'
 
+-- Load existing policy modules that handle queueing
+pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
+pcall(dofile, '/etc/kumomta/email-routing.lua')
+pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
+
 kumo.on('init', function()
   kumo.define_spool {
       name = "data",
