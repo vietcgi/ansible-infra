@@ -35,7 +35,7 @@
     dkim_key_size: 2048
 
     # DMARC Configuration
-    dmarc_policy: "quarantine"
+    dmarc_policy: "none"
     dmarc_subdomain_policy: "quarantine"
     dmarc_percent: 100
     dmarc_report_email: "dmarc-reports@{{ email_domain }}"
