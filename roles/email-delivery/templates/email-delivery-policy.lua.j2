@@ -1,7 +1,22 @@
 -- KumoMTA Email Delivery Policy Configuration
--- Handles message validation and policy enforcement
+-- Handles message validation, DKIM signing, and policy enforcement
 
 local policy = {}
+
+-- Handle incoming SMTP messages - sign with DKIM and queue
+kumo.on('smtp_server_message_received', function(msg)
+  -- Sign outbound messages with DKIM
+  msg:dkim_sign({
+    domain = '{{ email_domain }}',
+    selector = '{{ dkim_selector | default("default") }}',
+    headers = {'From', 'To', 'Subject', 'Date'},
+    over_sign = true,
+  })
+
+  -- Queue the message for delivery
+  kumo.queue_message(msg)
+  return true
+end)
 
 -- Validate sender configuration
 function validate_sender(msg)
