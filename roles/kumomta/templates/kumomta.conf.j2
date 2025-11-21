@@ -8,6 +8,29 @@ pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
 pcall(dofile, '/etc/kumomta/email-routing.lua')
 pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
 
+-- Accept incoming SMTP messages (required for message delivery)
+kumo.on('smtp_server_message_received', function(msg)
+  -- Try to sign with DKIM if policy file didn't already handle it
+  local ok, err = pcall(function()
+    local signer = kumo.dkim.rsa_sha256_signer {
+      domain = '{{ kumomta_hostname }}',
+      selector = 'default',
+      headers = {'From', 'To', 'Subject', 'Date'},
+      key = '/etc/kumomta/dkim/default.key',
+      over_sign = true,
+    }
+    msg:dkim_sign(signer)
+  end)
+
+  -- Log DKIM signing failures but don't reject the message
+  if not ok then
+    kumo.log('info', 'DKIM signing failed: ' .. tostring(err))
+  end
+
+  -- Message is automatically queued on successful return
+  return true
+end)
+
 kumo.on('init', function()
   kumo.define_spool {
       name = "data",
