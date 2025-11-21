@@ -3,7 +3,7 @@
 
 # Installation
 kumomta_enabled: true
-kumomta_version: "2024.11.08-d383b033"  # Stable version (avoids 2025.10.06 panic bug)
+kumomta_version: "2025.10.06"  # Latest stable version with improved API
 kumomta_install_method: "binary"  # binary (statically compiled, works on any Linux) or source
 kumomta_user: "kumomta"
 kumomta_group: "kumomta"
