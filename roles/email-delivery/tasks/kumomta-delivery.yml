@@ -24,24 +24,13 @@
     - name: Update KumoMTA configuration for delivery
       ansible.builtin.blockinfile:
         path: /etc/kumomta/kumomta.conf
-        marker: "# {mark} EMAIL DELIVERY CONFIGURATION"
+        marker: "-- {mark} EMAIL DELIVERY CONFIGURATION"
         block: |
-          [delivery]
-          enabled = true
-          strategy = "per_domain"
-          mx_lookup = true
-          connection_timeout = 30
-          read_timeout = 60
-          write_timeout = 60
+          -- Load email delivery queue configuration
+          pcall(dofile, "/etc/kumomta/email-delivery-queue.lua")
 
-          [outbound]
-          require_tls = false
-          allow_opportunistic_tls = true
-          dkim_signing = true
-          arc_signing = false
-
-          [routes]
-          default = "direct"
+          -- Load email delivery policy configuration
+          pcall(dofile, "/etc/kumomta/email-delivery-policy.lua")
       notify: restart kumomta
 
     - name: Display KumoMTA Delivery Status

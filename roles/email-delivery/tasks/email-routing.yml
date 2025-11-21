@@ -15,24 +15,10 @@
     - name: Update KumoMTA configuration for routing
       ansible.builtin.blockinfile:
         path: /etc/kumomta/kumomta.conf
-        marker: "# {mark} EMAIL ROUTING CONFIGURATION"
+        marker: "-- {mark} EMAIL ROUTING CONFIGURATION"
         block: |
-          [relay]
-          enabled = true
-          max_connections_per_domain = 20
-          max_message_size = 104857600
-          connection_timeout = 30
-
-          [routing]
-          use_lua_policy = true
-          policy_script = "/etc/kumomta/email-routing.lua"
-
-          [domain_routes]
-          # Default route to direct delivery
-          default = "direct"
-
-          # Local domain routes (can be configured per domain)
-          # example.com = "relay:smarthost.example.com"
+          -- Load email routing configuration
+          pcall(dofile, "/etc/kumomta/email-routing.lua")
       notify: restart kumomta
 
     - name: Create domain routing map file
@@ -50,20 +36,14 @@
         mode: '0640'
       notify: restart kumomta
 
-    - name: Create bounce/retry configuration
+    # Bounce/Retry configuration should be in a Lua file, not injected as TOML
+    # For now, we'll remove the invalid TOML injection.
+    # Ideally, this should be moved to a template or a separate Lua file.
+    - name: Remove legacy bounce/retry TOML configuration
       ansible.builtin.blockinfile:
         path: /etc/kumomta/kumomta.conf
         marker: "# {mark} BOUNCE AND RETRY CONFIGURATION"
-        block: |
-          [retry]
-          max_attempts = 5
-          initial_delay = 60
-          max_delay = 86400
-          bounce_after = 432000
-
-          [bounce]
-          generate_dsr = true
-          dsr_email = "postmaster@{{ email_domain }}"
+        state: absent
       notify: restart kumomta
 
     - name: Display Routing Status
