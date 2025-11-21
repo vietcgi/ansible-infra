@@ -3,9 +3,7 @@
 
 local kumo = require 'kumo'
 
--- Load existing policy modules that handle queueing and DKIM signing
-pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-queue.lua')
-pcall(dofile, '{{ kumomta_config_dir }}/email-routing.lua')
+-- Load policy modules for DKIM signing (email-delivery-policy.lua provides smtp_server_message_received handler)
 pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-policy.lua')
 
 kumo.on('init', function()
