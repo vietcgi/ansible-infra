@@ -1,10 +1,11 @@
 -- KumoMTA Configuration - Complete handler setup
--- Simplified configuration for message delivery
--- NOTE: DKIM and advanced features disabled for basic delivery testing
+-- Loads external policy files for queueing and routing
 
 local kumo = require 'kumo'
 
--- All handlers defined inline - no external policy file dependencies
+-- Load external policy modules that handle queueing and routing
+pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-queue.lua')
+pcall(dofile, '{{ kumomta_config_dir }}/email-routing.lua')
 
 kumo.on('init', function()
   kumo.define_spool {
@@ -39,7 +40,6 @@ kumo.on('init', function()
 end)
 
 -- Handle incoming SMTP messages
--- Accept all messages for queuing (DKIM signing disabled for now)
 kumo.on('smtp_server_message_received', function(msg)
   return true
 end)
@@ -51,14 +51,9 @@ kumo.on('get_listener_domain', function(domain)
   }
 end)
 
--- Allow relaying to external domains (CRITICAL for message delivery)
+-- Allow relaying to external domains
 kumo.on('should_relay_to', function(relayer, recipient_domain)
   return true
-end)
-
--- Default routing - use MX records for all domains
-kumo.on('get_routes', function(domain)
-  return kumo.make_routing_domain(domain)
 end)
 
 -- Egress source configuration
@@ -70,45 +65,15 @@ kumo.on('get_egress_source', function(source_name)
   }
 end)
 
--- Egress pool configuration
-kumo.on('get_egress_pool', function(pool_name)
-  return kumo.make_egress_pool {
-    name = pool_name,
-    entries = {
-      { name = 'default', weight = 100 },
-    },
-  }
-end)
-
--- Egress path configuration
-kumo.on('get_egress_path_config', function(source_name, site_name)
-  return kumo.make_egress_path {
-    connection_limit = 20,
-    max_message_rate = '100/s',
-  }
-end)
-
--- Queue configuration - defines retry strategy and message aging
-kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
-  return kumo.make_queue_config {
-    max_age = '7 days',
-    retry_interval = '5 minutes',
-    max_retry_interval = '20 minutes',
-    egress_pool = 'default',
-  }
-end)
-
--- Scheduled event - enables automatic delivery attempts
-kumo.on('get_scheduled_event', function(meta)
-  return kumo.make_scheduled_event(0)
-end)
-
 -- Always send mail - no message filtering
 kumo.on('should_send_mail', function(msg)
   return true
 end)
 
--- Handle send results - logging only
-kumo.on('send_mail_result', function(msg, result, err)
-  return true
-end)
+-- NOTE: The following handlers are provided by external modules and should NOT be defined here:
+-- get_routes (from email-routing.lua)
+-- get_queue_config (from email-delivery-queue.lua)
+-- get_egress_pool (from email-delivery-queue.lua)
+-- get_egress_path_config (from email-delivery-queue.lua)
+-- get_scheduled_event (from email-delivery-queue.lua)
+-- Defining them here would cause handler conflicts and prevent delivery!
