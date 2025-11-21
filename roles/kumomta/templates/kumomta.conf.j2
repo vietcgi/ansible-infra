@@ -126,9 +126,17 @@ kumo.on('get_scheduled_event', function(meta)
     return kumo.make_scheduled_event(0)
 end)
 
+-- CRITICAL: Explicitly allow outbound mail delivery to proceed
+kumo.on('should_send_mail', function(msg)
+    return true
+end)
+
 -- CRITICAL: Handle delivery attempt results
 kumo.on('send_mail_result', function(msg, result, err)
     -- Allow all delivery attempts to proceed
+    if result == 'ok' then
+        return true
+    end
     return true
 end)
 
