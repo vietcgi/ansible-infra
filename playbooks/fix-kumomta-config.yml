@@ -1,0 +1,92 @@
+---
+- name: Fix KumoMTA Configuration Handler Conflict
+  hosts: web-prod-01
+  become: true
+
+  vars_files:
+    - ../group_vars/all.yml
+    - ../group_vars/production.yml
+
+  tasks:
+    - name: Remove conflicting init.lua
+      ansible.builtin.file:
+        path: /etc/kumomta/init.lua
+        state: absent
+
+    - name: Template fixed kumomta.conf
+      ansible.builtin.template:
+        src: ../roles/kumomta/templates/kumomta.conf.j2
+        dest: /etc/kumomta/kumomta.conf
+        owner: kumomta
+        group: kumomta
+        mode: '0640'
+
+    - name: Restart kumomta service
+      ansible.builtin.systemd:
+        name: kumomta
+        state: restarted
+        daemon_reload: yes
+
+    - name: Wait for service to stabilize
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Check service status
+      ansible.builtin.systemd:
+        name: kumomta
+      register: kumomta_status
+
+    - name: Display status
+      ansible.builtin.debug:
+        msg: "KumoMTA Status: {{ kumomta_status.status.ActiveState }}"
+
+    - name: Test SMTP connectivity
+      ansible.builtin.wait_for:
+        host: localhost
+        port: 25
+        state: started
+        timeout: 10
+
+    - name: Send test message
+      ansible.builtin.shell: |
+        (
+          sleep 0.3
+          echo "EHLO test"
+          sleep 0.2
+          echo "MAIL FROM:<test@example.com>"
+          sleep 0.2
+          echo "RCPT TO:<vietcgi@gmail.com>"
+          sleep 0.2
+          echo "DATA"
+          sleep 0.2
+          echo "Subject: Configuration Fix Test"
+          echo "From: test@example.com"
+          echo ""
+          echo "Testing KumoMTA after configuration fix"
+          echo "."
+          sleep 1
+          echo "QUIT"
+        ) | timeout 10 bash -c "cat > /dev/tcp/localhost/25" 2>&1
+      register: smtp_test
+
+    - name: Check queue status
+      ansible.builtin.shell: find /var/spool/kumomta -name "*.msg" -type f 2>/dev/null | wc -l
+      register: queue_count
+      changed_when: false
+
+    - name: Display results
+      ansible.builtin.debug:
+        msg: |
+          SMTP Test Result:
+          {{ smtp_test.stdout }}
+
+          Queue Status: {{ queue_count.stdout }} messages
+
+    - name: Show recent logs
+      ansible.builtin.shell: journalctl -u kumomta --since "2 minutes ago" -n 20 --no-pager
+      register: recent_logs
+      changed_when: false
+
+    - name: Display logs
+      ansible.builtin.debug:
+        msg: "{{ recent_logs.stdout }}"

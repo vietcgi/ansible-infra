@@ -1,10 +1,10 @@
 -- KumoMTA Configuration - Complete handler setup
--- Includes DKIM signing, message routing, and delivery configuration
+-- Simplified configuration for message delivery
+-- NOTE: DKIM and advanced features disabled for basic delivery testing
 
 local kumo = require 'kumo'
 
--- Load policy modules for DKIM signing (email-delivery-policy.lua provides smtp_server_message_received handler)
-pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-policy.lua')
+-- All handlers defined inline - no external policy file dependencies
 
 kumo.on('init', function()
   kumo.define_spool {
@@ -38,6 +38,12 @@ kumo.on('init', function()
   }
 end)
 
+-- Handle incoming SMTP messages
+-- Accept all messages for queuing (DKIM signing disabled for now)
+kumo.on('smtp_server_message_received', function(msg)
+  return true
+end)
+
 -- Define listener domain acceptance
 kumo.on('get_listener_domain', function(domain)
   return kumo.make_listener_domain {
@@ -50,7 +56,7 @@ kumo.on('should_relay_to', function(relayer, recipient_domain)
   return true
 end)
 
--- Default routing
+-- Default routing - use MX records for all domains
 kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)
@@ -82,7 +88,7 @@ kumo.on('get_egress_path_config', function(source_name, site_name)
   }
 end)
 
--- Queue configuration
+-- Queue configuration - defines retry strategy and message aging
 kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     max_age = '7 days',
@@ -92,17 +98,17 @@ kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
   }
 end)
 
--- Default scheduled event
+-- Scheduled event - enables automatic delivery attempts
 kumo.on('get_scheduled_event', function(meta)
   return kumo.make_scheduled_event(0)
 end)
 
--- Always send mail
+-- Always send mail - no message filtering
 kumo.on('should_send_mail', function(msg)
   return true
 end)
 
--- Handle send results
+-- Handle send results - logging only
 kumo.on('send_mail_result', function(msg, result, err)
   return true
 end)
