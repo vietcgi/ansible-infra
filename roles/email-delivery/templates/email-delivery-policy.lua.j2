@@ -5,7 +5,7 @@ local policy = {}
 
 -- Handle incoming SMTP messages - sign with DKIM and queue
 kumo.on('smtp_server_message_received', function(msg)
-  -- Sign outbound messages with DKIM
+  -- Sign outbound messages with DKIM (MUST BE LAST before return)
   local signer = kumo.dkim.rsa_sha256_signer {
     domain = '{{ email_domain }}',
     selector = '{{ dkim_selector | default("default") }}',
@@ -15,8 +15,7 @@ kumo.on('smtp_server_message_received', function(msg)
   }
   msg:dkim_sign(signer)
 
-  -- Queue the message for delivery
-  kumo.queue_message(msg)
+  -- Message is automatically queued on successful return
   return true
 end)
 
