@@ -1,5 +1,6 @@
--- KumoMTA Configuration
+-- KumoMTA Configuration (working baseline from commit d269761)
 -- Handles inbound and outbound mail delivery
+-- No DKIM - relies on external policy modules for all handlers
 
 local kumo = require 'kumo'
 
@@ -40,21 +41,10 @@ kumo.on('init', function()
   }
 end)
 
--- Accept and queue incoming SMTP messages (required for message delivery)
-kumo.on('smtp_server_message_received', function(msg)
-  return true
-end)
-
--- Define which domains accept and queue inbound messages
 kumo.on('get_listener_domain', function(domain)
   return kumo.make_listener_domain {
     relay_to = true,
   }
-end)
-
--- Allow relaying to external domains (CRITICAL for message delivery)
-kumo.on('should_relay_to', function(relayer, recipient_domain)
-  return true
 end)
 
 kumo.on('get_routes', function(domain)
