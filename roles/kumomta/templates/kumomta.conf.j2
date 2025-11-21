@@ -1,10 +1,9 @@
--- KumoMTA Configuration - Minimal Bootstrap
--- Handles spools and listeners only
--- Handlers are provided by policy.lua and other modules
+-- KumoMTA Configuration - Complete handler setup
+-- Includes DKIM signing, message routing, and delivery configuration
 
 local kumo = require 'kumo'
 
--- Load policy modules in correct order
+-- Load policy module for DKIM signing only
 dofile '{{ kumomta_config_dir }}/policy.lua'
 pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
 pcall(dofile, '/etc/kumomta/email-routing.lua')
@@ -39,4 +38,68 @@ kumo.on('init', function()
   kumo.start_http_listener {
       listen = "0.0.0.0:{{ kumomta_admin_port }}",
   }
+end)
+
+-- Define listener domain acceptance
+kumo.on('get_listener_domain', function(domain)
+  return kumo.make_listener_domain {
+    relay_to = true,
+  }
+end)
+
+-- Default routing
+kumo.on('get_routes', function(domain)
+  return kumo.make_routing_domain(domain)
+end)
+
+-- Egress source configuration
+kumo.on('get_egress_source', function(source_name)
+  return kumo.make_egress_source {
+    name = source_name,
+    source_address = '{{ kumomta_source_address }}',
+    ehlo_domain = '{{ kumomta_hostname }}',
+  }
+end)
+
+-- Egress pool configuration
+kumo.on('get_egress_pool', function(pool_name)
+  return kumo.make_egress_pool {
+    name = pool_name,
+    entries = {
+      { name = 'default', weight = 100 },
+    },
+  }
+end)
+
+-- Egress path configuration
+kumo.on('get_egress_path_config', function(source_name, site_name)
+  return kumo.make_egress_path {
+    connection_limit = 20,
+    max_message_rate = '100/s',
+  }
+end)
+
+-- Queue configuration
+kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+  return kumo.make_queue_config {
+    max_age = '7 days',
+    retry_interval = '5 minutes',
+    max_retry_interval = '20 minutes',
+    egress_pool = 'default',
+  }
+end)
+
+-- Default scheduled event
+kumo.on('get_scheduled_event', function(meta)
+  return kumo.make_scheduled_event(0)
+end)
+
+-- Always send mail
+kumo.on('should_send_mail', function(msg)
+  return true
+end)
+
+-- Handle send results
+kumo.on('send_mail_result', function(msg, result, err)
+  return true
 end)
