@@ -5,8 +5,7 @@ local kumo = require 'kumo'
 
 -- Load policy module for DKIM signing only
 dofile '{{ kumomta_config_dir }}/policy.lua'
-pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
-pcall(dofile, '/etc/kumomta/email-routing.lua')
+pcall(dofile, '{{ kumomta_config_dir }}/queue.lua')
 
 kumo.on('init', function()
   kumo.define_spool {
