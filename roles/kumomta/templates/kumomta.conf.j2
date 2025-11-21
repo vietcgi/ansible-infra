@@ -1,14 +1,14 @@
--- KumoMTA Configuration (working baseline from commit d269761)
--- Handles inbound and outbound mail delivery
--- No DKIM - relies on external policy modules for all handlers
+-- KumoMTA Configuration - MINIMAL (modules handle all delivery logic)
+-- Load external policy modules for all handler definitions
 
 local kumo = require 'kumo'
 
--- Load existing policy modules that handle queueing and DKIM signing
-pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
-pcall(dofile, '/etc/kumomta/email-routing.lua')
-pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
+-- Load all policy modules - they define handlers for delivery, routing, queuing
+dofile('/etc/kumomta/email-delivery-queue.lua')
+dofile('/etc/kumomta/email-routing.lua')
+dofile('/etc/kumomta/email-delivery-policy.lua')
 
+-- ONLY define init and required listeners
 kumo.on('init', function()
   kumo.define_spool {
       name = "data",
@@ -41,57 +41,7 @@ kumo.on('init', function()
   }
 end)
 
-kumo.on('get_listener_domain', function(domain)
-  return kumo.make_listener_domain {
-    relay_to = true,
-  }
-end)
-
-kumo.on('get_routes', function(domain)
-  return kumo.make_routing_domain(domain)
-end)
-
-kumo.on('get_egress_source', function(source_name)
-  return kumo.make_egress_source {
-    name = source_name,
-    source_address = '{{ kumomta_source_address }}',
-    ehlo_domain = '{{ kumomta_hostname }}',
-  }
-end)
-
-kumo.on('get_egress_pool', function(pool_name)
-  return kumo.make_egress_pool {
-    name = pool_name,
-    entries = {
-      { name = 'default', weight = 100 },
-    },
-  }
-end)
-
-kumo.on('get_egress_path_config', function(source_name, site_name)
-  return kumo.make_egress_path {
-    connection_limit = 20,
-    max_message_rate = '100/s',
-  }
-end)
-
-kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
-  return kumo.make_queue_config {
-    max_age = '7 days',
-    retry_interval = '5 minutes',
-    max_retry_interval = '20 minutes',
-    egress_pool = 'default',
-  }
-end)
-
-kumo.on('get_scheduled_event', function(meta)
-  return kumo.make_scheduled_event(0)
-end)
-
-kumo.on('should_send_mail', function(msg)
-  return true
-end)
-
-kumo.on('send_mail_result', function(msg, result, err)
+-- Accept inbound messages (required)
+kumo.on('smtp_server_message_received', function(msg)
   return true
 end)
