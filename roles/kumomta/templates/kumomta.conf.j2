@@ -3,8 +3,10 @@
 
 local kumo = require 'kumo'
 
--- Load ONLY policy.lua for DKIM signing (do NOT load queue.lua - causes conflicts)
-dofile '{{ kumomta_config_dir }}/policy.lua'
+-- Load existing policy modules that handle queueing and DKIM signing
+pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-queue.lua')
+pcall(dofile, '{{ kumomta_config_dir }}/email-routing.lua')
+pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-policy.lua')
 
 kumo.on('init', function()
   kumo.define_spool {
