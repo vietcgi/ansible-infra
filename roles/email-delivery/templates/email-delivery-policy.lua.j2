@@ -1,46 +1,7 @@
 -- KumoMTA Email Delivery Policy Configuration
--- Handles message validation, authentication checks, and delivery policy enforcement
+-- Handles message validation and policy enforcement
 
 local policy = {}
-
--- Initialize policy module
-function init()
-  kumo.on('init', function()
-    kumo.log(kumo.LOG_INFO, 'Initializing email delivery policy')
-  end)
-end
-
--- Validate message for delivery
-function kumo.on_message_received(msg)
-  -- Get message metadata
-  local sender = msg:get_sender()
-  local recipients = msg:get_recipients()
-  local domain = msg:get_recipient_domain()
-
-  kumo.log(kumo.LOG_DEBUG, string.format(
-    'Message received from %s to %d recipients in domain %s',
-    sender, #recipients, domain
-  ))
-
-  -- Validate sender
-  if not validate_sender(msg) then
-    return false
-  end
-
-  -- Validate recipients
-  for _, recipient in ipairs(recipients) do
-    if not validate_recipient(msg, recipient) then
-      return false
-    end
-  end
-
-  -- Check message content
-  if not validate_message_content(msg) then
-    return false
-  end
-
-  return true
-end
 
 -- Validate sender configuration
 function validate_sender(msg)

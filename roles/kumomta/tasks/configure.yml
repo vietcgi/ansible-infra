@@ -64,6 +64,11 @@
       ansible.builtin.shell: find "{{ kumomta_config_dir }}" -maxdepth 1 -type f -exec chmod 0640 {} \;
       changed_when: false
 
+    - name: Grant CAP_NET_BIND_SERVICE capability to kumod binary
+      ansible.builtin.command:
+        cmd: "setcap 'cap_net_bind_service=+ep' {{ kumomta_home }}/sbin/kumod"
+      changed_when: false
+
     - name: Validate KumoMTA configuration syntax
       ansible.builtin.command:
         cmd: "{{ kumomta_home }}/sbin/kumod --validate-config {{ kumomta_config_dir }}/kumomta.conf"

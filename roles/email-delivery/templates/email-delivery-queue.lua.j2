@@ -1,43 +1,26 @@
 -- KumoMTA Email Delivery Queue Configuration
--- Handles message queuing, retry logic, and delivery to recipient domains
+-- Handles message logging and monitoring
 
 local queue_config = {}
 
--- Initialize delivery queue configuration
-function init()
-  kumo.on('init', function()
-    kumo.log(kumo.LOG_INFO, 'Initializing email delivery queue')
-  end)
-end
+-- Configure egress path behavior (connection limits, timeouts)
+kumo.on('get_egress_path_config', function(domain, egress_source, site_name)
+  local params = {
+    connection_limit = {{ kumomta_max_connections_per_domain | default(20) }},
+    max_message_size = {{ kumomta_max_message_size | default(104857600) }},
+    connect_timeout = 30,
+    idle_timeout = 60,
+    max_connection_lifetime = 300,
+  }
 
--- Configure per-domain queue behavior
-function kumo.on_define_queue(domain, tenant, campaign)
-  -- Queue name format: domain:tenant:campaign or domain:tenant
-  local queue_name = domain
-  if tenant and tenant ~= '' then
-    queue_name = queue_name .. ':' .. tenant
-  end
-  if campaign and campaign ~= '' then
-    queue_name = queue_name .. ':' .. campaign
+  -- Special handling for Google/Gmail
+  if domain == 'gmail.com' or domain == 'googlemail.com' then
+    -- Google is strict about connection limits and ramp-up
+    params.connection_limit = 10 -- Start conservative
   end
 
-  -- Set delivery strategy per domain
-  local queue = kumo.make_queue(queue_name)
-
-  -- Retry configuration
-  queue:set_max_message_size(104857600) -- 100MB
-
-  -- Connection settings
-  queue:set_connection_timeout(30)
-  queue:set_read_timeout(60)
-  queue:set_write_timeout(60)
-
-  -- Delivery strategy: per-domain with MX lookup
-  queue:set_strategy('per_domain')
-  queue:set_mx_lookup(true)
-
-  return queue
-end
+  return kumo.make_egress_path_config(params)
+end)
 
 -- Handle message queuing
 function kumo.on_message_queued(msg)

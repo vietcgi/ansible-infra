@@ -67,19 +67,19 @@
         mode: '0640'
       when: kumomta_alerts_enabled | bool
 
-    - name: Export KumoMTA metrics for collection
-      ansible.builtin.blockinfile:
-        path: "{{ kumomta_config_dir }}/kumomta.conf"
-        marker: "# {mark} MONITORING CONFIGURATION"
-        block: |
-          # Metrics Configuration
-          metrics_address = "0.0.0.0:{{ kumomta_metrics_port }}"
-          metrics_histograms_enabled = {{ kumomta_metrics_histograms | lower }}
-
-          # Logging Configuration
-          log_level = "{{ kumomta_logging_level }}"
-          log_format = "{{ kumomta_logging_format }}"
-      notify: restart kumomta
+    # - name: Export KumoMTA metrics for collection
+    #   ansible.builtin.blockinfile:
+    #     path: "{{ kumomta_config_dir }}/kumomta.conf"
+    #     marker: "# {mark} MONITORING CONFIGURATION"
+    #     block: |
+    #       # Metrics Configuration
+    #       metrics_address = "0.0.0.0:{{ kumomta_metrics_port }}"
+    #       metrics_histograms_enabled = {{ kumomta_metrics_histograms | lower }}
+    #
+    #       # Logging Configuration
+    #       log_level = "{{ kumomta_logging_level }}"
+    #       log_format = "{{ kumomta_logging_format }}"
+    #   notify: restart kumomta
 
   rescue:
     - name: Handle monitoring configuration error

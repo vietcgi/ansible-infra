@@ -4,80 +4,78 @@
 -- Load the kumo module (required when used as a policy file)
 local kumo = require 'kumo'
 
--- Setup logging
-kumo.log_hook(function(level, message)
-    kumo.print(level .. ": " .. message)
-end)
 
--- Define the default spool - REQUIRED for service to start
-kumo.define_spool {
-    name = "default",
-    path = "{{ kumomta_queue_dir }}/default",
-}
+kumo.on('init', function()
+  -- Define the default spool - REQUIRED for service to start
+  kumo.define_spool {
+      name = "default",
+      path = "{{ kumomta_queue_dir }}/default",
+  }
 
--- Optional secondary spool for important messages
-kumo.define_spool {
-    name = "important",
-    path = "{{ kumomta_queue_dir }}/important",
-}
+  -- Optional secondary spool for important messages
+  kumo.define_spool {
+      name = "important",
+      path = "{{ kumomta_queue_dir }}/important",
+  }
 
--- Setup SMTP listeners for receiving mail
-kumo.start_esmtp_listener {
-    listen = "0.0.0.0:{{ kumomta_listen_port }}",
-    hostname = "{{ kumomta_hostname }}",
-    relay_hosts = {'0.0.0.0/0'},
-}
+  -- Setup SMTP listeners for receiving mail
+  kumo.start_esmtp_listener {
+      listen = "0.0.0.0:{{ kumomta_listen_port }}",
+      hostname = "{{ kumomta_hostname }}",
+      relay_hosts = {'0.0.0.0/0'},
+  }
 
-kumo.start_esmtp_listener {
-    listen = "0.0.0.0:{{ kumomta_submit_port }}",
-    hostname = "{{ kumomta_hostname }}",
-    require_authz = {{ 'true' if kumomta_require_auth else 'false' }},
-}
+  kumo.start_esmtp_listener {
+      listen = "0.0.0.0:{{ kumomta_submit_port }}",
+      hostname = "{{ kumomta_hostname }}",
+      require_authz = {{ 'true' if kumomta_require_auth else 'false' }},
+  }
 
 {% if kumomta_tls_enabled %}
-kumo.start_esmtps_listener {
-    listen = "0.0.0.0:{{ kumomta_tls_port }}",
-    hostname = "{{ kumomta_hostname }}",
-    tls_certificate = "{{ kumomta_tls_certificate }}",
-    tls_private_key = "{{ kumomta_tls_key }}",
-}
+  kumo.start_esmtps_listener {
+      listen = "0.0.0.0:{{ kumomta_tls_port }}",
+      hostname = "{{ kumomta_hostname }}",
+      tls_certificate = "{{ kumomta_tls_certificate }}",
+      tls_private_key = "{{ kumomta_tls_key }}",
+  }
 {% endif %}
 
--- Define domain configuration
-kumo.define_domain "{{ kumomta_hostname }}" {
-    source_address = "{{ kumomta_hostname }}",
-}
+  -- Define domain configuration
+  kumo.define_domain "{{ kumomta_hostname }}" {
+      source_address = "{{ kumomta_hostname }}",
+  }
 
 {% if kumomta_dkim_enabled %}
--- DKIM Configuration
-kumo.dkim_sign {
-    domain = "{{ kumomta_hostname }}",
-    selector = "{{ kumomta_dkim_selector }}",
-    headers_to_sign = {
-        "From",
-        "To",
-        "Subject",
-        "Date",
-        "Message-ID",
-        "MIME-Version",
-        "Content-Type",
-        "Content-Transfer-Encoding",
-    },
-    key_file = "{{ kumomta_dkim_key }}",
-}
+  -- DKIM Configuration
+  kumo.dkim_sign {
+      domain = "{{ kumomta_hostname }}",
+      selector = "{{ kumomta_dkim_selector }}",
+      headers_to_sign = {
+          "From",
+          "To",
+          "Subject",
+          "Date",
+          "Message-ID",
+          "MIME-Version",
+          "Content-Type",
+          "Content-Transfer-Encoding",
+      },
+      key_file = "{{ kumomta_dkim_key }}",
+  }
 {% endif %}
 
--- Admin listener for HTTP API
-kumo.start_http_listener {
-    listen = "0.0.0.0:{{ kumomta_admin_port }}",
-}
+  -- Admin listener for HTTP API
+  kumo.start_http_listener {
+      listen = "0.0.0.0:{{ kumomta_admin_port }}",
+  }
 
 {% if kumomta_monitoring_enabled %}
--- Metrics listener
-kumo.start_metrics_listener {
-    listen = "0.0.0.0:{{ kumomta_metrics_port }}",
-}
+  -- Metrics listener
+  kumo.start_metrics_listener {
+      listen = "0.0.0.0:{{ kumomta_metrics_port }}",
+  }
 {% endif %}
+end)
 
 -- CRITICAL: Accept and queue messages from SMTP
 -- Without this handler, messages won't be queued
@@ -101,6 +99,15 @@ end)
 -- CRITICAL: Configure message routing
 -- Without this handler, messages won't know where to go
 kumo.on('get_routes', function(domain)
+    -- Check if domain is an IPv4 address literal
+    -- If so, route directly to it by treating it as its own MX
+    if domain:match("^%d+%.%d+%.%d+%.%d+$") then
+        return kumo.make_routing_domain {
+            name = domain,
+            mx_list = { { name = domain, pref = 1 } }
+        }
+    end
+    -- Otherwise use standard MX routing
     return kumo.make_routing_domain(domain)
 end)
 
@@ -110,19 +117,22 @@ kumo.on('get_scheduled_event', function(meta)
     return kumo.make_scheduled_event(0)
 end)
 
+
 -- Load policy script if it exists
-if kumo.file_exists("{{ kumomta_config_dir }}/policy.lua") then
-    dofile("{{ kumomta_config_dir }}/policy.lua")
-end
+pcall(dofile, "{{ kumomta_config_dir }}/policy.lua")
 
 -- Load queue script if it exists
-if kumo.file_exists("{{ kumomta_config_dir }}/queue.lua") then
-    dofile("{{ kumomta_config_dir }}/queue.lua")
-end
+pcall(dofile, "{{ kumomta_config_dir }}/queue.lua")
 
 {% if kumomta_bounce_handling_enabled %}
 -- Load bounce handling policy if it exists
-if kumo.file_exists("{{ kumomta_config_dir }}/bounce-policy.lua") then
-    dofile("{{ kumomta_config_dir }}/bounce-policy.lua")
-end
+pcall(dofile, "{{ kumomta_config_dir }}/bounce-policy.lua")
 {% endif %}
+
+-- Load email delivery configuration if it exists
+pcall(dofile, "/etc/kumomta/email-delivery-queue.lua")
+pcall(dofile, "/etc/kumomta/email-delivery-policy.lua")
+
+-- Load email routing configuration if it exists
+pcall(dofile, "/etc/kumomta/email-routing.lua")
+

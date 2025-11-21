@@ -1,35 +1,19 @@
 -- KumoMTA Email Routing Configuration
--- Handles intelligent routing of messages to various delivery endpoints
+-- Handles domain-specific routing rules and relay configuration
 
 local routing = {}
-
--- Initialize routing configuration
-function init()
-  kumo.on('init', function()
-    kumo.log(kumo.LOG_INFO, 'Initializing email routing configuration')
-  end)
-end
-
--- Determine routing path for message
-function kumo.on_message_routing(msg)
-  local domain = msg:get_recipient_domain()
-  local sender = msg:get_sender()
-
-  -- Get route configuration for domain
-  local route = get_domain_route(domain)
-
-  kumo.log(kumo.LOG_DEBUG, string.format(
-    'Routing message from %s to %s via %s', sender, domain, route
-  ))
-
-  return route
-end
 
 -- Get routing configuration for a specific domain
 function get_domain_route(domain)
   -- Check for domain-specific routing rules
   if is_local_domain(domain) then
     return 'local'
+  end
+
+  -- Check loaded domain routes
+  local domain_routes = load_domain_routes()
+  if domain_routes[domain] then
+    return domain_routes[domain]
   end
 
   -- Check for relay rules
@@ -204,10 +188,25 @@ end
 function load_domain_routes()
   -- Read from /etc/kumomta/domain_routes.conf
   local routes = {}
+  local file = io.open('/etc/kumomta/domain_routes.conf', 'r')
 
-  -- Parse configuration file and populate routes table
-  -- Format: destination_domain = "route_name"
+  if not file then
+    kumo.log(kumo.LOG_WARN, 'Could not open domain_routes.conf')
+    return routes
+  end
 
+  for line in file:lines() do
+    -- Skip comments and empty lines
+    if not line:match('^%s*#') and not line:match('^%s*$') then
+      -- Parse: domain = "route"
+      local domain, route = line:match('^%s*([^%s=]+)%s*=%s*"(.-)"')
+      if domain and route then
+        routes[domain] = route
+      end
+    end
+  end
+
+  file:close()
   return routes
 end
 
