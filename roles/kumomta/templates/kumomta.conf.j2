@@ -156,9 +156,3 @@ end)
 kumo.on('bounce_event', function(event)
     -- Accept all bounce events
 end)
-
--- Load additional policy files that may override or extend handlers
--- These are optional and only loaded if they exist
-pcall(dofile, "{{ kumomta_config_dir }}/email-routing.lua")
-pcall(dofile, "{{ kumomta_config_dir }}/email-delivery-queue.lua")
-
