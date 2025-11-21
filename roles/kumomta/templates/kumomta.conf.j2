@@ -82,14 +82,8 @@ kumo.on('get_egress_source', function(source_name)
   }
 end)
 
-kumo.on('get_egress_pool', function(pool_name)
-  return kumo.make_egress_pool {
-    name = pool_name,
-    entries = {
-      { name = 'default', weight = 100 },
-    },
-  }
-end)
+-- NOTE: get_egress_pool is automatically provided by policy-extras.sources
+-- Do not define it here to avoid handler conflicts with policy-extras
 
 kumo.on('get_egress_path_config', function(source_name, site_name)
   return kumo.make_egress_path {
