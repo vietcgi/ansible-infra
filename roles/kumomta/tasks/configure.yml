@@ -5,8 +5,12 @@
   block:
     # NOTE: init.lua is NOT deployed because kumomta.conf is the sole entry point
     # Deploying both causes handler conflicts (smtp_server_message_received defined twice)
-    # If init.lua exists from a previous deployment, it should be removed manually
-    # or via a separate cleanup task.
+    # Remove init.lua if it exists from a previous deployment to prevent conflicts
+
+    - name: Remove init.lua to prevent handler conflicts
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}/init.lua"
+        state: absent
 
     - name: Template KumoMTA main configuration
       ansible.builtin.template:
