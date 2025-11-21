@@ -1,5 +1,6 @@
--- KumoMTA Configuration
--- Handles inbound and outbound mail delivery
+-- KumoMTA Configuration - Minimal Bootstrap
+-- Handles spools and listeners only
+-- Handlers are provided by policy.lua and other modules
 
 local kumo = require 'kumo'
 
@@ -7,21 +8,6 @@ local kumo = require 'kumo'
 dofile '{{ kumomta_config_dir }}/policy.lua'
 pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
 pcall(dofile, '/etc/kumomta/email-routing.lua')
--- pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
-
--- Handle incoming SMTP messages with DKIM signing
-kumo.on('smtp_server_message_received', function(msg)
-  -- Sign outbound messages with DKIM (MUST BE LAST)
-  local signer = kumo.dkim.rsa_sha256_signer {
-    domain = '{{ email_domain }}',
-    selector = '{{ dkim_selector | default("default") }}',
-    headers = {'From', 'To', 'Subject', 'Date'},
-    key = '/etc/kumomta/dkim/{{ dkim_selector | default("default") }}.key',
-    over_sign = true,
-  }
-  msg:dkim_sign(signer)
-  -- Message is automatically queued on successful return
-end)
 
 kumo.on('init', function()
   kumo.define_spool {
@@ -53,60 +39,4 @@ kumo.on('init', function()
   kumo.start_http_listener {
       listen = "0.0.0.0:{{ kumomta_admin_port }}",
   }
-end)
-
--- Define which domains accept and queue inbound messages
-kumo.on('get_listener_domain', function(domain)
-  return kumo.make_listener_domain {
-    relay_to = true,
-  }
-end)
-
-kumo.on('get_routes', function(domain)
-  return kumo.make_routing_domain(domain)
-end)
-
-kumo.on('get_egress_source', function(source_name)
-  return kumo.make_egress_source {
-    name = source_name,
-    source_address = '{{ kumomta_source_address }}',
-    ehlo_domain = '{{ kumomta_hostname }}',
-  }
-end)
-
-kumo.on('get_egress_pool', function(pool_name)
-  return kumo.make_egress_pool {
-    name = pool_name,
-    entries = {
-      { name = 'default', weight = 100 },
-    },
-  }
-end)
-
-kumo.on('get_egress_path_config', function(source_name, site_name)
-  return kumo.make_egress_path {
-    connection_limit = 20,
-    max_message_rate = '100/s',
-  }
-end)
-
-kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
-  return kumo.make_queue_config {
-    max_age = '7 days',
-    retry_interval = '5 minutes',
-    max_retry_interval = '20 minutes',
-    egress_pool = 'default',
-  }
-end)
-
-kumo.on('get_scheduled_event', function(meta)
-  return kumo.make_scheduled_event(0)
-end)
-
-kumo.on('should_send_mail', function(msg)
-  return true
-end)
-
-kumo.on('send_mail_result', function(msg, result, err)
-  return true
 end)
