@@ -40,10 +40,6 @@ kumo.on('init', function()
   }
 end)
 
-kumo.on('smtp_server_message_received', function(msg)
-  msg:set_meta('queue', 'default')
-end)
-
 kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)
