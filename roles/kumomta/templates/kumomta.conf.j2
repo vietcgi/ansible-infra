@@ -126,6 +126,22 @@ kumo.on('get_scheduled_event', function(meta)
     return kumo.make_scheduled_event(0)
 end)
 
+-- CRITICAL: Handle delivery attempt results
+kumo.on('send_mail_result', function(msg, result, err)
+    -- Allow all delivery attempts to proceed
+    return true
+end)
+
+-- Handle log events for delivery records
+kumo.on('log_event', function(event)
+    -- Accept all delivery log events
+end)
+
+-- Handle bounce events
+kumo.on('bounce_event', function(event)
+    -- Accept all bounce events
+end)
+
 -- Load additional policies if they exist
 pcall(dofile, "{{ kumomta_config_dir }}/policy.lua")
 pcall(dofile, "/etc/kumomta/email-delivery-policy.lua")
