@@ -1,0 +1,48 @@
+---
+- name: Update DMARC Policy on Cloudflare for vietcgi.nguoivietcali.com
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  vars:
+    email_domain: "vietcgi.nguoivietcali.com"
+    cloudflare_zone_name: "nguoivietcali.com"
+    cloudflare_record_name: "vietcgi"
+    dmarc_policy: "none"
+    dmarc_subdomain_policy: "quarantine"
+    dmarc_percent: 100
+    dmarc_report_email: "dmarc-reports@vietcgi.nguoivietcali.com"
+    dmarc_forensics_email: "dmarc-forensics@vietcgi.nguoivietcali.com"
+    cloudflare_api_token: "{{ lookup('env', 'CLOUDFLARE_API_TOKEN') }}"
+
+  tasks:
+    - name: Validate Cloudflare API token is provided
+      assert:
+        that:
+          - cloudflare_api_token != ""
+        fail_msg: "CLOUDFLARE_API_TOKEN environment variable must be set"
+
+    - name: Update DMARC TXT Record on Cloudflare
+      community.general.cloudflare_dns:
+        zone: "{{ cloudflare_zone_name }}"
+        record: "_dmarc.{{ cloudflare_record_name }}"
+        type: "TXT"
+        value: "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; pct={{ dmarc_percent }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}"
+        ttl: 3600
+        api_token: "{{ cloudflare_api_token }}"
+      register: dmarc_update_result
+
+    - name: Display DMARC update result
+      debug:
+        msg: |
+          ✓ DMARC record updated successfully!
+          Zone: {{ cloudflare_zone_name }}
+          Record: _dmarc.{{ cloudflare_record_name }}
+          Domain: {{ email_domain }}
+          Policy: {{ dmarc_policy }}
+          Subdomain Policy: {{ dmarc_subdomain_policy }}
+          Report Email: {{ dmarc_report_email }}
+          Forensics Email: {{ dmarc_forensics_email }}
+
+          Cloudflare Response:
+          {{ dmarc_update_result }}
