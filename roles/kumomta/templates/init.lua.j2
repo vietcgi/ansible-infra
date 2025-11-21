@@ -30,11 +30,8 @@ kumo.define_spool {
 -- Listeners are created using kumo.start_esmtp_listener() and kumo.start_esmtps_listener()
 -- which ARE available in v2025.10.06. Sources module handles this automatically.
 
--- CRITICAL: Accept and queue messages from SMTP
-kumo.on('smtp_server_message_received', function(msg)
-  queue_helper:apply(msg)
-  -- Message is automatically accepted when handler completes successfully
-end)
+-- NOTE: smtp_server_message_received handler is provided by kumomta.conf
+-- which loads policy.lua for DKIM signing. Do not define it here to avoid conflicts.
 
 -- Define queue configuration (retry intervals, max age, egress pool assignment)
 -- This is CRITICAL for message delivery - without this, messages won't be routed
