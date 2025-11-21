@@ -40,6 +40,11 @@ kumo.on('init', function()
   }
 end)
 
+-- Accept and queue incoming SMTP messages (required for message delivery)
+kumo.on('smtp_server_message_received', function(msg)
+  return true
+end)
+
 kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)
