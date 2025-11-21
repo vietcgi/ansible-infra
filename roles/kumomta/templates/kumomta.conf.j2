@@ -3,8 +3,7 @@
 
 local kumo = require 'kumo'
 
--- Load policy modules in correct order
-dofile '{{ kumomta_config_dir }}/policy.lua'
+-- Load existing policy modules that handle queueing
 pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
 pcall(dofile, '/etc/kumomta/email-routing.lua')
 -- pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
