@@ -5,6 +5,16 @@ local kumo = require 'kumo'
 
 kumo.on('init', function()
   kumo.define_spool {
+      name = "data",
+      path = "{{ kumomta_queue_dir }}/data",
+  }
+
+  kumo.define_spool {
+      name = "meta",
+      path = "{{ kumomta_queue_dir }}/meta",
+  }
+
+  kumo.define_spool {
       name = "default",
       path = "{{ kumomta_queue_dir }}/default",
   }
