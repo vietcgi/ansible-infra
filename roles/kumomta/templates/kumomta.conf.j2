@@ -1,5 +1,5 @@
 -- KumoMTA Configuration
--- Unified configuration with all handlers for message delivery
+-- Handles inbound and outbound mail delivery
 
 local kumo = require 'kumo'
 
@@ -35,29 +35,22 @@ kumo.on('init', function()
   }
 end)
 
--- Handle incoming SMTP messages
+-- Accept and queue incoming SMTP messages (required for message delivery)
 kumo.on('smtp_server_message_received', function(msg)
   return true
 end)
 
--- Define listener domain acceptance
+-- Define which domains accept and queue inbound messages
 kumo.on('get_listener_domain', function(domain)
   return kumo.make_listener_domain {
     relay_to = true,
   }
 end)
 
--- Allow relaying to external domains
-kumo.on('should_relay_to', function(relayer, recipient_domain)
-  return true
-end)
-
--- Default routing - use MX lookup for recipient domain
 kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)
 
--- Egress source configuration
 kumo.on('get_egress_source', function(source_name)
   return kumo.make_egress_source {
     name = source_name,
@@ -66,7 +59,6 @@ kumo.on('get_egress_source', function(source_name)
   }
 end)
 
--- Egress pool configuration for load balancing
 kumo.on('get_egress_pool', function(pool_name)
   return kumo.make_egress_pool {
     name = pool_name,
@@ -76,17 +68,13 @@ kumo.on('get_egress_pool', function(pool_name)
   }
 end)
 
--- Egress path configuration (connection limits, timeouts)
 kumo.on('get_egress_path_config', function(source_name, site_name)
-  return kumo.make_egress_path_config {
+  return kumo.make_egress_path {
     connection_limit = 20,
     max_message_rate = '100/s',
-    connect_timeout = 30,
-    idle_timeout = 60,
   }
 end)
 
--- Queue configuration (retry logic, message age)
 kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     max_age = '7 days',
@@ -96,12 +84,14 @@ kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
   }
 end)
 
--- Scheduled event handler (called periodically)
 kumo.on('get_scheduled_event', function(meta)
   return kumo.make_scheduled_event(0)
 end)
 
--- Allow message sending
 kumo.on('should_send_mail', function(msg)
+  return true
+end)
+
+kumo.on('send_mail_result', function(msg, result, err)
   return true
 end)
