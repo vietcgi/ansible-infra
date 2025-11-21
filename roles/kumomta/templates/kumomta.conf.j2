@@ -1,11 +1,7 @@
--- KumoMTA Configuration - Complete handler setup
--- Loads external policy files for queueing and routing
+-- KumoMTA Configuration
+-- Unified configuration with all handlers for message delivery
 
 local kumo = require 'kumo'
-
--- Load external policy modules that handle queueing and routing
-pcall(dofile, '{{ kumomta_config_dir }}/email-delivery-queue.lua')
-pcall(dofile, '{{ kumomta_config_dir }}/email-routing.lua')
 
 kumo.on('init', function()
   kumo.define_spool {
@@ -56,6 +52,11 @@ kumo.on('should_relay_to', function(relayer, recipient_domain)
   return true
 end)
 
+-- Default routing - use MX lookup for recipient domain
+kumo.on('get_routes', function(domain)
+  return kumo.make_routing_domain(domain)
+end)
+
 -- Egress source configuration
 kumo.on('get_egress_source', function(source_name)
   return kumo.make_egress_source {
@@ -65,15 +66,42 @@ kumo.on('get_egress_source', function(source_name)
   }
 end)
 
--- Always send mail - no message filtering
+-- Egress pool configuration for load balancing
+kumo.on('get_egress_pool', function(pool_name)
+  return kumo.make_egress_pool {
+    name = pool_name,
+    entries = {
+      { name = 'default', weight = 100 },
+    },
+  }
+end)
+
+-- Egress path configuration (connection limits, timeouts)
+kumo.on('get_egress_path_config', function(source_name, site_name)
+  return kumo.make_egress_path_config {
+    connection_limit = 20,
+    max_message_rate = '100/s',
+    connect_timeout = 30,
+    idle_timeout = 60,
+  }
+end)
+
+-- Queue configuration (retry logic, message age)
+kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+  return kumo.make_queue_config {
+    max_age = '7 days',
+    retry_interval = '5 minutes',
+    max_retry_interval = '20 minutes',
+    egress_pool = 'default',
+  }
+end)
+
+-- Scheduled event handler (called periodically)
+kumo.on('get_scheduled_event', function(meta)
+  return kumo.make_scheduled_event(0)
+end)
+
+-- Allow message sending
 kumo.on('should_send_mail', function(msg)
   return true
 end)
-
--- NOTE: The following handlers are provided by external modules and should NOT be defined here:
--- get_routes (from email-routing.lua)
--- get_queue_config (from email-delivery-queue.lua)
--- get_egress_pool (from email-delivery-queue.lua)
--- get_egress_path_config (from email-delivery-queue.lua)
--- get_scheduled_event (from email-delivery-queue.lua)
--- Defining them here would cause handler conflicts and prevent delivery!
