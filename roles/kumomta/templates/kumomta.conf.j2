@@ -6,7 +6,21 @@ local kumo = require 'kumo'
 -- Load existing policy modules that handle queueing
 pcall(dofile, '/etc/kumomta/email-delivery-queue.lua')
 pcall(dofile, '/etc/kumomta/email-routing.lua')
-pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
+-- pcall(dofile, '/etc/kumomta/email-delivery-policy.lua')
+
+-- Handle incoming SMTP messages with DKIM signing
+kumo.on('smtp_server_message_received', function(msg)
+  -- Sign outbound messages with DKIM (MUST BE LAST)
+  local signer = kumo.dkim.rsa_sha256_signer {
+    domain = '{{ email_domain }}',
+    selector = '{{ dkim_selector | default("default") }}',
+    headers = {'From', 'To', 'Subject', 'Date'},
+    key = '/etc/kumomta/dkim/{{ dkim_selector | default("default") }}.key',
+    over_sign = true,
+  }
+  msg:dkim_sign(signer)
+  -- Message is automatically queued on successful return
+end)
 
 kumo.on('init', function()
   kumo.define_spool {
