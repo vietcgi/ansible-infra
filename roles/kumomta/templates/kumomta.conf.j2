@@ -47,6 +47,11 @@ kumo.on('get_listener_domain', function(domain)
   }
 end)
 
+-- Allow relaying to external domains (CRITICAL for message delivery)
+kumo.on('should_relay_to', function(relayer, recipient_domain)
+  return true
+end)
+
 kumo.on('get_routes', function(domain)
   return kumo.make_routing_domain(domain)
 end)

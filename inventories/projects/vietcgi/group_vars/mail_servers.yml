@@ -1,0 +1,38 @@
+---
+# KumoMTA Mail Server Configuration for Vietcgi Production
+
+# Core SMTP Configuration
+kumomta_hostname: "vietcgi.nguoivietcali.com"
+kumomta_domain: "vietcgi.nguoivietcali.com"
+kumomta_source_address: "108.181.38.69"  # IP for outbound mail
+
+# Ports
+kumomta_listen_port: 25
+kumomta_submit_port: 587
+kumomta_admin_port: 8008
+
+# Queue Configuration
+kumomta_queue_dir: "/var/spool/kumomta"
+kumomta_queue_retry_interval: 300  # 5 minutes
+kumomta_queue_max_attempts: 72  # 3 days with backoff
+kumomta_queue_expiration: 259200  # 3 days
+
+# Performance
+kumomta_worker_threads: 4
+kumomta_max_connections: 1000
+kumomta_max_concurrent_connections_per_domain: 20
+
+# TLS/Security
+kumomta_tls_enabled: true
+kumomta_dkim_enabled: false  # Disabled for now - DNS issues
+kumomta_dkim_selector: "default"
+
+# Monitoring
+kumomta_logging_level: "info"
+kumomta_monitoring_enabled: true
+kumomta_metrics_enabled: true
+kumomta_syslog_enabled: true
+
+# Relay configuration
+kumomta_require_auth: false  # Allow open relay for testing/internal use
+kumomta_allowed_relayers: []  # Allow all for now (0.0.0.0/0 in listener config)
