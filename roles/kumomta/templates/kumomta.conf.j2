@@ -77,11 +77,10 @@ kumo.on('init', function()
 {% endif %}
 end)
 
--- CRITICAL: Accept and queue messages from SMTP
--- Without this handler, messages won't be queued
+-- CRITICAL: Accept messages from SMTP
+-- Return without error to allow default queueing behavior
 kumo.on('smtp_server_message_received', function(msg)
-    msg:set_drop_queue('default')
-    kumo.continue()
+    return true
 end)
 
 -- CRITICAL: Configure queue behavior
@@ -109,6 +108,13 @@ kumo.on('get_routes', function(domain)
     end
     -- Otherwise use standard MX routing
     return kumo.make_routing_domain(domain)
+end)
+
+-- Define egress pool configuration
+kumo.on('get_egress_pool_config', function(pool_name)
+    return kumo.make_egress_pool_config {
+        max_connections_per_domain = 20,
+    }
 end)
 
 -- CRITICAL: Enable automatic delivery scheduling
