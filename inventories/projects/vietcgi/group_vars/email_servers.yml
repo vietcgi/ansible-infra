@@ -1,0 +1,3 @@
+# Email Servers group variables
+vault_cloudflare_api_token: "e5KrCm-EW3OB0Ol4BNb-lr4DIAfyStVBLtArkeV7"
+vault_cloudflare_zone_id: "d1be560bb746951068297f80b24ea135"
