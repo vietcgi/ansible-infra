@@ -77,11 +77,8 @@ kumo.on('init', function()
 {% endif %}
 end)
 
--- CRITICAL: Accept messages from SMTP
--- Return without error to allow default queueing behavior
-kumo.on('smtp_server_message_received', function(msg)
-    return true
-end)
+-- Message handler is provided by email-delivery-policy.lua
+-- (loaded below)
 
 -- CRITICAL: Configure queue behavior
 -- Without this handler, messages won't be delivered
