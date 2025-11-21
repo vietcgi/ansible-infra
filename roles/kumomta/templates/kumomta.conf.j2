@@ -44,7 +44,7 @@ end)
 kumo.on('get_egress_source', function(source_name)
   return kumo.make_egress_source {
     name = source_name,
-    source_address = '0.0.0.0',
+    source_address = '{{ kumomta_source_address }}',
     ehlo_domain = '{{ kumomta_hostname }}',
   }
 end)

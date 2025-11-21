@@ -29,6 +29,7 @@ kumomta_metrics_port: 9184
 
 kumomta_hostname: "{{ ansible_fqdn }}"
 kumomta_domain: "{{ ansible_domain | default('example.com') }}"
+kumomta_source_address: "{{ ansible_default_ipv4.address }}"  # IP for outbound mail
 kumomta_max_connections: 1000
 kumomta_max_queue_size: 50000000  # 50GB
 
