@@ -17,7 +17,7 @@ dkim_selector: "default"
 dkim_key_size: 2048
 
 # DMARC Configuration (Optional - set custom emails or use defaults)
-dmarc_policy: "quarantine"           # Options: none, quarantine, reject
+dmarc_policy: "none"                 # Options: none, quarantine, reject
 dmarc_subdomain_policy: "quarantine"
 dmarc_report_email: ""               # Optional: e.g., "dmarc-reports@example.com"
 dmarc_forensics_email: ""            # Optional: e.g., "dmarc-forensics@example.com"
