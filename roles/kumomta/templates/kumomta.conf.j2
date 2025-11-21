@@ -3,9 +3,8 @@
 
 local kumo = require 'kumo'
 
--- Load policy module for DKIM signing only
+-- Load ONLY policy.lua for DKIM signing (do NOT load queue.lua - causes conflicts)
 dofile '{{ kumomta_config_dir }}/policy.lua'
-pcall(dofile, '{{ kumomta_config_dir }}/queue.lua')
 
 kumo.on('init', function()
   kumo.define_spool {
