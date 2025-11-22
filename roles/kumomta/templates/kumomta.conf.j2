@@ -60,12 +60,17 @@ kumo.on('get_egress_path_config', function(source_name, site_name)
 end)
 
 kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+  kumo.log(kumo.LOG_INFO, string.format('Queue config for domain: %s', domain))
   return kumo.make_queue_config {
     max_age = '7 days',
-    retry_interval = '5 minutes',
-    max_retry_interval = '20 minutes',
+    retry_interval = '1 minute',
+    max_retry_interval = '5 minutes',
     egress_pool = 'default',
   }
+end)
+
+kumo.on('should_queue_message', function(msg)
+  return true
 end)
 
 kumo.on('get_scheduled_event', function(meta)
