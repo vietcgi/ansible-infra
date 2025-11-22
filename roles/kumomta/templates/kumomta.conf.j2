@@ -53,7 +53,7 @@ kumo.on('get_egress_pool', function(pool_name)
 end)
 
 kumo.on('get_egress_path_config', function(source_name, site_name)
-  return kumo.make_egress_path_config {
+  return kumo.make_egress_path {
     connection_limit = 20,
     max_message_rate = '100/s',
   }
