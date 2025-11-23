@@ -40,12 +40,13 @@ kumo.on("smtp_server_message_received", function(msg)
   msg:dkim_sign(signer)
 end)
 
+-- CRITICAL: Queue configuration with delivery timing parameters
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     egress_pool = "default",
-    max_age = "2 days",
-    retry_interval = "20 minutes",
-    max_retry_interval = "2 hours",
+    max_age = "2 days",              -- Messages expire after 2 days
+    retry_interval = "20 minutes",   -- Initial retry delay
+    max_retry_interval = "2 hours",  -- Maximum backoff time between retries
   }
 end)
 
@@ -71,15 +72,16 @@ kumo.on("get_egress_source", function(source_name)
   }
 end)
 
+-- CRITICAL: Egress path configuration with connection limits and rate limiting
 kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
   local params = {
     enable_tls = "OpportunisticInsecure",
-    connection_limit = 10,
-    max_deliveries_per_connection = 100,
-    max_message_rate = "100/s",
+    connection_limit = 10,              -- Max simultaneous SMTP connections
+    max_deliveries_per_connection = 100, -- Messages per connection before close
+    max_message_rate = "100/s",         -- Max message rate per second
   }
 
-  -- Conservative limits for Gmail
+  -- Conservative limits for Gmail (they have strict throttling)
   if string.find(domain, "gmail%.com") or string.find(domain, "googlemail%.com") then
     params.connection_limit = 5
     params.max_message_rate = "20/s"
