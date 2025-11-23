@@ -22,7 +22,7 @@
           ansible.builtin.command:
             cmd: "openssl genrsa -out /tmp/{{ email_domain }}.key.tmp 2048"
           register: genrsa_result
-          changed_when: true
+          changed_when: false
 
         - name: Copy private key to DKIM directory
           ansible.builtin.copy:
@@ -36,7 +36,7 @@
         - name: Generate public DKIM key from private key
           ansible.builtin.shell:
             cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout -out {{ kumomta_home }}/etc/dkim/{{ email_domain }}.pub"
-          changed_when: true
+          changed_when: false
 
         - name: Extract DKIM public key for DNS record
           ansible.builtin.shell:

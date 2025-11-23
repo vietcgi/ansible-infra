@@ -42,6 +42,7 @@
         - "{{ kumomta_log_dir }}"
         - /opt/kumomta/etc
         - /etc/kumomta/policy
+      when: not kumod_binary.stat.exists
 
     - name: Set KumoMTA .deb download URL (direct GitHub release)
       set_fact:
