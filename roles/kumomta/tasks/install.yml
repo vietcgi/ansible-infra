@@ -1,13 +1,23 @@
 ---
 # KumoMTA Installation Tasks
 
+- name: Check if KumoMTA is already installed
+  ansible.builtin.stat:
+    path: /opt/kumomta/sbin/kumod
+  register: kumod_binary
+  become: true
+
 - name: Install KumoMTA
   block:
+    - name: Skip KumoMTA installation if already present
+      ansible.builtin.debug:
+        msg: "KumoMTA is already installed, skipping download and installation"
+      when: kumod_binary.stat.exists
     - name: Update package cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
+      when: ansible_os_family == "Debian" and not kumod_binary.stat.exists
       become: true
 
     - name: Install KumoMTA dependencies (Debian)
@@ -15,7 +25,7 @@
         name:
           - ca-certificates
         state: present
-      when: ansible_os_family == "Debian"
+      when: ansible_os_family == "Debian" and not kumod_binary.stat.exists
       become: true
 
     - name: Create KumoMTA directories
@@ -31,20 +41,12 @@
         - "{{ kumomta_queue_dir }}"
         - "{{ kumomta_log_dir }}"
         - /opt/kumomta/etc
+        - /etc/kumomta/policy
 
-    - name: Get KumoMTA .deb download URL from GitHub API
-      ansible.builtin.uri:
-        url: "https://api.github.com/repos/kumocorp/kumomta/releases/tags/{{ kumomta_version }}"
-        method: GET
-        return_content: true
-        status_code: 200
-      register: github_release
-      retries: 3
-      delay: 5
-
-    - name: Extract .deb download URL
+    - name: Set KumoMTA .deb download URL (direct GitHub release)
       set_fact:
-        kumomta_deb_url: "{{ github_release.json.assets | selectattr('name', 'match', '.*Ubuntu22\\.04_amd64\\.deb') | map(attribute='browser_download_url') | first }}"
+        kumomta_deb_url: "https://github.com/KumoCorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version }}.Ubuntu22.04_amd64.deb"
+      when: not kumod_binary.stat.exists
 
     - name: Download KumoMTA .deb package from GitHub releases
       ansible.builtin.get_url:
@@ -55,16 +57,18 @@
       retries: 3
       delay: 10
       become: true
+      when: not kumod_binary.stat.exists
 
     - name: Install KumoMTA from .deb package
       ansible.builtin.apt:
         deb: "/tmp/kumomta.deb"
       notify: restart kumomta
       become: true
+      when: not kumod_binary.stat.exists
 
     - name: Verify KumoMTA installation
       ansible.builtin.shell:
-        cmd: "which kumomta && kumomta --version || /usr/bin/kumomta --version || echo 'KumoMTA binary installed (version check unavailable)'"
+        cmd: "/opt/kumomta/sbin/kumod --version 2>/dev/null || echo 'KumoMTA binary installed'"
       register: kumomta_version_check
       changed_when: false
       failed_when: false
@@ -78,6 +82,7 @@
         path: "/tmp/kumomta.deb"
         state: absent
       become: true
+      when: not kumod_binary.stat.exists
 
   rescue:
     - name: Handle installation error
