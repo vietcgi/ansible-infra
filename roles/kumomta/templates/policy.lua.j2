@@ -34,11 +34,6 @@ kumo.on("smtp_server_message_received", function(msg)
   msg:set_meta("queue", recipient and recipient.domain or "default")
 end)
 
-kumo.on("get_bounce_domain", function(domain, action, bounce_type)
-  -- Ensure Return-Path uses the sending domain for proper SPF alignment
-  return domain
-end)
-
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     egress_pool = "default",
