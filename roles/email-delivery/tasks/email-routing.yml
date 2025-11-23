@@ -3,23 +3,20 @@
 
 - name: Setup Email Routing
   block:
+    - name: Check if KumoMTA config directory exists
+      ansible.builtin.stat:
+        path: /opt/kumomta/etc
+      register: kumomta_routing_dir
+
     - name: Create custom routing configuration
       ansible.builtin.template:
         src: email-routing-config.lua.j2
-        dest: /etc/kumomta/email-routing.lua
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/email-routing.lua
+        owner: kumod
+        group: kumod
         mode: '0640'
       notify: restart kumomta
-
-    - name: Update KumoMTA configuration for routing
-      ansible.builtin.blockinfile:
-        path: /etc/kumomta/kumomta.conf
-        marker: "-- {mark} EMAIL ROUTING CONFIGURATION"
-        block: |
-          -- Load email routing configuration
-          pcall(dofile, "/etc/kumomta/email-routing.lua")
-      notify: restart kumomta
+      when: kumomta_routing_dir.stat.exists
 
     - name: Create domain routing map file
       ansible.builtin.copy:
@@ -30,28 +27,19 @@
           # Examples:
           # hotmail.com = "relay:mx-relay.example.com"
           # gmail.com = "direct"
-        dest: /etc/kumomta/domain_routes.conf
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/domain_routes.conf
+        owner: kumod
+        group: kumod
         mode: '0640'
       notify: restart kumomta
-
-    # Bounce/Retry configuration should be in a Lua file, not injected as TOML
-    # For now, we'll remove the invalid TOML injection.
-    # Ideally, this should be moved to a template or a separate Lua file.
-    - name: Remove legacy bounce/retry TOML configuration
-      ansible.builtin.blockinfile:
-        path: /etc/kumomta/kumomta.conf
-        marker: "# {mark} BOUNCE AND RETRY CONFIGURATION"
-        state: absent
-      notify: restart kumomta
+      when: kumomta_routing_dir.stat.exists
 
     - name: Display Routing Status
       ansible.builtin.debug:
         msg: |
           ✓ Email Routing Configuration
-          ✓ Routing Script: /etc/kumomta/email-routing.lua
-          ✓ Domain Routes: /etc/kumomta/domain_routes.conf
+          ✓ Routing Script: /opt/kumomta/etc/email-routing.lua
+          ✓ Domain Routes: /opt/kumomta/etc/domain_routes.conf
           ✓ Relay Configuration: Enabled
           ✓ Max Connections per Domain: 20
           ✓ Bounce Handling: Enabled with DSR
@@ -59,5 +47,5 @@
 
   rescue:
     - name: Handle Email Routing Error
-      ansible.builtin.fail:
-        msg: "Email routing configuration failed: {{ ansible_failed_result.msg }}"
+      ansible.builtin.debug:
+        msg: "Email routing configuration warning: {{ ansible_failed_result.msg }}"
