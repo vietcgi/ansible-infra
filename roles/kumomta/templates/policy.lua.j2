@@ -30,9 +30,6 @@ kumo.on("smtp_server_message_received", function(msg)
   -- Assign queue based on recipient domain
   local recipient = msg:recipient()
   msg:set_meta("queue", recipient and recipient.domain or "default")
-
-  -- Accept and queue the message for delivery
-  return kumo.make_disposition_accept()
 end)
 
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
