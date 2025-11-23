@@ -1,0 +1,116 @@
+---
+# DMARC Record Verification and Cleanup
+
+- name: Verify DMARC Record Configuration
+  block:
+    - name: Fetch all DNS records from Cloudflare to verify DMARC configuration
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name=_dmarc.{{ email_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: dmarc_records_response
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+
+    - name: Extract DMARC records from API response
+      set_fact:
+        dmarc_records_list: "{{ dmarc_records_response.json.result | default([]) }}"
+        dmarc_record_count: "{{ (dmarc_records_response.json.result | default([])) | length }}"
+      when: dmarc_records_response is not skipped
+
+    - name: Display DMARC record verification status
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          DMARC Record Verification
+          ════════════════════════════════════════════════════════
+          Total DMARC records found: {{ dmarc_record_count | default('Unknown') }}
+          {% if dmarc_record_count | int == 1 %}
+          ✓ SUCCESS: Exactly one DMARC record exists
+          {% elif dmarc_record_count | int > 1 %}
+          ⚠ WARNING: Multiple DMARC records found ({{ dmarc_record_count }})
+          This may cause validation failures. Duplicate records should be removed.
+          {% else %}
+          ⚠ WARNING: No DMARC records found
+          The DMARC record may not have been created yet.
+          {% endif %}
+
+    - name: Display individual DMARC records
+      debug:
+        msg: |
+          Record {{ loop.index }}:
+          Name: {{ item.name }}
+          Type: {{ item.type }}
+          Content: {{ item.content }}
+          TTL: {{ item.ttl }}
+          ID: {{ item.id }}
+      loop: "{{ dmarc_records_list }}"
+      when: dmarc_records_list is defined and dmarc_records_list | length > 0
+
+    - name: Verify DMARC record format
+      assert:
+        that:
+          - dmarc_record_count | int == 1
+        fail_msg: |
+          DMARC validation failed:
+          - Expected: 1 DMARC record
+          - Found: {{ dmarc_record_count | int }}
+
+          If multiple records exist:
+          1. Identify the correct/most complete record
+          2. Delete duplicates via Cloudflare dashboard or API
+          3. Keep the record with full DMARC policy (p=, sp=, pct=, rua=, ruf=)
+
+          Action required before proceeding with email delivery.
+
+    - name: Validate DMARC record format
+      assert:
+        that:
+          - dmarc_records_list[0].content is defined
+          - "'v=DMARC1' in dmarc_records_list[0].content"
+        fail_msg: "DMARC record format is invalid. Must start with 'v=DMARC1'"
+      when:
+        - dmarc_records_list is defined
+        - dmarc_records_list | length > 0
+
+    - name: Display verification success
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          ✓ DMARC Configuration Verified
+          ════════════════════════════════════════════════════════
+          Domain: {{ email_domain }}
+          Record Name: _dmarc.{{ email_domain }}
+          Record Count: {{ dmarc_record_count }}
+
+          Record Details:
+          {% if dmarc_records_list is defined and dmarc_records_list | length > 0 %}
+          Name: {{ dmarc_records_list[0].name }}
+          Type: {{ dmarc_records_list[0].type }}
+          Content: {{ dmarc_records_list[0].content }}
+          TTL: {{ dmarc_records_list[0].ttl }}
+
+          ✓ Configuration is correct and ready
+          {% endif %}
+          ════════════════════════════════════════════════════════
+
+  rescue:
+    - name: Handle DMARC verification error
+      debug:
+        msg: |
+          ⚠ DMARC Verification Warning
+
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          This may indicate:
+          - Multiple DMARC records in DNS (need cleanup)
+          - Record not yet created
+          - API connectivity issue
+
+          Recommendations:
+          1. Check Cloudflare DNS dashboard for _dmarc.{{ email_domain }} records
+          2. Ensure only one DMARC record exists
+          3. Verify record format starts with 'v=DMARC1'
+          4. Check API token and zone ID are correct

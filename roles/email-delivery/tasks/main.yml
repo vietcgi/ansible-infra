@@ -16,6 +16,10 @@
     - name: Configure DMARC Records
       ansible.builtin.include_tasks: dmarc-setup.yml
 
+    - name: Verify DMARC Record Configuration
+      ansible.builtin.include_tasks: dmarc-verification.yml
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+
     - name: Configure TLS Certificates
       ansible.builtin.include_tasks: tls-certificates.yml
 
