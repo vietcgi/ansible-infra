@@ -11,7 +11,7 @@ WorkingDirectory={{ kumomta_home }}
 
 # Service startup - loads configured policy
 # Binary has CAP_NET_BIND_SERVICE capability via setcap
-ExecStart={{ kumomta_home }}/sbin/kumod --policy {{ kumomta_config_dir }}/kumomta.conf
+ExecStart={{ kumomta_home }}/sbin/kumod --policy {{ kumomta_config_dir }}/policy.lua
 
 # Process management
 Restart=on-failure

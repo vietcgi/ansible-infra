@@ -3,50 +3,25 @@
 
 - name: Configure KumoMTA
   block:
-    # NOTE: init.lua is NOT deployed because kumomta.conf is the sole entry point
-    # Deploying both causes handler conflicts (smtp_server_message_received defined twice)
-    # Remove init.lua if it exists from a previous deployment to prevent conflicts
+    # Deploy policy.lua as the main init file for kumomta
+    # This is the production-ready configuration with DKIM signing, queue management, and routing
 
-    - name: Remove init.lua to prevent handler conflicts
-      ansible.builtin.file:
-        path: "{{ kumomta_config_dir }}/init.lua"
-        state: absent
-
-    - name: Template KumoMTA main configuration
-      ansible.builtin.template:
-        src: kumomta.conf.j2
-        dest: "{{ kumomta_config_dir }}/kumomta.conf"
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0640'
-      notify: restart kumomta
-
-    - name: Template KumoMTA Lua policy script
+    - name: Template KumoMTA Lua policy script (main init file)
       ansible.builtin.template:
         src: policy.lua.j2
-        dest: "{{ kumomta_config_dir }}/policy.lua"
+        dest: "{{ kumomta_config_dir }}/policy/init.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
         mode: '0640'
       notify: restart kumomta
 
-    - name: Template KumoMTA queue configuration
-      ansible.builtin.template:
-        src: queue.lua.j2
-        dest: "{{ kumomta_config_dir }}/queue.lua"
+    - name: Create policy directory if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}/policy"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
-      notify: restart kumomta
-
-    - name: Create logging configuration
-      ansible.builtin.template:
-        src: logging.toml.j2
-        dest: "{{ kumomta_config_dir }}/logging.toml"
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0640'
-      notify: restart kumomta
+        mode: '0750'
+        state: directory
 
     - name: Set proper directory permissions
       ansible.builtin.file:

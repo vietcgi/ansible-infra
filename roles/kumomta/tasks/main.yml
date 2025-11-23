@@ -105,6 +105,10 @@
       ansible.builtin.include_tasks: certificates.yml
       when: kumomta_tls_enabled | bool
 
+    - name: Set up DKIM keys for email domains
+      ansible.builtin.include_tasks: dkim-setup.yml
+      when: kumomta_dkim_enabled | bool
+
     - name: Configure KumoMTA
       ansible.builtin.include_tasks: configure.yml
 

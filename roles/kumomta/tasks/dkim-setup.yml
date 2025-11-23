@@ -1,0 +1,91 @@
+---
+# DKIM Key Management and Setup for KumoMTA
+
+- name: Set up DKIM for KumoMTA
+  block:
+    - name: Create DKIM directory
+      ansible.builtin.file:
+        path: "{{ kumomta_home }}/etc/dkim"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0700'
+        state: directory
+
+    - name: Check if DKIM key exists for primary domain
+      ansible.builtin.stat:
+        path: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
+      register: dkim_key_stat
+
+    - name: Generate DKIM RSA key pair for primary domain
+      block:
+        - name: Generate private DKIM key
+          ansible.builtin.command:
+            cmd: "openssl genrsa -out /tmp/{{ email_domain }}.key.tmp 2048"
+          register: genrsa_result
+          changed_when: true
+
+        - name: Copy private key to DKIM directory
+          ansible.builtin.copy:
+            content: "{{ lookup('file', '/tmp/{{ email_domain }}.key.tmp') }}"
+            dest: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
+            owner: "{{ kumomta_user }}"
+            group: "{{ kumomta_group }}"
+            mode: '0600'
+          when: genrsa_result.rc == 0
+
+        - name: Generate public DKIM key from private key
+          ansible.builtin.shell:
+            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout -out {{ kumomta_home }}/etc/dkim/{{ email_domain }}.pub"
+          changed_when: true
+
+        - name: Extract DKIM public key for DNS record
+          ansible.builtin.shell:
+            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN PUBLIC' | grep -v 'END PUBLIC' | tr -d '\\n'"
+          register: dkim_public_key
+          changed_when: false
+
+        - name: Clean up temporary key file
+          ansible.builtin.file:
+            path: "/tmp/{{ email_domain }}.key.tmp"
+            state: absent
+
+        - name: Display DKIM DNS record needed
+          ansible.builtin.debug:
+            msg: |
+              DKIM DNS Record (Add to your DNS provider):
+              Domain: {{ dkim_selector }}._domainkey.{{ email_domain }}
+              Type: TXT
+              Value: v=DKIM1; k=rsa; p={{ dkim_public_key.stdout }}
+
+      when: not dkim_key_stat.stat.exists
+
+    - name: Verify DKIM keys exist and have correct permissions
+      ansible.builtin.file:
+        path: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0600'
+        state: file
+
+    - name: Set public key permissions (readable by all)
+      ansible.builtin.file:
+        path: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.pub"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0644'
+        state: file
+
+    - name: Create symbolic link for selector if different from 'default'
+      ansible.builtin.file:
+        src: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
+        dest: "{{ kumomta_home }}/etc/dkim/{{ dkim_selector }}.key"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        state: link
+        force: yes
+      when: dkim_selector != 'default' and email_domain != dkim_selector
+
+  rescue:
+    - name: Handle DKIM setup error
+      ansible.builtin.fail:
+        msg: "Failed to set up DKIM: {{ ansible_failed_result.msg }}"
