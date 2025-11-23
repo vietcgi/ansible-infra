@@ -89,6 +89,30 @@
     - name: Install KumoMTA dependencies
       ansible.builtin.include_tasks: install.yml
 
+    - name: Create DKIM directory
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}/dkim"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
+    - name: Find DKIM key files
+      ansible.builtin.find:
+        paths: "{{ kumomta_config_dir }}/dkim"
+        patterns: "*.key"
+      register: dkim_keys
+
+    - name: Fix DKIM key permissions
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0600'
+      loop: "{{ dkim_keys.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
     - name: Create KumoMTA directories
       ansible.builtin.file:
         path: "{{ item.path }}"

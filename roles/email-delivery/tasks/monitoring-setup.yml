@@ -126,26 +126,26 @@
         group: kumod
         mode: '0640'
 
-    - name: Setup logrotate for KumoMTA logs
-      ansible.builtin.copy:
-        content: |
-          /var/log/kumomta/*.log {
-            daily
-            rotate 30
-            compress
-            delaycompress
-            notifempty
-            create 0640 kumod kumod
-            sharedscripts
-            postrotate
-              systemctl reload kumomta > /dev/null 2>&1 || true
-            endscript
-          }
-        dest: /etc/logrotate.d/kumomta
-        owner: root
-        group: root
-        mode: '0644'
-      become: true
+    # - name: Setup logrotate for KumoMTA logs
+    #   ansible.builtin.copy:
+    #     content: |
+    #       /var/log/kumomta/*.log {
+    #         daily
+    #         rotate 30
+    #         compress
+    #         delaycompress
+    #         notifempty
+    #         create 0640 kumod kumod
+    #         sharedscripts
+    #         postrotate
+    #           systemctl reload kumomta > /dev/null 2>&1 || true
+    #         endscript
+    #       }
+    #     dest: /etc/logrotate.d/kumomta
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    #   become: true
 
     - name: Create monitoring status script
       ansible.builtin.copy:

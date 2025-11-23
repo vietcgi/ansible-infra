@@ -74,7 +74,9 @@
             - item.json.result.id != (record_to_keep.id | default(''))
           changed_when: delete_result.status == 200
 
-      when: existing_dmarc_count | int > 1
+      when:
+        - existing_dmarc_count | int > 1
+        - not skip_dmarc_dns | default(false)
 
     # Step 3: Create or update the DMARC record
     - name: Create DMARC TXT Record (only if not exists or needs update)
@@ -86,7 +88,9 @@
         ttl: 3600
         api_token: "{{ cloudflare_api_token }}"
       register: dmarc_record_result
-      when: (existing_dmarc_count | int) == 0 or (existing_dmarc_count | int) == 1
+      when:
+        - (existing_dmarc_count | int) == 0 or (existing_dmarc_count | int) == 1
+        - not skip_dmarc_dns | default(false)
       ignore_errors: true
 
     - name: Display DMARC Status

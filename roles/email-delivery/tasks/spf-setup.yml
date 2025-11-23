@@ -13,6 +13,7 @@
         api_token: "{{ cloudflare_api_token }}"
       register: spf_record_result
       ignore_errors: true
+      when: not skip_spf_dns | default(false)
 
     - name: Display SPF Status
       ansible.builtin.debug:

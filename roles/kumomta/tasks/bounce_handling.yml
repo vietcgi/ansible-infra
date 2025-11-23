@@ -8,7 +8,7 @@
         path: "{{ kumomta_bounce_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: '0750'
         state: directory
 
     - name: Template bounce policy configuration
@@ -58,7 +58,7 @@
         path: "{{ kumomta_fbl_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: '0750'
         state: directory
       when: kumomta_fbl_enabled | bool
 

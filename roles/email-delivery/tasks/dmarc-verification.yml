@@ -42,7 +42,7 @@
     - name: Display individual DMARC records
       debug:
         msg: |
-          Record {{ loop.index }}:
+          Record {{ idx + 1 }}:
           Name: {{ item.name }}
           Type: {{ item.type }}
           Content: {{ item.content }}
@@ -51,6 +51,7 @@
       loop: "{{ dmarc_records_list }}"
       loop_control:
         label: "{{ item.name }}"
+        index_var: idx
       when: dmarc_records_list is defined and dmarc_records_list | length > 0
 
     - name: Verify DMARC record format

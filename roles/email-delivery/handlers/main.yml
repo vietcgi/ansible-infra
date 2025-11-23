@@ -1,0 +1,9 @@
+---
+# Email Delivery Role Handlers
+
+- name: restart kumomta
+  ansible.builtin.systemd:
+    name: kumomta
+    state: restarted
+    daemon_reload: true
+  become: true

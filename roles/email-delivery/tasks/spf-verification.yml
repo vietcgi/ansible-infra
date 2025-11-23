@@ -42,7 +42,7 @@
     - name: Display SPF record details
       debug:
         msg: |
-          Record {{ loop.index }}:
+          Record {{ idx + 1 }}:
           Name: {{ item.name }}
           Type: {{ item.type }}
           Content: {{ item.content }}
@@ -51,6 +51,7 @@
       loop: "{{ spf_records_list }}"
       loop_control:
         label: "{{ item.name }}"
+        index_var: idx
       when: spf_records_list is defined and spf_records_list | length > 0
 
     - name: Verify SPF record format

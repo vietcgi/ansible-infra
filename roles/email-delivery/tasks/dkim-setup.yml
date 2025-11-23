@@ -5,22 +5,21 @@
   block:
     - name: Check if DKIM key exists
       ansible.builtin.stat:
-        path: "/etc/kumomta/dkim/{{ dkim_selector }}.key"
+        path: "/opt/kumomta/etc/dkim/{{ dkim_selector }}.key"
       register: dkim_key_stat
 
     - name: Generate DKIM private key
       ansible.builtin.command:
-        cmd: "openssl genrsa -out /etc/kumomta/dkim/{{ dkim_selector }}.key {{ dkim_key_size }}"
+        cmd: "openssl genrsa -out /opt/kumomta/etc/dkim/{{ dkim_selector }}.key {{ dkim_key_size }}"
       when: not dkim_key_stat.stat.exists
       become: true
+      notify: restart kumomta
 
     - name: Extract DKIM public key
       ansible.builtin.shell: |
-        openssl rsa -in /etc/kumomta/dkim/{{ dkim_selector }}.key -pubout | \
+        openssl rsa -in /opt/kumomta/etc/dkim/{{ dkim_selector }}.key -pubout | \
         grep -v "PUBLIC KEY" | \
         tr -d '\n' > /tmp/dkim_public_{{ dkim_selector }}.txt
-      args:
-        creates: "/tmp/dkim_public_{{ dkim_selector }}.txt"
       changed_when: false
 
     - name: Read DKIM public key
@@ -38,13 +37,15 @@
         api_token: "{{ cloudflare_api_token }}"
       register: dkim_record_result
       ignore_errors: true
+      when: not skip_dkim_dns | default(false)
 
     - name: Set DKIM key permissions
       ansible.builtin.file:
-        path: "/etc/kumomta/dkim/{{ dkim_selector }}.key"
-        owner: kumomta
-        group: kumomta
+        path: "/opt/kumomta/etc/dkim/{{ dkim_selector }}.key"
+        owner: kumod
+        group: kumod
         mode: '0600'
+      notify: restart kumomta
 
     - name: Display DKIM Status
       ansible.builtin.debug:

@@ -130,6 +130,43 @@
       set_fact:
         letsencrypt_domains: "{{ letsencrypt_domains | default([email_domain, 'mail.' + email_domain]) }}"
 
+    - name: Fetch actual Cloudflare zone details
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: cloudflare_zone_info
+      ignore_errors: true
+      when: cloudflare_api_token != ''
+
+    - name: Set actual zone name from Cloudflare
+      set_fact:
+        cloudflare_zone_name_actual: "{{ cloudflare_zone_info.json.result.name if cloudflare_zone_info is defined and cloudflare_zone_info.status == 200 else '' }}"
+
+    - name: Determine if Cloudflare zone is valid
+      set_fact:
+        cloudflare_dns_enabled: false
+        cloudflare_zone_name: "{{ '.'.join(email_domain.split('.')[-2:]) }}"
+        cloudflare_record_name: "@"
+      when: cloudflare_zone_name_actual == ''
+
+    - name: Use Cloudflare zone when valid
+      set_fact:
+        cloudflare_zone_name: "{{ cloudflare_zone_name_actual }}"
+        cloudflare_record_name: "{{ email_domain.replace('.' + cloudflare_zone_name_actual, '') if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
+        cloudflare_dns_enabled: true
+      when: cloudflare_zone_name_actual != ''
+
+    - name: Display zone validation result
+      debug:
+        msg: |
+          Domain: {{ email_domain }}
+          Cloudflare Zone: {{ cloudflare_zone_name }}
+          DNS Records: {% if cloudflare_dns_enabled %}ENABLED (domain matches zone){% else %}DISABLED (domain not in zone){% endif %}
+
     - name: Display configuration summary
       debug:
         msg: |
@@ -151,42 +188,7 @@
         # Extract zone by checking 2-3 level domains (handles subdomains like vietcgi.nguoivietcali.com)
         zone_parts: "{{ email_domain.split('.') }}"
 
-    - name: Fetch actual Cloudflare zone details
-      ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ cloudflare_api_token }}"
-          Content-Type: "application/json"
-        status_code: 200
-      register: cloudflare_zone_info
-      ignore_errors: true
-      when: cloudflare_api_token != ''
 
-    - name: Set actual zone name from Cloudflare
-      set_fact:
-        cloudflare_zone_name_actual: "{{ cloudflare_zone_info.json.result.name if cloudflare_zone_info.status == 200 else '' }}"
-
-    - name: Set cloudflare_zone_name with validation
-      set_fact:
-        cloudflare_zone_name: "{{ cloudflare_zone_name_actual }}"
-        cloudflare_record_name: "{{ email_domain.replace('.' + cloudflare_zone_name_actual, '') if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
-        cloudflare_dns_enabled_actual: "{{ email_domain.endswith('.' + cloudflare_zone_name_actual) or email_domain == cloudflare_zone_name_actual }}"
-      when: cloudflare_zone_name_actual != ''
-
-    - name: Set cloudflare_zone_name fallback (no API access)
-      set_fact:
-        cloudflare_zone_name: "{{ '.'.join(zone_parts[-2:]) if zone_parts | length == 2 else '.'.join(zone_parts[-2:]) if zone_parts | length >= 2 else email_domain }}"
-        cloudflare_record_name: "{{ '.'.join(zone_parts[:-2]) if zone_parts | length > 2 else '@' }}"
-        cloudflare_dns_enabled_actual: true
-      when: cloudflare_zone_name_actual == ''
-
-    - name: Display zone validation result
-      debug:
-        msg: |
-          Domain: {{ email_domain }}
-          Cloudflare Zone: {{ cloudflare_zone_name }}
-          DNS Records: {% if cloudflare_dns_enabled_actual %}ENABLED (domain matches zone){% else %}DISABLED (domain not in zone){% endif %}
 
     - name: Build Cloudflare DNS records for email delivery
       set_fact:
@@ -292,6 +294,9 @@
         cloudflare_zone_id: "{{ cloudflare_zone_id }}"
         email_domain: "{{ email_domain }}"
         email_server_ip: "{{ email_server_ip }}"
+        skip_spf_dns: true
+        skip_dmarc_dns: true
+        skip_dkim_dns: false
       tags: [email-delivery]
 
   post_tasks:

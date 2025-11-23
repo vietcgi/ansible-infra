@@ -17,6 +17,15 @@ kumo.on("init", function()
 end)
 
 kumo.on("smtp_server_message_received", function(msg)
+  -- Log message reception
+  local recipient = msg:recipient()
+  local sender = msg:from()
+  kumo.log(kumo.LOG_INFO, string.format(
+    "MESSAGE_RECEIVED: from=%s to=%s",
+    sender and sender.email or "unknown",
+    recipient and recipient.email or "unknown"
+  ))
+
   -- Sign with DKIM
   local signer = kumo.dkim.rsa_sha256_signer {
     domain = "{{ email_domain }}",
@@ -26,13 +35,23 @@ kumo.on("smtp_server_message_received", function(msg)
     over_sign = true,
   }
   msg:dkim_sign(signer)
+  kumo.log(kumo.LOG_INFO, "DKIM_SIGNED")
 
   -- Assign queue based on recipient domain
-  local recipient = msg:recipient()
   msg:set_meta("queue", recipient and recipient.domain or "default")
+  kumo.log(kumo.LOG_INFO, string.format(
+    "QUEUE_ASSIGNED: domain=%s",
+    recipient and recipient.domain or "default"
+  ))
+
+  -- Accept and queue the message for delivery
+  local result = kumo.make_disposition_accept()
+  kumo.log(kumo.LOG_INFO, "MESSAGE_ACCEPTED")
+  return result
 end)
 
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
+  kumo.log(kumo.LOG_INFO, string.format("GET_QUEUE_CONFIG: domain=%s", domain))
   return kumo.make_queue_config {
     egress_pool = "default",
     max_age = "2 days",
@@ -42,6 +61,7 @@ kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
 end)
 
 kumo.on("get_egress_pool", function(pool_name)
+  kumo.log(kumo.LOG_INFO, string.format("GET_EGRESS_POOL: pool=%s", pool_name))
   return kumo.make_egress_pool {
     name = pool_name,
     entries = {
@@ -51,6 +71,7 @@ kumo.on("get_egress_pool", function(pool_name)
 end)
 
 kumo.on("get_egress_source", function(source_name)
+  kumo.log(kumo.LOG_INFO, string.format("GET_EGRESS_SOURCE: source=%s", source_name))
   return kumo.make_egress_source {
     name = source_name,
     source_address = "{{ kumomta_source_address | default('0.0.0.0') }}",
@@ -58,6 +79,7 @@ kumo.on("get_egress_source", function(source_name)
 end)
 
 kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
+  kumo.log(kumo.LOG_INFO, string.format("GET_EGRESS_PATH_CONFIG: domain=%s source=%s site=%s", domain, egress_source, site_name))
   local params = {
     enable_tls = "OpportunisticInsecure",
     connection_limit = 10,

@@ -8,7 +8,7 @@
         path: "{{ kumomta_backup_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: '0750'
         state: directory
 
     - name: Create backup script
@@ -107,7 +107,7 @@
         minute: "{{ kumomta_backup_verify_minute }}"
         job: "{{ kumomta_backup_dir }}/verify.sh > {{ kumomta_backup_verify_log_file }} 2>&1"
         state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
-      ignore_errors: true
+      when: crontab_available.stat.exists
       register: cron_verify
 
     - name: Configure retention policy for queue data
@@ -124,7 +124,7 @@
         path: "{{ kumomta_log_dir }}/archived"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: '0750'
         state: directory
 
   rescue:
