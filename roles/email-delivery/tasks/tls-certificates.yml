@@ -37,6 +37,7 @@
         --non-interactive
       when: not cert_exists.stat.exists
       become: true
+      ignore_errors: true
 
     - name: Create certificate symlinks for KumoMTA
       ansible.builtin.file:
