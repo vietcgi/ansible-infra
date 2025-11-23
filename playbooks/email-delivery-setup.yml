@@ -272,8 +272,6 @@
       command: /usr/local/bin/kumomta-health-check.sh
       register: health_check_result
       changed_when: false
-      failed_when: false
-      ignore_errors: true
       when: health_check_script.stat.exists
 
     - name: Display health check results
