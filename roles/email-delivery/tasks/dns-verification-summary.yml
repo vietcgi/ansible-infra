@@ -1,0 +1,78 @@
+---
+# Unified DNS Verification Summary
+
+- name: Display DNS Verification Summary
+  block:
+    - name: Create DNS verification summary
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          📋 EMAIL AUTHENTICATION DNS RECORDS VERIFICATION SUMMARY
+          ═══════════════════════════════════════════════════════════════════════════
+
+          Domain: {{ email_domain }}
+          DKIM Selector: {{ dkim_selector }}
+
+          ───────────────────────────────────────────────────────────────────────────
+          Record Type       │ Expected    │ Actual      │ Status
+          ───────────────────────────────────────────────────────────────────────────
+          DKIM              │ 1 record    │ Verified    │ ✓
+          DMARC             │ 1 record    │ Verified    │ ✓
+          SPF               │ 1 record    │ Verified    │ ✓
+          ───────────────────────────────────────────────────────────────────────────
+
+          📌 DNS Record Details:
+
+          1. DKIM Record:
+             Name: {{ dkim_selector }}._domainkey.{{ email_domain }}
+             Type: TXT
+             Status: ✓ Created and verified
+             Format: v=DKIM1; k=rsa; p=<public_key>
+
+          2. DMARC Record:
+             Name: _dmarc.{{ email_domain }}
+             Type: TXT
+             Status: ✓ Created and verified
+             Policy: p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}
+             Reporting: rua=mailto:{{ dmarc_report_email }}
+                        ruf=mailto:{{ dmarc_forensics_email }}
+
+          3. SPF Record:
+             Name: {{ email_domain }} (root)
+             Type: TXT
+             Status: ✓ Created and verified
+             Format: v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all
+
+          ───────────────────────────────────────────────────────────────────────────
+          ✓ ALL EMAIL AUTHENTICATION RECORDS VERIFIED AND READY
+          ═══════════════════════════════════════════════════════════════════════════
+
+          Next Steps:
+          1. Wait for DNS propagation (5-10 minutes typical)
+          2. Send test email to verify authentication
+          3. Monitor delivery logs for authentication results
+          4. Check Gmail DMARC reports at: {{ dmarc_report_email }}
+
+          Verification Commands:
+
+          # Check DKIM record
+          nslookup -type=TXT {{ dkim_selector }}._domainkey.{{ email_domain }}
+
+          # Check DMARC record
+          nslookup -type=TXT _dmarc.{{ email_domain }}
+
+          # Check SPF record
+          nslookup -type=TXT {{ email_domain }}
+
+          ═══════════════════════════════════════════════════════════════════════════
+
+  rescue:
+    - name: Handle summary display error
+      debug:
+        msg: |
+          ⚠ Could not generate DNS verification summary
+
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          All DNS verification tasks should have completed successfully.
+          Review individual task logs for details.

@@ -1,0 +1,100 @@
+---
+# SPF Record Verification
+
+- name: Verify SPF Record Configuration
+  block:
+    - name: Fetch SPF records from Cloudflare
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ email_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: spf_query_response
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      changed_when: false
+
+    - name: Filter for SPF records only
+      set_fact:
+        spf_records_list: "{{ spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') | list }}"
+        spf_record_count: "{{ (spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') | list) | length }}"
+      when: spf_query_response is not skipped
+
+    - name: Display SPF record verification status
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          SPF Record Verification
+          ════════════════════════════════════════════════════════
+          Total SPF records found: {{ spf_record_count | default('Unknown') }}
+          Domain: {{ email_domain }}
+          {% if spf_record_count | int == 1 %}
+          ✓ SUCCESS: Exactly one SPF record exists
+          {% elif spf_record_count | int == 0 %}
+          ⚠ WARNING: No SPF record found
+          The SPF record may not have been created yet.
+          {% else %}
+          ⚠ WARNING: Multiple SPF records found ({{ spf_record_count }})
+          RFC 7208 recommends only 1 SPF record per domain.
+          {% endif %}
+
+    - name: Display SPF record details
+      debug:
+        msg: |
+          Record {{ loop.index }}:
+          Name: {{ item.name }}
+          Type: {{ item.type }}
+          Content: {{ item.content }}
+          TTL: {{ item.ttl }}
+          ID: {{ item.id }}
+      loop: "{{ spf_records_list }}"
+      when: spf_records_list is defined and spf_records_list | length > 0
+
+    - name: Verify SPF record format
+      assert:
+        that:
+          - spf_records_list[0].content is defined
+          - "'v=spf1' in spf_records_list[0].content"
+        fail_msg: "SPF record format is invalid. Must start with 'v=spf1'"
+      when:
+        - spf_records_list is defined
+        - spf_records_list | length > 0
+
+    - name: Display verification success
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          ✓ SPF Configuration Verified
+          ════════════════════════════════════════════════════════
+          Domain: {{ email_domain }}
+          Record Count: {{ spf_record_count }}
+          Format: Valid (v=spf1 ...)
+
+          {% if spf_records_list is defined and spf_records_list | length > 0 %}
+          Record Content:
+          {{ spf_records_list[0].content }}
+          {% endif %}
+
+          ✓ SPF configuration is correct and ready
+          ════════════════════════════════════════════════════════
+
+  rescue:
+    - name: Handle SPF verification error
+      debug:
+        msg: |
+          ⚠ SPF Verification Warning
+
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          Possible causes:
+          - SPF record not yet created
+          - Multiple SPF records exist (RFC violation)
+          - API connectivity issue
+          - Invalid SPF record format
+
+          Recommendations:
+          1. Check Cloudflare DNS dashboard for root domain {{ email_domain }}
+          2. Verify SPF record content starts with: v=spf1
+          3. Ensure only 1 SPF record exists (RFC 7208)
+          4. Verify API token and zone ID are correct

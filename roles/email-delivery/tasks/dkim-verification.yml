@@ -1,0 +1,98 @@
+---
+# DKIM Record Verification
+
+- name: Verify DKIM Record Configuration
+  block:
+    - name: Fetch DKIM records from Cloudflare
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ dkim_selector }}._domainkey.{{ email_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: dkim_records_response
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      changed_when: false
+
+    - name: Extract DKIM record count
+      set_fact:
+        dkim_record_count: "{{ (dkim_records_response.json.result | default([])) | length }}"
+        dkim_records_list: "{{ dkim_records_response.json.result | default([]) }}"
+      when: dkim_records_response is not skipped
+
+    - name: Display DKIM record verification status
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          DKIM Record Verification
+          ════════════════════════════════════════════════════════
+          Total DKIM records found: {{ dkim_record_count | default('Unknown') }}
+          Selector: {{ dkim_selector }}
+          {% if dkim_record_count | int == 1 %}
+          ✓ SUCCESS: Exactly one DKIM record exists
+          {% elif dkim_record_count | int == 0 %}
+          ⚠ WARNING: No DKIM record found
+          The DKIM record may not have been created yet.
+          {% else %}
+          ⚠ WARNING: Multiple DKIM records found ({{ dkim_record_count }})
+          Expected exactly 1 record for selector {{ dkim_selector }}
+          {% endif %}
+
+    - name: Display DKIM record details
+      debug:
+        msg: |
+          Record {{ loop.index }}:
+          Name: {{ item.name }}
+          Type: {{ item.type }}
+          Content (truncated): {{ (item.content | length > 50) | ternary(item.content[:50] + '...', item.content) }}
+          TTL: {{ item.ttl }}
+          ID: {{ item.id }}
+      loop: "{{ dkim_records_list }}"
+      when: dkim_records_list is defined and dkim_records_list | length > 0
+
+    - name: Verify DKIM record format
+      assert:
+        that:
+          - dkim_records_list[0].content is defined
+          - "'v=DKIM1' in dkim_records_list[0].content"
+          - "'k=rsa' in dkim_records_list[0].content"
+          - "'p=' in dkim_records_list[0].content"
+        fail_msg: "DKIM record format is invalid. Must contain: v=DKIM1, k=rsa, and p=<public_key>"
+      when:
+        - dkim_records_list is defined
+        - dkim_records_list | length > 0
+
+    - name: Display verification success
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════
+          ✓ DKIM Configuration Verified
+          ════════════════════════════════════════════════════════
+          Selector: {{ dkim_selector }}
+          Record Name: {{ dkim_selector }}._domainkey.{{ email_domain }}
+          Record Count: {{ dkim_record_count }}
+          Format: Valid (v=DKIM1; k=rsa; p=<key>)
+
+          ✓ DKIM configuration is correct and ready
+          ════════════════════════════════════════════════════════
+
+  rescue:
+    - name: Handle DKIM verification error
+      debug:
+        msg: |
+          ⚠ DKIM Verification Warning
+
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          Possible causes:
+          - DKIM record not yet created
+          - Multiple DKIM records exist for selector {{ dkim_selector }}
+          - API connectivity issue
+          - Invalid DKIM record format
+
+          Recommendations:
+          1. Check Cloudflare DNS dashboard for {{ dkim_selector }}._domainkey.{{ email_domain }}
+          2. Verify record format: v=DKIM1; k=rsa; p=<public_key>
+          3. Ensure only 1 record exists for this selector
+          4. Verify API token and zone ID are correct

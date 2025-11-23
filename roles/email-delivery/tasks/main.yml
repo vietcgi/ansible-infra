@@ -16,9 +16,28 @@
     - name: Configure DMARC Records
       ansible.builtin.include_tasks: dmarc-setup.yml
 
+    # ========== DNS VERIFICATION TASKS ==========
+    # Post-deployment verification to ensure all DNS records are configured correctly
+    # with no duplicates or invalid formats
+
     - name: Verify DMARC Record Configuration
       ansible.builtin.include_tasks: dmarc-verification.yml
       when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      tags: [verify, dmarc]
+
+    - name: Verify DKIM Record Configuration
+      ansible.builtin.include_tasks: dkim-verification.yml
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      tags: [verify, dkim]
+
+    - name: Verify SPF Record Configuration
+      ansible.builtin.include_tasks: spf-verification.yml
+      when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      tags: [verify, spf]
+
+    - name: Display DNS Verification Summary
+      ansible.builtin.include_tasks: dns-verification-summary.yml
+      tags: [verify]
 
     - name: Configure TLS Certificates
       ansible.builtin.include_tasks: tls-certificates.yml
