@@ -128,7 +128,7 @@
 
     - name: Set default Let's Encrypt domains if not provided
       set_fact:
-        letsencrypt_domains: "{{ letsencrypt_domains or [email_domain, 'mail.' + email_domain] }}"
+        letsencrypt_domains: "{{ letsencrypt_domains | default([email_domain, 'mail.' + email_domain]) }}"
 
     - name: Display configuration summary
       debug:
