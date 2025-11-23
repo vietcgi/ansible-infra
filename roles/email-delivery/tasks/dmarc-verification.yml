@@ -49,6 +49,8 @@
           TTL: {{ item.ttl }}
           ID: {{ item.id }}
       loop: "{{ dmarc_records_list }}"
+      loop_control:
+        label: "{{ item.name }}"
       when: dmarc_records_list is defined and dmarc_records_list | length > 0
 
     - name: Verify DMARC record format

@@ -49,6 +49,8 @@
           TTL: {{ item.ttl }}
           ID: {{ item.id }}
       loop: "{{ dkim_records_list }}"
+      loop_control:
+        label: "{{ item.name }}"
       when: dkim_records_list is defined and dkim_records_list | length > 0
 
     - name: Verify DKIM record format
