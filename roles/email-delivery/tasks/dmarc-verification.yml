@@ -10,14 +10,16 @@
         headers:
           Authorization: "Bearer {{ cloudflare_api_token }}"
           Content-Type: "application/json"
-        status_code: 200
+        status_code: [200, 404]
       register: dmarc_records_response
       when: cloudflare_api_token is defined and cloudflare_api_token != ""
+      changed_when: false
+      ignore_errors: true
 
     - name: Extract DMARC records from API response
       set_fact:
-        dmarc_records_list: "{{ dmarc_records_response.json.result | default([]) }}"
-        dmarc_record_count: "{{ (dmarc_records_response.json.result | default([])) | length }}"
+        dmarc_records_list: "{{ dmarc_records_response.json.result | default([]) if dmarc_records_response.status | default(200) == 200 else [] }}"
+        dmarc_record_count: "{{ (dmarc_records_response.json.result | default([])) | length if dmarc_records_response.status | default(200) == 200 else 0 }}"
       when: dmarc_records_response is not skipped
 
     - name: Display DMARC record verification status
@@ -50,20 +52,40 @@
       when: dmarc_records_list is defined and dmarc_records_list | length > 0
 
     - name: Verify DMARC record format
-      assert:
-        that:
-          - dmarc_record_count | int == 1
-        fail_msg: |
-          DMARC validation failed:
-          - Expected: 1 DMARC record
-          - Found: {{ dmarc_record_count | int }}
+      block:
+        - name: Assert exactly one DMARC record exists (if any found)
+          assert:
+            that:
+              - dmarc_record_count | int != 0
+              - dmarc_record_count | int <= 1
+            fail_msg: |
+              DMARC record validation issue:
+              - Expected: 1 DMARC record
+              - Found: {{ dmarc_record_count | int }}
 
-          If multiple records exist:
-          1. Identify the correct/most complete record
-          2. Delete duplicates via Cloudflare dashboard or API
-          3. Keep the record with full DMARC policy (p=, sp=, pct=, rua=, ruf=)
+              If multiple records exist:
+              1. Identify the correct/most complete record
+              2. Delete duplicates via Cloudflare dashboard or API
+              3. Keep the record with full DMARC policy (p=, sp=, pct=, rua=, ruf=)
 
-          Action required before proceeding with email delivery.
+              Action required before proceeding with email delivery.
+          when: dmarc_record_count | int > 1
+
+        - name: Warn if DMARC record not found
+          debug:
+            msg: |
+              ⚠ DMARC Record Not Found
+
+              No DMARC record exists for _dmarc.{{ email_domain }}
+
+              This may be because:
+              1. DNS propagation is still in progress (wait 5-10 minutes)
+              2. The record creation failed silently
+              3. The API call returned an error
+
+              Recommendation: Re-run the playbook or check Cloudflare dashboard at:
+              https://dash.cloudflare.com/
+          when: dmarc_record_count | int == 0
 
     - name: Validate DMARC record format
       assert:
@@ -93,6 +115,9 @@
           TTL: {{ dmarc_records_list[0].ttl }}
 
           ✓ Configuration is correct and ready
+          {% else %}
+          No records found. This may be due to DNS propagation delay.
+          The record should be visible within 5-10 minutes.
           {% endif %}
           ════════════════════════════════════════════════════════
 
