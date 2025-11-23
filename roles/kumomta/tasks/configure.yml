@@ -31,6 +31,15 @@
         mode: '0755'
         state: directory
 
+    - name: Create dkim_config.toml with proper permissions
+      ansible.builtin.copy:
+        content: "# DKIM Configuration\n"
+        dest: "{{ kumomta_config_dir }}/dkim_config.toml"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0644'
+        force: false
+
     - name: Check which config files exist
       ansible.builtin.stat:
         path: "{{ item.path }}"
