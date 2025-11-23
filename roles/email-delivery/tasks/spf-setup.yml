@@ -3,7 +3,11 @@
 
 - name: Setup SPF Records
   block:
-    - name: Create SPF TXT Record
+    - name: Extract parent domain from email_domain
+      ansible.builtin.set_fact:
+        parent_domain: "{{ email_domain.split('.')[-2:] | join('.') }}"
+
+    - name: Create SPF TXT Record on subdomain
       community.general.cloudflare_dns:
         zone: "{{ email_domain }}"
         record: "@"
@@ -15,11 +19,24 @@
       ignore_errors: true
       when: not skip_spf_dns | default(false)
 
+    - name: Create SPF TXT Record on parent domain
+      community.general.cloudflare_dns:
+        zone: "{{ parent_domain }}"
+        record: "@"
+        type: "TXT"
+        value: "v=spf1 ip4:108.181.38.69 ~all"
+        ttl: 3600
+        api_token: "{{ cloudflare_api_token }}"
+      register: parent_spf_record_result
+      ignore_errors: true
+      when: not skip_spf_dns | default(false) and parent_domain != email_domain
+
     - name: Display SPF Status
       ansible.builtin.debug:
         msg: |
-          ✓ SPF Record Created
-          Value: v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all
+          ✓ SPF Records Created
+          Subdomain ({{ email_domain }}): v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all
+          Parent Domain ({{ parent_domain }}): v=spf1 ip4:108.181.38.69 ~all
 
   rescue:
     - name: Handle SPF Setup Error
