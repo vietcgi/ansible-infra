@@ -1,6 +1,5 @@
--- KumoMTA Policy Script - DKIM Signing Only
--- Handlers for message routing and queuing are in email-delivery-queue.lua
--- and email-routing.lua
+-- KumoMTA Policy Script - DKIM Signing and Delivery Configuration
+-- Complete email delivery pipeline with IPv4-only connectivity
 
 local kumo = require "kumo"
 
@@ -10,8 +9,73 @@ kumo.on("smtp_server_message_received", function(msg)
     domain = "{{ email_domain }}",
     selector = "{{ dkim_selector | default('default') }}",
     headers = {"From", "To", "Subject", "Date"},
-    key = "/etc/kumomta/dkim/{{ dkim_selector | default('default') }}.key",
+    key = "/opt/kumomta/etc/dkim/{{ dkim_selector | default('default') }}.key",
     over_sign = true,
   }
   msg:dkim_sign(signer)
+
+  -- Assign queue based on recipient domain
+  local recipient = msg:recipient()
+  if recipient then
+    msg:set_meta('queue', recipient.domain)
+  else
+    msg:set_meta('queue', 'default')
+  end
+end)
+
+kumo.on('get_queue_config', function(domain, tenant, campaign, routing_domain)
+  return kumo.make_queue_config {
+    egress_pool = 'default',
+    max_age = '2 days',
+    retry_interval = '20 minutes',
+    max_retry_interval = '2 hours',
+  }
+end)
+
+kumo.on('get_egress_pool', function(pool_name)
+  return kumo.make_egress_pool {
+    name = pool_name,
+    entries = {
+      { name = 'default' },
+    },
+  }
+end)
+
+kumo.on('get_egress_source', function(source_name)
+  return kumo.make_egress_source {
+    name = source_name,
+    source_address = '{{ smtp_bind_address | default('0.0.0.0') }}',
+  }
+end)
+
+kumo.on('get_egress_path_config', function(domain, egress_source, site_name)
+  local params = {
+    enable_tls = 'OpportunisticInsecure',
+    connection_limit = 10,
+    max_deliveries_per_connection = 100,
+    max_message_rate = '100/s',
+    -- Use IPv4-only to avoid binding issues on servers without IPv6
+    ip_preference = 'ipv4_only',
+  }
+
+  -- Conservative limits for Gmail
+  if string.find(domain, 'gmail%.com') or string.find(domain, 'googlemail%.com') then
+    params.connection_limit = 5
+    params.max_message_rate = '20/s'
+  end
+
+  return kumo.make_egress_path(params)
+end)
+
+kumo.on('should_sign_dkim', function(msg)
+  return true
+end)
+
+kumo.on('get_dkim_signer', function(domain, selector, headers)
+  return kumo.make_dkim_signer {
+    domain = '{{ email_domain }}',
+    selector = '{{ dkim_selector | default('default') }}',
+    headers = { 'From', 'To', 'Subject', 'Date', 'Message-ID' },
+    key = '/opt/kumomta/etc/dkim/{{ dkim_selector | default('default') }}.key',
+  }
 end)
