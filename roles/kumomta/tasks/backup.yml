@@ -27,6 +27,11 @@
         group: root
         mode: '0755'
 
+    - name: Check if crontab is available
+      ansible.builtin.stat:
+        path: /usr/bin/crontab
+      register: crontab_available
+
     - name: Schedule backup via cron
       ansible.builtin.cron:
         name: "KumoMTA backup"
@@ -35,7 +40,7 @@
         minute: "{{ kumomta_backup_minute }}"
         job: "{{ kumomta_backup_dir }}/backup.sh > {{ kumomta_backup_log_file }} 2>&1"
         state: "{{ 'present' if kumomta_backup_enabled else 'absent' }}"
-      ignore_errors: true
+      when: crontab_available.stat.exists
       register: cron_backup
 
     - name: Configure backup retention policy

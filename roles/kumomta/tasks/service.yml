@@ -38,6 +38,9 @@
   ansible.builtin.systemd:
     name: kumomta-submission.socket
     enabled: "{{ kumomta_service_enabled | bool }}"
-    state: started
+    state: "{{ 'started' if kumomta_service_enabled | bool else 'stopped' }}"
+    daemon_reload: true
   when: kumomta_state == "present"
   become: true
+  register: socket_result
+  changed_when: socket_result.status.LoadState | default('') == 'loaded'

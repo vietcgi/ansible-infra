@@ -91,24 +91,26 @@
 
     - name: Create KumoMTA directories
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ item.path }}"
         state: directory
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "{{ item.mode | default('0755') }}"
       loop:
-        - "{{ kumomta_config_dir }}"
-        - "{{ kumomta_config_dir }}/certs"
-        - "{{ kumomta_config_dir }}/dkim"
-        - "{{ kumomta_config_dir }}/metrics"
-        - "{{ kumomta_queue_dir }}"
-        - "{{ kumomta_queue_dir }}/incremental"
-        - "{{ kumomta_log_dir }}"
-        - "{{ kumomta_log_dir }}/archived"
-        - "{{ kumomta_bounce_dir }}"
-        - "{{ kumomta_fbl_dir }}"
-        - "{{ kumomta_backup_dir }}"
+        - { path: "{{ kumomta_config_dir }}", mode: '0755' }
+        - { path: "{{ kumomta_config_dir }}/certs", mode: '0755' }
+        - { path: "{{ kumomta_config_dir }}/dkim", mode: '0755' }
+        - { path: "{{ kumomta_config_dir }}/metrics", mode: '0755' }
+        - { path: "{{ kumomta_queue_dir }}", mode: '0750' }
+        - { path: "{{ kumomta_queue_dir }}/incremental", mode: '0750' }
+        - { path: "{{ kumomta_log_dir }}", mode: '0750' }
+        - { path: "{{ kumomta_log_dir }}/archived", mode: '0750' }
+        - { path: "{{ kumomta_bounce_dir }}", mode: '0750' }
+        - { path: "{{ kumomta_fbl_dir }}", mode: '0750' }
+        - { path: "{{ kumomta_backup_dir }}", mode: '0750' }
       become: true
+      loop_control:
+        label: "{{ item.path }}"
 
     - name: Generate self-signed certificates if needed
       ansible.builtin.include_tasks: certificates.yml

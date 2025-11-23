@@ -31,17 +31,6 @@
         mode: '0755'
         state: directory
 
-    - name: Set queue and log directory permissions (readable by kumomta)
-      ansible.builtin.file:
-        path: "{{ item }}"
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0750'
-        state: directory
-      loop:
-        - "{{ kumomta_queue_dir }}"
-        - "{{ kumomta_log_dir }}"
-
     - name: Check which config files exist
       ansible.builtin.stat:
         path: "{{ item.path }}"
