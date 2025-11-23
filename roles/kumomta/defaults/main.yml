@@ -57,6 +57,12 @@ kumomta_dkim_enabled: true
 kumomta_dkim_selector: "default"
 kumomta_dkim_key: "{{ kumomta_config_dir }}/dkim/default.key"
 
+# Egress Path Configuration (Outbound delivery parameters)
+kumomta_enable_tls: "Opportunistic"  # Opportunistic, OpportunisticInsecure, Required, RequiredInsecure, Disabled
+kumomta_connection_limit: 5  # Max concurrent connections per domain
+kumomta_max_deliveries_per_connection: 100  # Max messages per connection
+kumomta_max_message_rate: "20/s"  # Max messages per second
+
 # Email Domains Configuration (supports multiple domains)
 # Each domain will get its own DKIM key
 email_domains: []  # List of domains to configure (e.g., ["example.com", "example.org"])

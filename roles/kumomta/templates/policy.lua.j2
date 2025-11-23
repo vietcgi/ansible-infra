@@ -67,10 +67,10 @@ end)
 
 kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
   local params = {
-    enable_tls = "OpportunisticInsecure",
-    connection_limit = 5,
-    max_deliveries_per_connection = 100,
-    max_message_rate = "20/s",
+    enable_tls = "{{ kumomta_enable_tls | default('Opportunistic') }}",
+    connection_limit = {{ kumomta_connection_limit | default(5) }},
+    max_deliveries_per_connection = {{ kumomta_max_deliveries_per_connection | default(100) }},
+    max_message_rate = "{{ kumomta_max_message_rate | default('20/s') }}",
   }
 
   return kumo.make_egress_path(params)
