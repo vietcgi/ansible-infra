@@ -49,6 +49,8 @@
           TTL: {{ item.ttl }}
           ID: {{ item.id }}
       loop: "{{ spf_records_list }}"
+      loop_control:
+        label: "{{ item.name }}"
       when: spf_records_list is defined and spf_records_list | length > 0
 
     - name: Verify SPF record format
