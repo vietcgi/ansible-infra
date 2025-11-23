@@ -170,8 +170,8 @@
     - name: Set cloudflare_zone_name with validation
       set_fact:
         cloudflare_zone_name: "{{ cloudflare_zone_name_actual }}"
-        cloudflare_record_name: "{{ email_domain[:-len(cloudflare_zone_name_actual)-1] if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
-        cloudflare_dns_enabled_actual: "{{ email_domain.endswith(cloudflare_zone_name_actual) if cloudflare_zone_name_actual != '' else false }}"
+        cloudflare_record_name: "{{ email_domain.replace('.' + cloudflare_zone_name_actual, '') if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
+        cloudflare_dns_enabled_actual: "{{ email_domain.endswith('.' + cloudflare_zone_name_actual) or email_domain == cloudflare_zone_name_actual }}"
       when: cloudflare_zone_name_actual != ''
 
     - name: Set cloudflare_zone_name fallback (no API access)
