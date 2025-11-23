@@ -25,7 +25,10 @@ kumo.on("init", function()
   }
 end)
 
+-- CRITICAL: Messages must be explicitly queued for delivery
 kumo.on("smtp_server_message_received", function(msg)
+  msg:set_meta("queue", "default")
+
   -- Sign with DKIM
   local signer = kumo.dkim.rsa_sha256_signer {
     domain = "{{ email_domain }}",
