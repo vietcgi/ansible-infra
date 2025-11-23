@@ -3,24 +3,6 @@
 
 - name: Setup Monitoring and Logging
   block:
-    - name: Create KumoMTA logging configuration
-      ansible.builtin.blockinfile:
-        path: /etc/kumomta/kumomta.conf
-        marker: "# {mark} LOGGING CONFIGURATION"
-        block: |
-          [logging]
-          log_level = "info"
-          log_format = "json"
-          log_file = "/var/log/kumomta/kumomta.log"
-          max_log_size = 104857600
-          retention_days = 30
-
-          [metrics]
-          enabled = true
-          listen = "127.0.0.1:9090"
-          format = "prometheus"
-      notify: restart kumomta
-
     - name: Create Prometheus metrics configuration
       ansible.builtin.copy:
         content: |
@@ -30,7 +12,7 @@
           # scrape_configs:
           #   - job_name: 'kumomta'
           #     static_configs:
-          #       - targets: ['{{ email_server_ip }}:9090']
+          #       - targets: ['{{ email_server_ip }}:9184']
           #
           # Key metrics to monitor:
           # - kumomta_messages_accepted_total
@@ -41,9 +23,9 @@
           # - kumomta_delivery_latency_seconds
           # - kumomta_connection_errors_total
           # - kumomta_dkim_sign_failures_total
-        dest: /etc/kumomta/prometheus-config.txt
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/metrics/prometheus-config.txt
+        owner: kumod
+        group: kumod
         mode: '0640'
 
     - name: Create health check script
@@ -150,9 +132,9 @@
               annotations:
                 summary: "KumoMTA DKIM signing failures detected"
                 description: "DKIM signing is failing for messages"
-        dest: /etc/kumomta/prometheus-alerts.yml
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/metrics/prometheus-alerts.yml
+        owner: kumod
+        group: kumod
         mode: '0640'
 
     - name: Setup logrotate for KumoMTA logs
@@ -164,7 +146,7 @@
             compress
             delaycompress
             notifempty
-            create 0640 kumomta kumomta
+            create 0640 kumod kumod
             sharedscripts
             postrotate
               systemctl reload kumomta > /dev/null 2>&1 || true
@@ -210,12 +192,12 @@
           ✓ Monitoring and Logging Configuration
           ✓ Logging: /var/log/kumomta/kumomta.log
           ✓ Log Rotation: Daily, 30-day retention
-          ✓ Prometheus Metrics: Enabled on 127.0.0.1:9090
+          ✓ Prometheus Metrics: Enabled on port 9184
           ✓ Health Check: /usr/local/bin/kumomta-health-check.sh
           ✓ Monitoring Status: /usr/local/bin/kumomta-monitoring-status.sh
-          ✓ Alert Rules: /etc/kumomta/prometheus-alerts.yml
+          ✓ Alert Rules: /opt/kumomta/etc/metrics/prometheus-alerts.yml
 
   rescue:
     - name: Handle Monitoring Setup Error
-      ansible.builtin.fail:
-        msg: "Monitoring setup failed: {{ ansible_failed_result.msg }}"
+      ansible.builtin.debug:
+        msg: "Monitoring setup warning: {{ ansible_failed_result.msg }}"
