@@ -94,7 +94,6 @@
     - name: Register DKIM public key as fact for use by playbook
       ansible.builtin.set_fact:
         dkim_public_key_value: "{{ dkim_public_key_extracted.stdout }}"
-        dkim_dns_record_name: "{{ dkim_selector }}._domainkey.{{ email_domain }}"
         dkim_dns_record_value: "v=DKIM1; k=rsa; p={{ dkim_public_key_extracted.stdout }}"
       register: dkim_fact_set
 
@@ -103,7 +102,9 @@
         msg: |
           DKIM DNS Record Details:
           ========================
-          Subdomain: {{ dkim_dns_record_name }}
+          Selector: {{ dkim_selector }}
+          Domain: {{ email_domain }}
+          Full Record Name: {{ dkim_selector }}._domainkey.{{ email_domain }}
           Type: TXT
           Value: {{ dkim_dns_record_value }}
 
