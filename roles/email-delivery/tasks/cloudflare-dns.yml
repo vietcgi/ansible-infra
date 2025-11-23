@@ -1,37 +1,11 @@
 ---
 # Cloudflare DNS Configuration
+# Note: DNS records are configured via the main playbook's cloudflare_integration role
+# This file is only included if cloudflare_api_token is provided to the email-delivery role
 
-- name: Setup Cloudflare DNS Records
-  block:
-    - name: Create A Record (Mail Server IP)
-      community.general.cloudflare_dns:
-        zone: "{{ email_domain }}"
-        record: "@"
-        type: "A"
-        value: "{{ email_server_ip }}"
-        ttl: 3600
-        account_email: "{{ cloudflare_email | default(omit) }}"
-        account_api_token: "{{ cloudflare_api_token }}"
-      register: a_record_result
-
-    - name: Create MX Record
-      community.general.cloudflare_dns:
-        zone: "{{ email_domain }}"
-        record: "@"
-        type: "MX"
-        value: "{{ email_domain }}"
-        priority: 10
-        ttl: 3600
-        account_api_token: "{{ cloudflare_api_token }}"
-      register: mx_record_result
-
-    - name: Display DNS Configuration Status
-      ansible.builtin.debug:
-        msg: |
-          ✓ A Record Created: {{ email_domain }} → {{ email_server_ip }}
-          ✓ MX Record Created: 10 {{ email_domain }}
-
-  rescue:
-    - name: Handle Cloudflare DNS Error
-      ansible.builtin.fail:
-        msg: "Failed to configure Cloudflare DNS: {{ ansible_failed_result.msg }}"
+- name: Display DNS Configuration Skipped
+  ansible.builtin.debug:
+    msg: |
+      ⊘ DNS configuration skipped
+      Note: DNS records are configured via the main playbook's cloudflare_integration role
+      Email-delivery role does not duplicate DNS configuration

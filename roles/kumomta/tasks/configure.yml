@@ -44,14 +44,17 @@
 
     - name: Fix config file ownership and permissions (non-recursive)
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ item.path }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "{{ item.mode }}"
       loop:
-        - "{{ kumomta_config_dir }}/dkim_config.toml"
-        - "{{ kumomta_config_dir }}/kumomta.conf"
-        - "{{ kumomta_config_dir }}/metrics/prometheus.yml"
+        - path: "{{ kumomta_config_dir }}/dkim_config.toml"
+          mode: '0644'
+        - path: "{{ kumomta_config_dir }}/kumomta.conf"
+          mode: '0640'
+        - path: "{{ kumomta_config_dir }}/metrics/prometheus.yml"
+          mode: '0640'
       ignore_errors: true
 
     - name: Grant CAP_NET_BIND_SERVICE capability to kumod binary

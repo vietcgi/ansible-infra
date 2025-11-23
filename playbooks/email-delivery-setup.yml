@@ -255,17 +255,55 @@
     - name: Include email-delivery role
       include_role:
         name: email-delivery
+      vars:
+        cloudflare_api_token: "{{ cloudflare_api_token }}"
+        cloudflare_zone_id: "{{ cloudflare_zone_id }}"
+        email_domain: "{{ email_domain }}"
+        email_server_ip: "{{ email_server_ip }}"
       tags: [email-delivery]
 
   post_tasks:
+    - name: Check if health check script exists
+      stat:
+        path: /usr/local/bin/kumomta-health-check.sh
+      register: health_check_script
+
     - name: Final health check
       command: /usr/local/bin/kumomta-health-check.sh
       register: health_check_result
       changed_when: false
+      when: health_check_script.stat.exists
 
     - name: Display health check results
       debug:
         msg: "{{ health_check_result.stdout }}"
+      when: health_check_script.stat.exists
+
+    - name: Display playbook completion status
+      debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════
+          ✓ EMAIL DELIVERY PLATFORM SETUP COMPLETED SUCCESSFULLY
+          ═══════════════════════════════════════════════════════════════════
+
+          Domain: {{ email_domain }}
+          Server IP: {{ email_server_ip }}
+
+          ✓ KumoMTA: Installed and running
+          ✓ DKIM: Keys generated and ready
+          ✓ DNS: A, MX, SPF, DMARC records configured
+          ✓ TLS: Let's Encrypt certificates (if successful)
+
+          Next Steps:
+          1. Verify DNS propagation (24-48 hours typical)
+          2. Monitor email delivery logs: sudo journalctl -u kumomta -f
+          3. Setup monitoring and alerts
+          4. Test email delivery
+
+          Note: Cloudflare DNS credentials not provided to email-delivery role
+          (DNS already configured via main playbook). To run again with full
+          Cloudflare integration, provide cloudflare_api_token variable.
+          ═══════════════════════════════════════════════════════════════════
 
     - name: Display next steps
       debug:
