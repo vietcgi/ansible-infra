@@ -29,8 +29,8 @@
 
     - name: Create DKIM DNS record
       community.general.cloudflare_dns:
-        zone: "{{ email_domain }}"
-        record: "{{ dkim_selector }}._domainkey"
+        zone: "{{ cloudflare_zone_name | default('nguoivietcali.com') }}"
+        record: "{{ dkim_selector }}._domainkey.{{ email_domain }}"
         type: "TXT"
         value: 'v=DKIM1; k=rsa; p={{ dkim_public_key.content | b64decode }}'
         ttl: 3600
