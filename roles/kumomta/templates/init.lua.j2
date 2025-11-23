@@ -30,8 +30,24 @@ kumo.define_spool {
 -- Listeners are created using kumo.start_esmtp_listener() and kumo.start_esmtps_listener()
 -- which ARE available in v2025.10.06. Sources module handles this automatically.
 
--- NOTE: smtp_server_message_received handler is provided by kumomta.conf
--- which loads policy.lua for DKIM signing. Do not define it here to avoid conflicts.
+-- DKIM Signing handler for email authentication
+-- This handler signs every inbound message with DKIM using the configured domain key
+kumo.on('smtp_server_message_received', function(msg)
+  -- Verify email_domain is configured
+  {% if email_domain is defined and email_domain != '' %}
+  local signer = kumo.dkim.rsa_sha256_signer {
+    domain = '{{ email_domain }}',
+    selector = '{{ dkim_selector | default("default") }}',
+    headers = {'From', 'To', 'Subject', 'Date', 'Message-ID'},
+    key = '/opt/kumomta/etc/dkim/{{ email_domain }}.key',
+    over_sign = true,
+  }
+  msg:dkim_sign(signer)
+  {% else %}
+  -- Warning: email_domain not configured, DKIM signing disabled
+  kumo.log('WARN', 'email_domain not defined in init.lua template - DKIM signing disabled')
+  {% endif %}
+end)
 
 -- Define queue configuration (retry intervals, max age, egress pool assignment)
 -- This is CRITICAL for message delivery - without this, messages won't be routed
