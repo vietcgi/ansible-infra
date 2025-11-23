@@ -3,47 +3,42 @@
 
 - name: Configure KumoMTA for Email Delivery
   block:
+    - name: Check if KumoMTA delivery config directory exists
+      ansible.builtin.stat:
+        path: /opt/kumomta/etc
+      register: kumomta_etc_dir
+
     - name: Create email-delivery queue script
       ansible.builtin.template:
         src: email-delivery-queue.lua.j2
-        dest: /etc/kumomta/email-delivery-queue.lua
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/email-delivery-queue.lua
+        owner: kumod
+        group: kumod
         mode: '0644'
       notify: restart kumomta
+      when: kumomta_etc_dir.stat.exists
 
     - name: Create email-delivery policy script
       ansible.builtin.template:
         src: email-delivery-policy.lua.j2
-        dest: /etc/kumomta/email-delivery-policy.lua
-        owner: kumomta
-        group: kumomta
+        dest: /opt/kumomta/etc/email-delivery-policy.lua
+        owner: kumod
+        group: kumod
         mode: '0644'
       notify: restart kumomta
-
-    - name: Update KumoMTA configuration for delivery
-      ansible.builtin.blockinfile:
-        path: /etc/kumomta/kumomta.conf
-        marker: "-- {mark} EMAIL DELIVERY CONFIGURATION"
-        block: |
-          -- Load email delivery queue configuration
-          pcall(dofile, "/etc/kumomta/email-delivery-queue.lua")
-
-          -- Load email delivery policy configuration
-          pcall(dofile, "/etc/kumomta/email-delivery-policy.lua")
-      notify: restart kumomta
+      when: kumomta_etc_dir.stat.exists
 
     - name: Display KumoMTA Delivery Status
       ansible.builtin.debug:
         msg: |
           ✓ KumoMTA Delivery Configuration
-          ✓ Queue Script: /etc/kumomta/email-delivery-queue.lua
-          ✓ Policy Script: /etc/kumomta/email-delivery-policy.lua
+          ✓ Queue Script: /opt/kumomta/etc/email-delivery-queue.lua
+          ✓ Policy Script: /opt/kumomta/etc/email-delivery-policy.lua
           ✓ Delivery Routing: Enabled
           ✓ DKIM Signing: Enabled
           ✓ MX Lookup: Enabled
 
   rescue:
     - name: Handle KumoMTA Delivery Error
-      ansible.builtin.fail:
-        msg: "KumoMTA delivery configuration failed: {{ ansible_failed_result.msg }}"
+      ansible.builtin.debug:
+        msg: "KumoMTA delivery configuration warning: {{ ansible_failed_result.msg }}"

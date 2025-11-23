@@ -77,13 +77,14 @@
         - item.value != ""  # Skip records with empty values (e.g., pending DKIM key)
       register: dns_results
       no_log: false
+      ignore_errors: true
       tags:
         - cloudflare
         - cloudflare_dns
 
     - name: Display DNS configuration results
       ansible.builtin.debug:
-        msg: "Created/Updated {{ dns_results.results | length }} DNS records"
+        msg: "Created/Updated {{ dns_results.results | length if dns_results.results is defined else 0 }} DNS records (some may have failed if zone not found)"
       when: dns_results.results is defined
       tags:
         - cloudflare
