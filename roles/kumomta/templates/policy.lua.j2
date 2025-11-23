@@ -12,13 +12,6 @@ kumo.on("init", function()
   kumo.define_spool { name = "data", path = "/var/spool/kumomta/data" }
   kumo.define_spool { name = "meta", path = "/var/spool/kumomta/meta" }
 
-  -- Configure bounce classification for proper delivery result handling
-  kumo.configure_bounce_classifier {
-    files = {
-      '/opt/kumomta/share/bounce_classifier/iana.toml',
-    },
-  }
-
   kumo.configure_local_logs {
     log_dir = "/var/log/kumomta",
     max_segment_duration = "10s",
@@ -35,73 +28,39 @@ kumo.on("smtp_server_message_received", function(msg)
     over_sign = true,
   }
   msg:dkim_sign(signer)
+
+  -- CRITICAL: Assign message to queue for delivery
+  local recipient = msg:recipient()
+  msg:set_meta("queue", recipient and recipient.domain or "default")
 end)
 
--- CRITICAL: Queue configuration with delivery timing parameters
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
   return kumo.make_queue_config {
     egress_pool = "default",
-    max_age = "2 days",              -- Messages expire after 2 days
-    retry_interval = "20 minutes",   -- Initial retry delay
-    max_retry_interval = "2 hours",  -- Maximum backoff time between retries
+    max_age = "2 days",
+    retry_interval = "20 minutes",
+    max_retry_interval = "2 hours",
   }
 end)
 
 kumo.on("get_egress_pool", function(pool_name)
-  return kumo.make_egress_pool {
-    name = pool_name,
-    entries = {
-      { name = "default" },
-    },
-  }
-end)
-
-kumo.on("get_routing_domain", function(domain)
-  return kumo.make_routing_domain(domain, {
-    use_mx = true,
-  })
+  return kumo.make_egress_pool { name = pool_name, entries = {{ name = "default" }} }
 end)
 
 kumo.on("get_egress_source", function(source_name)
-  return kumo.make_egress_source {
-    name = source_name,
-    source_address = "{{ kumomta_source_address | default('0.0.0.0') }}",
-  }
+  return kumo.make_egress_source { name = source_name, source_address = "{{ kumomta_source_address | default('0.0.0.0') }}" }
 end)
 
--- CRITICAL: Egress path configuration with connection limits and rate limiting
 kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
   local params = {
     enable_tls = "OpportunisticInsecure",
-    connection_limit = 10,              -- Max simultaneous SMTP connections
-    max_deliveries_per_connection = 100, -- Messages per connection before close
-    max_message_rate = "100/s",         -- Max message rate per second
+    connection_limit = 10,
+    max_deliveries_per_connection = 100,
+    max_message_rate = "100/s",
   }
-
-  -- Conservative limits for Gmail (they have strict throttling)
   if string.find(domain, "gmail%.com") or string.find(domain, "googlemail%.com") then
     params.connection_limit = 5
     params.max_message_rate = "20/s"
   end
-
   return kumo.make_egress_path(params)
-end)
-
--- Configure domains that can relay through this server
-kumo.on("get_listener_domain", function(listener_name, domain, conn_meta)
-  return kumo.make_listener_domain {
-    relay_to = true,
-  }
-end)
-
--- Configure domain routing using routes
-kumo.on("get_domain_config", function(domain)
-  return kumo.make_domain_config({
-    use_mx = true,
-  })
-end)
-
--- Ready to send message - allow delivery to proceed
-kumo.on("ready_to_send_message", function(msg)
-  return true
 end)
