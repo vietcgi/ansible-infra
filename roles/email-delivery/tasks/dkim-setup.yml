@@ -35,7 +35,7 @@
         type: "TXT"
         value: 'v=DKIM1; k=rsa; p={{ dkim_public_key.content | b64decode }}'
         ttl: 3600
-        account_api_token: "{{ cloudflare_api_token | default('') }}"
+        api_token: "{{ cloudflare_api_token }}"
       register: dkim_record_result
       ignore_errors: true
 
