@@ -6,6 +6,14 @@
     # Deploy policy.lua as the main init file for kumomta
     # This is the production-ready configuration with DKIM signing, queue management, and routing
 
+    - name: Create policy directory if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}/policy"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0755'
+        state: directory
+
     - name: Template KumoMTA Lua policy script (main init file)
       ansible.builtin.template:
         src: policy.lua.j2
@@ -14,14 +22,6 @@
         group: "{{ kumomta_group }}"
         mode: '0640'
       notify: restart kumomta
-
-    - name: Create policy directory if it doesn't exist
-      ansible.builtin.file:
-        path: "{{ kumomta_config_dir }}/policy"
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0750'
-        state: directory
 
     - name: Set proper directory permissions for config (restrictive)
       ansible.builtin.file:

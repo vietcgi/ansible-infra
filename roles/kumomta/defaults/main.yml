@@ -8,7 +8,7 @@ kumomta_install_method: "binary"  # binary (statically compiled, works on any Li
 kumomta_user: "kumod"
 kumomta_group: "kumod"
 kumomta_home: "/opt/kumomta"
-kumomta_config_dir: "/etc/kumomta"
+kumomta_config_dir: "/opt/kumomta/etc"
 kumomta_queue_dir: "/var/spool/kumomta"
 kumomta_log_dir: "/var/log/kumomta"
 kumomta_state: "present"
