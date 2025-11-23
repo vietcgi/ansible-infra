@@ -32,9 +32,6 @@ kumo.on("smtp_server_message_received", function(msg)
   -- CRITICAL: Assign message to queue for delivery
   local recipient = msg:recipient()
   msg:set_meta("queue", recipient and recipient.domain or "default")
-
-  -- CRITICAL: Set send_domain so KumoMTA knows which domain to deliver from
-  msg:set_send_domain("{{ email_domain }}")
 end)
 
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
