@@ -42,7 +42,7 @@
     - name: Display DKIM record details
       debug:
         msg: |
-          Record {{ loop.index }}:
+          Record {{ loop_index }}:
           Name: {{ item.name }}
           Type: {{ item.type }}
           Content (truncated): {{ (item.content | length > 50) | ternary(item.content[:50] + '...', item.content) }}
@@ -50,6 +50,7 @@
           ID: {{ item.id }}
       loop: "{{ dkim_records_list }}"
       loop_control:
+        index_var: loop_index
         label: "{{ item.name }}"
       when: dkim_records_list is defined and dkim_records_list | length > 0
 
