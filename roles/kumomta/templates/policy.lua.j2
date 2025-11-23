@@ -25,14 +25,7 @@ kumo.on("smtp_server_message_received", function(msg)
     key = "/opt/kumomta/etc/dkim/{{ email_domain }}.key",
     over_sign = true,
   }
-
-  local ok, err = pcall(function()
-    msg:dkim_sign(signer)
-  end)
-
-  if not ok then
-    kumo.log(kumo.syslog.warning, "DKIM signing error for " .. msg:id() .. ": " .. tostring(err))
-  end
+  msg:dkim_sign(signer)
 
   -- Assign queue based on recipient domain
   local recipient = msg:recipient()
@@ -81,13 +74,7 @@ kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
   return kumo.make_egress_path(params)
 end)
 
--- Accept messages and allow delivery
-kumo.on("message_accepted", function(msg)
-  kumo.log(kumo.syslog.notice, "Message accepted: " .. msg:id())
-end)
-
 -- Ready to send message - allow delivery to proceed
 kumo.on("ready_to_send_message", function(msg)
-  kumo.log(kumo.syslog.notice, "Ready to send: " .. msg:id())
   return true
 end)
