@@ -26,10 +26,6 @@ kumo.on("smtp_server_message_received", function(msg)
     over_sign = true,
   }
   msg:dkim_sign(signer)
-
-  -- Assign queue based on recipient domain
-  local recipient = msg:recipient()
-  msg:set_meta("queue", recipient and recipient.domain or "default")
 end)
 
 kumo.on("get_queue_config", function(domain, tenant, campaign, routing_domain)
@@ -48,6 +44,12 @@ kumo.on("get_egress_pool", function(pool_name)
       { name = "default" },
     },
   }
+end)
+
+kumo.on("get_routing_domain", function(domain)
+  return kumo.make_routing_domain(domain, {
+    use_mx = true,
+  })
 end)
 
 kumo.on("get_egress_source", function(source_name)

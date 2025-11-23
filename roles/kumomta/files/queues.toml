@@ -1,0 +1,22 @@
+# KumoMTA Queue Configuration
+# Defines how messages are queued and retried for delivery
+
+[queue.default]
+# Messages for this queue are delivered using the 'default' egress pool
+egress_pool = "default"
+
+# Maximum age of a message before it is bounced
+max_age = "2 days"
+
+# Retry intervals - define how long to wait between retry attempts
+# After the last interval is exhausted, the message is bounced
+retry_intervals = [
+  "0s",        # Immediate delivery attempt
+  "20 minutes", # Retry after 20 minutes
+  "40 minutes", # Retry after 40 minutes
+  "1 hour",     # Retry after 1 hour
+  "2 hours",    # Retry after 2 hours
+]
+
+# Maximum interval to wait between retries
+max_retry_interval = "2 hours"
