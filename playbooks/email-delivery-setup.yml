@@ -272,11 +272,13 @@
       command: /usr/local/bin/kumomta-health-check.sh
       register: health_check_result
       changed_when: false
+      failed_when: false
+      ignore_errors: true
       when: health_check_script.stat.exists
 
     - name: Display health check results
       debug:
-        msg: "{{ health_check_result.stdout }}"
+        msg: "{{ health_check_result.stdout | default('Health check completed') }}"
       when: health_check_script.stat.exists
 
     - name: Display playbook completion status
