@@ -71,16 +71,10 @@ end)
 kumo.on("get_egress_path_config", function(domain, egress_source, site_name)
   local params = {
     enable_tls = "OpportunisticInsecure",
-    connection_limit = 10,
+    connection_limit = 5,
     max_deliveries_per_connection = 100,
-    max_message_rate = "100/s",
+    max_message_rate = "20/s",
   }
-
-  -- Conservative limits for Gmail
-  if string.find(domain, "gmail%.com") or string.find(domain, "googlemail%.com") then
-    params.connection_limit = 5
-    params.max_message_rate = "20/s"
-  end
 
   return kumo.make_egress_path(params)
 end)
