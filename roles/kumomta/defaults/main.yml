@@ -5,8 +5,8 @@
 kumomta_enabled: true
 kumomta_version: "2025.10.06"  # Latest stable version with improved API
 kumomta_install_method: "binary"  # binary (statically compiled, works on any Linux) or source
-kumomta_user: "kumomta"
-kumomta_group: "kumomta"
+kumomta_user: "kumod"
+kumomta_group: "kumod"
 kumomta_home: "/opt/kumomta"
 kumomta_config_dir: "/etc/kumomta"
 kumomta_queue_dir: "/var/spool/kumomta"

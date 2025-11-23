@@ -63,12 +63,20 @@
           - ansible_distribution_major_version | int >= 11 or (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int >= 20)
         fail_msg: "KumoMTA requires Ubuntu 20.04+ or Debian 11+ (detected {{ ansible_distribution }} {{ ansible_distribution_version }})"
 
-    - name: Create KumoMTA system group
+    - name: Check if KumoMTA system user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ kumomta_user }}"
+      register: kumomta_user_check
+      ignore_errors: true
+
+    - name: Create KumoMTA system group (if user doesn't exist)
       ansible.builtin.group:
         name: "{{ kumomta_group }}"
         state: present
+      when: kumomta_user_check is failed
 
-    - name: Create KumoMTA system user
+    - name: Create KumoMTA system user (if doesn't exist)
       ansible.builtin.user:
         name: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
@@ -76,6 +84,7 @@
         shell: /usr/sbin/nologin
         state: present
         system: true
+      when: kumomta_user_check is failed
 
     - name: Install KumoMTA dependencies
       ansible.builtin.include_tasks: install.yml
