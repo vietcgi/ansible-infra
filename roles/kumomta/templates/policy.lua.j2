@@ -83,6 +83,13 @@ kumo.on("get_listener_domain", function(listener_name, domain, conn_meta)
   }
 end)
 
+-- Configure domain routing using routes
+kumo.on("get_domain_config", function(domain)
+  return kumo.make_domain_config({
+    use_mx = true,
+  })
+end)
+
 -- Ready to send message - allow delivery to proceed
 kumo.on("ready_to_send_message", function(msg)
   return true
