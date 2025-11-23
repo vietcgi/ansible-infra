@@ -151,10 +151,42 @@
         # Extract zone by checking 2-3 level domains (handles subdomains like vietcgi.nguoivietcali.com)
         zone_parts: "{{ email_domain.split('.') }}"
 
-    - name: Set cloudflare_zone_name (3+ part domain is subdomain, 2-part is root)
+    - name: Fetch actual Cloudflare zone details
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        status_code: 200
+      register: cloudflare_zone_info
+      ignore_errors: true
+      when: cloudflare_api_token != ''
+
+    - name: Set actual zone name from Cloudflare
+      set_fact:
+        cloudflare_zone_name_actual: "{{ cloudflare_zone_info.json.result.name if cloudflare_zone_info.status == 200 else '' }}"
+
+    - name: Set cloudflare_zone_name with validation
+      set_fact:
+        cloudflare_zone_name: "{{ cloudflare_zone_name_actual }}"
+        cloudflare_record_name: "{{ email_domain[:-len(cloudflare_zone_name_actual)-1] if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
+        cloudflare_dns_enabled_actual: "{{ email_domain.endswith(cloudflare_zone_name_actual) if cloudflare_zone_name_actual != '' else false }}"
+      when: cloudflare_zone_name_actual != ''
+
+    - name: Set cloudflare_zone_name fallback (no API access)
       set_fact:
         cloudflare_zone_name: "{{ '.'.join(zone_parts[-2:]) if zone_parts | length == 2 else '.'.join(zone_parts[-2:]) if zone_parts | length >= 2 else email_domain }}"
         cloudflare_record_name: "{{ '.'.join(zone_parts[:-2]) if zone_parts | length > 2 else '@' }}"
+        cloudflare_dns_enabled_actual: true
+      when: cloudflare_zone_name_actual == ''
+
+    - name: Display zone validation result
+      debug:
+        msg: |
+          Domain: {{ email_domain }}
+          Cloudflare Zone: {{ cloudflare_zone_name }}
+          DNS Records: {% if cloudflare_dns_enabled_actual %}ENABLED (domain matches zone){% else %}DISABLED (domain not in zone){% endif %}
 
     - name: Build Cloudflare DNS records for email delivery
       set_fact:
@@ -264,23 +296,25 @@
 
   post_tasks:
     - name: Check if health check script exists
-      stat:
+      ansible.builtin.stat:
         path: /usr/local/bin/kumomta-health-check.sh
       register: health_check_script
+      changed_when: false
 
     - name: Final health check
-      command: /usr/local/bin/kumomta-health-check.sh
+      ansible.builtin.command: /usr/local/bin/kumomta-health-check.sh
       register: health_check_result
       changed_when: false
-      when: health_check_script.stat.exists
+      failed_when: false
+      when: health_check_script.stat.exists | default(false)
 
     - name: Display health check results
-      debug:
+      ansible.builtin.debug:
         msg: "{{ health_check_result.stdout | default('Health check completed') }}"
-      when: health_check_script.stat.exists
+      when: health_check_script.stat.exists | default(false) and health_check_result.stdout is defined
 
     - name: Display playbook completion status
-      debug:
+      ansible.builtin.debug:
         msg: |
           ═══════════════════════════════════════════════════════════════════
           ✓ EMAIL DELIVERY PLATFORM SETUP COMPLETED SUCCESSFULLY

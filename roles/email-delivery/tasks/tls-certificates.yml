@@ -26,18 +26,16 @@
       register: cert_exists
 
     - name: Obtain Let's Encrypt certificates
-      ansible.builtin.shell: |
-        certbot certonly \
-        --dns-cloudflare \
-        --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini \
-        -d {{ email_domain }} \
-        -d mail.{{ email_domain }} \
-        --agree-tos \
-        -m {{ letsencrypt_email }} \
-        --non-interactive
+      ansible.builtin.command: >-
+        certbot certonly --dns-cloudflare
+        --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini
+        -d {{ email_domain }} -d mail.{{ email_domain }}
+        --agree-tos -m {{ letsencrypt_email }} --non-interactive
       when: not cert_exists.stat.exists
       become: true
       ignore_errors: true
+      register: certbot_result
+      changed_when: "'Successfully received certificate' in certbot_result.stdout"
 
     - name: Create certificate symlinks for KumoMTA
       ansible.builtin.file:
@@ -52,6 +50,11 @@
         - { src: "privkey.pem", dest: "kumomta.key" }
       become: true
 
+    - name: Check if crontab is available
+      ansible.builtin.stat:
+        path: /usr/bin/crontab
+      register: crontab_available
+
     - name: Setup certificate renewal
       ansible.builtin.cron:
         name: "Renew TLS certificates"
@@ -60,6 +63,7 @@
         day: "1"
         job: "certbot renew --quiet --dns-cloudflare --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini && systemctl restart kumomta"
       become: true
+      when: crontab_available.stat.exists
 
     - name: Display TLS Status
       ansible.builtin.debug:

@@ -61,6 +61,13 @@
 - name: Configure DNS zone management
   when: cloudflare_enabled | default(false) and cloudflare_dns_enabled | default(false)
   block:
+    - name: Validate domain is in Cloudflare zone
+      ansible.builtin.debug:
+        msg: "{% if cloudflare_dns_enabled_actual | default(true) %}Proceeding with DNS creation{% else %}Skipping DNS creation - domain not in configured Cloudflare zone{% endif %}"
+      tags:
+        - cloudflare
+        - cloudflare_dns
+
     - name: Create DNS records from configuration
       community.general.cloudflare_dns:
         zone: "{{ item.zone }}"
@@ -75,17 +82,22 @@
       when:
         - cloudflare_dns_records is defined
         - item.value != ""  # Skip records with empty values (e.g., pending DKIM key)
+        - cloudflare_dns_enabled_actual | default(true)  # Only create if domain is in zone
       register: dns_results
       no_log: false
-      ignore_errors: true
       tags:
         - cloudflare
         - cloudflare_dns
 
     - name: Display DNS configuration results
       ansible.builtin.debug:
-        msg: "Created/Updated {{ dns_results.results | length if dns_results.results is defined else 0 }} DNS records (some may have failed if zone not found)"
-      when: dns_results.results is defined
+        msg: |
+          {% if cloudflare_dns_enabled_actual | default(true) %}
+          Created/Updated {{ dns_results.results | length if dns_results.results is defined else 0 }} DNS records
+          {% else %}
+          DNS creation skipped - domain is not in the configured Cloudflare zone
+          {% endif %}
+      when: dns_results.results is defined or not (cloudflare_dns_enabled_actual | default(true))
       tags:
         - cloudflare
         - cloudflare_dns
