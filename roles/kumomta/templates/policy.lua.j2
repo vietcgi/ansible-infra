@@ -8,8 +8,17 @@ local kumo = require "kumo"
 kumo.on("init", function()
   kumo.start_esmtp_listener { listen = "0.0.0.0:25", relay_hosts = {'0.0.0.0/0'} }
   kumo.start_http_listener { listen = "127.0.0.1:8000" }
+
   kumo.define_spool { name = "data", path = "/var/spool/kumomta/data" }
   kumo.define_spool { name = "meta", path = "/var/spool/kumomta/meta" }
+
+  -- Configure bounce classification for proper delivery result handling
+  kumo.configure_bounce_classifier {
+    files = {
+      '/opt/kumomta/share/bounce_classifier/iana.toml',
+    },
+  }
+
   kumo.configure_local_logs {
     log_dir = "/var/log/kumomta",
     max_segment_duration = "10s",
