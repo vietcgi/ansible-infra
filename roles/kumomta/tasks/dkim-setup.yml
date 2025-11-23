@@ -85,6 +85,28 @@
         force: yes
       when: dkim_selector != 'default' and email_domain != dkim_selector
 
+    - name: Extract DKIM public key from existing key (for DNS record creation)
+      ansible.builtin.shell:
+        cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN PUBLIC' | grep -v 'END PUBLIC' | tr -d '\\n'"
+      register: dkim_public_key_extracted
+      changed_when: false
+
+    - name: Register DKIM public key as fact for use by playbook
+      ansible.builtin.set_fact:
+        dkim_public_key_value: "{{ dkim_public_key_extracted.stdout }}"
+        dkim_dns_record_name: "{{ dkim_selector }}._domainkey.{{ email_domain }}"
+        dkim_dns_record_value: "v=DKIM1; k=rsa; p={{ dkim_public_key_extracted.stdout }}"
+      register: dkim_fact_set
+
+    - name: Display DKIM DNS record for reference
+      ansible.builtin.debug:
+        msg: |
+          DKIM DNS Record Details:
+          ========================
+          Subdomain: {{ dkim_dns_record_name }}
+          Type: TXT
+          Value: {{ dkim_dns_record_value }}
+
   rescue:
     - name: Handle DKIM setup error
       ansible.builtin.fail:

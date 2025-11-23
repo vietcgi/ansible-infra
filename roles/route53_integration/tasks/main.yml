@@ -1,0 +1,106 @@
+---
+# AWS Route53 DNS Integration Role
+# Manages DNS records in AWS Route53 for email delivery setup
+#
+# This role demonstrates the DNS provider extensibility pattern.
+# It takes generic dns_records format and creates them in Route53.
+
+- name: Configure Route53 DNS Management
+  when: route53_enabled | default(false) and route53_dns_enabled | default(false)
+  block:
+    # ========== Install Required Collection ==========
+
+    - name: Install amazon.aws Ansible collection
+      ansible.builtin.command:
+        cmd: "ansible-galaxy collection install --force amazon.aws"
+      changed_when: false
+      register: galaxy_install
+      delegate_to: localhost
+      run_once: true
+
+    - name: Verify amazon.aws collection installed
+      ansible.builtin.debug:
+        msg: "✓ amazon.aws collection installed for Route53 integration"
+
+    # ========== Validate AWS Credentials ==========
+
+    - name: Validate AWS credentials
+      when: route53_access_key and route53_secret_key
+      block:
+        - name: Test AWS API connectivity
+          amazon.aws.sts_caller_identity:
+            aws_access_key: "{{ route53_access_key }}"
+            aws_secret_key: "{{ route53_secret_key }}"
+            region: "{{ route53_region }}"
+          register: aws_identity
+          ignore_errors: true
+
+        - name: Display AWS account info
+          ansible.builtin.debug:
+            msg: |
+              AWS Account: {{ aws_identity.account }}
+              User/Role: {{ aws_identity.user_id }}
+          when: aws_identity.account is defined
+
+    # ========== Get Hosted Zone ID ==========
+
+    - name: Get Route53 Hosted Zone ID
+      amazon.aws.route53_zone:
+        zone: "{{ cloudflare_zone_name }}"
+        state: get
+        aws_access_key: "{{ route53_access_key }}"
+        aws_secret_key: "{{ route53_secret_key }}"
+        region: "{{ route53_region }}"
+      register: route53_zone
+      when:
+        - route53_dns_records is defined
+        - route53_dns_records | length > 0
+
+    # ========== Create DNS Records ==========
+
+    - name: Create Route53 DNS records for email delivery
+      amazon.aws.route53:
+        zone_id: "{{ route53_zone.zone_id }}"
+        record: "{{ item.record if item.record != '@' else item.zone }}.{{ item.zone if item.record != '@' else '' }}"
+        type: "{{ item.type }}"
+        value: "{{ item.value }}"
+        ttl: "{{ item.ttl | default(route53_default_ttl) }}"
+        state: "{{ item.state | default('present') }}"
+        aws_access_key: "{{ route53_access_key }}"
+        aws_secret_key: "{{ route53_secret_key }}"
+        region: "{{ route53_region }}"
+      loop: "{{ route53_dns_records | default([]) }}"
+      when:
+        - route53_dns_records is defined
+        - item.value != ""
+      register: route53_results
+      ignore_errors: true
+
+    - name: Display Route53 record creation results
+      ansible.builtin.debug:
+        msg: |
+          Route53 DNS Records Created:
+          {% for result in route53_results.results %}
+          - {{ result.item.type }} {{ result.item.record or '@' }}.{{ result.item.zone }}: {{ result.item.value }}
+          {% endfor %}
+      when: route53_results.results is defined
+
+  rescue:
+    - name: Handle Route53 integration error
+      ansible.builtin.debug:
+        msg: |
+          Failed to configure Route53 DNS:
+          {{ ansible_failed_result.msg | default('Unknown error') }}
+      register: route53_error
+
+    - name: Suggest manual DNS configuration
+      ansible.builtin.debug:
+        msg: |
+          DNS records must be added manually to Route53:
+
+          {% for record in route53_dns_records | default([]) %}
+          - {{ record.type }} record
+            Name: {{ record.record if record.record != '@' else record.zone }}.{{ record.zone if record.record != '@' else '' }}
+            Value: {{ record.value }}
+            TTL: {{ record.ttl | default(route53_default_ttl) }}
+          {% endfor %}

@@ -2,17 +2,39 @@
 # Email Delivery Setup Playbook
 # Automates complete email server configuration including DNS, certificates, and KumoMTA
 #
-# Requirements:
-# - Ansible vault with cloudflare_api_token and cloudflare_zone_id defined
-# - Target host must be Ubuntu/Debian with sudo access
-# - DNS provider: Cloudflare
-# - Mail server: KumoMTA
+# Supports multiple DNS providers: Cloudflare, Route53, Google Cloud DNS, Azure DNS, or manual
+# Email server: KumoMTA with DKIM signing and automatic DNS record creation
 #
-# Usage:
+# Requirements:
+# - Target host must be Ubuntu/Debian with sudo access
+# - For Cloudflare: cloudflare_api_token and cloudflare_zone_id
+# - For AWS Route53: route53_access_key and route53_secret_key
+# - For Google Cloud: GCP credentials and project ID
+# - Ansible 2.9+ with community.general collection
+#
+# Usage Examples:
+#
+#   Cloudflare DNS Provider (default):
 #   ansible-playbook playbooks/email-delivery-setup.yml \
 #     --ask-vault-pass \
 #     -e "email_domain=example.com" \
-#     -e "email_server_ip=192.0.2.1"
+#     -e "email_server_ip=192.0.2.1" \
+#     -e "dns_provider=cloudflare"
+#
+#   AWS Route53:
+#   ansible-playbook playbooks/email-delivery-setup.yml \
+#     -e "email_domain=example.com" \
+#     -e "email_server_ip=192.0.2.1" \
+#     -e "dns_provider=route53" \
+#     -e "route53_region=us-east-1"
+#
+#   Manual DNS (user adds records manually):
+#   ansible-playbook playbooks/email-delivery-setup.yml \
+#     -e "email_domain=example.com" \
+#     -e "email_server_ip=192.0.2.1" \
+#     -e "dns_provider=manual"
+#
+# See docs/DNS_PROVIDER_EXTENSIBILITY.md for adding new DNS providers
 
 - name: Complete Email Delivery Platform Setup
   hosts: all
@@ -51,10 +73,29 @@
     kumomta_max_message_size: 104857600  # 100MB
     kumomta_sender_messages_per_minute: 100
 
+    # ========== DNS PROVIDER SELECTION ==========
+    # Choose which DNS provider to use: cloudflare, route53, google_dns, azure_dns, manual
+    # Set to 'manual' if using a provider without Ansible module support
+    dns_provider: "cloudflare"
+
     # Cloudflare Integration Configuration
-    cloudflare_enabled: true
-    cloudflare_dns_enabled: true
-    cloudflare_logging_enabled: true
+    cloudflare_enabled: "{{ dns_provider == 'cloudflare' }}"
+    cloudflare_dns_enabled: "{{ dns_provider == 'cloudflare' }}"
+    cloudflare_logging_enabled: "{{ dns_provider == 'cloudflare' }}"
+
+    # Route53 Integration Configuration (for AWS deployments)
+    # route53_enabled: "{{ dns_provider == 'route53' }}"
+    # route53_dns_enabled: "{{ dns_provider == 'route53' }}"
+    # route53_region: "us-east-1"
+    # route53_access_key: ""  # From vault: vault_route53_access_key
+    # route53_secret_key: ""  # From vault: vault_route53_secret_key
+
+    # Google Cloud DNS Integration Configuration
+    # google_dns_enabled: "{{ dns_provider == 'google_dns' }}"
+    # gcp_project_id: ""
+    # gcp_credentials_file: ""
+
+    # General Configuration
     monitoring_enabled: true
 
   pre_tasks:
@@ -157,15 +198,59 @@
           ]
       when: cloudflare_dns_enabled
 
-  roles:
-    - role: cloudflare_integration
-      tags: [cloudflare, dns]
-      when: cloudflare_dns_enabled
+  # ========== ROLE ORCHESTRATION WITH EXPLICIT ORDERING ==========
+  # Using include_role with explicit ordering to ensure:
+  # 1. KumoMTA role runs first (generates DKIM keys and facts)
+  # 2. DKIM facts are available before Cloudflare DNS record creation
+  # 3. Cloudflare role uses DKIM facts to create complete DNS records
+  # ================================================================
 
+  roles:
     - role: kumomta
       tags: [kumomta]
 
-    - role: email-delivery
+  tasks:
+    # After kumomta role completes, DKIM facts are now available
+    # Add DKIM DNS record to the cloudflare_dns_records array
+    - name: Add DKIM DNS record for Cloudflare automation
+      set_fact:
+        cloudflare_dns_records: "{{ cloudflare_dns_records | default([]) + [dkim_record] }}"
+      vars:
+        dkim_record:
+          zone: "{{ cloudflare_zone_name }}"
+          record: "{{ dkim_dns_record_name }}"
+          type: "TXT"
+          value: "{{ dkim_dns_record_value }}"
+          ttl: 3600
+          proxied: false
+          state: "present"
+      when:
+        - cloudflare_dns_enabled
+        - dkim_public_key_value is defined
+      tags: [cloudflare, dns, dkim]
+
+    - name: Include Cloudflare integration role
+      include_role:
+        name: cloudflare_integration
+      when: cloudflare_dns_enabled
+      tags: [cloudflare, dns]
+
+    - name: Include Route53 integration role
+      include_role:
+        name: route53_integration
+      when: dns_provider == 'route53'
+      tags: [route53, dns]
+
+    # Additional DNS provider roles can be added here following the same pattern
+    # - name: Include Google Cloud DNS integration role
+    #   include_role:
+    #     name: google_dns_integration
+    #   when: dns_provider == 'google_dns'
+    #   tags: [google_dns, dns]
+
+    - name: Include email-delivery role
+      include_role:
+        name: email-delivery
       tags: [email-delivery]
 
   post_tasks:
@@ -184,17 +269,31 @@
           ===== Email Delivery Setup Complete =====
 
           Configuration Summary:
-          ✓ DNS Records (A, MX, SPF, DKIM, DMARC) configured in Cloudflare
-          ✓ DKIM keys generated and published
-          ✓ Let's Encrypt certificates obtained via DNS validation
-          ✓ KumoMTA configured for email delivery
+          ✓ DKIM keys generated ({{ email_domain }})
+          ✓ KumoMTA configured with DKIM signing
           ✓ Routing and policy scripts deployed
-          ✓ Monitoring and logging configured
+
+          {% if cloudflare_dns_enabled %}
+          ✓ DNS Records automatically created in Cloudflare:
+            - A record:     {{ email_domain }} → {{ email_server_ip }}
+            - MX record:    {{ email_domain }} → {{ email_domain }}
+            - SPF record:   v=spf1 ip4:{{ email_server_ip }} ~all
+            - DMARC record: v=DMARC1; p={{ dmarc_policy }}; ...
+            - DKIM record:  {{ dkim_selector }}._domainkey.{{ email_domain }}
+          {% else %}
+          ⚠ Cloudflare DNS disabled - add DNS records manually:
+            A record:     {{ email_domain }} → {{ email_server_ip }}
+            MX record:    {{ email_domain }} → {{ email_domain }}
+            SPF record:   v=spf1 ip4:{{ email_server_ip }} ~all
+            DMARC record: v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; pct={{ dmarc_percent }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}
+            DKIM record:  {{ dkim_selector }}._domainkey.{{ email_domain }} = v=DKIM1; k=rsa; p={{ dkim_public_key_value if dkim_public_key_value is defined else '[GENERATE KEY FIRST]' }}
+          {% endif %}
 
           Next Steps:
-          1. Verify DNS propagation:
+          1. Verify DNS propagation (wait 5-10 minutes for propagation):
              - nslookup {{ email_domain }}
              - nslookup -type=MX {{ email_domain }}
+             - nslookup -type=TXT {{ dkim_selector }}._domainkey.{{ email_domain }}
              - nslookup -type=TXT _dmarc.{{ email_domain }}
 
           2. Test email delivery:
@@ -203,17 +302,17 @@
 
           3. Monitor server status:
              - Run: /usr/local/bin/kumomta-monitoring-status.sh
-             - Access metrics on: 127.0.0.1:9090 (Prometheus)
 
-          4. Configure monitoring:
-             - Add Prometheus scrape target: {{ email_server_ip }}:9090
-             - Import Prometheus alert rules from: /etc/kumomta/prometheus-alerts.yml
-
-          5. Setup backups:
-             - Backup DKIM keys: /etc/kumomta/dkim/
+          4. Setup backups:
+             - Backup DKIM keys: /opt/kumomta/etc/dkim/
              - Backup certificates: /etc/letsencrypt/live/{{ email_domain }}/
-             - Backup configuration: /etc/kumomta/kumomta.conf
+             - Backup configuration: /opt/kumomta/etc/policy/init.lua
 
-          Domain: {{ email_domain }}
-          Server IP: {{ email_server_ip }}
+          Configuration:
+          - Domain: {{ email_domain }}
+          - Server IP: {{ email_server_ip }}
+          - DKIM Selector: {{ dkim_selector }}
+          - DMARC Policy: {{ dmarc_policy }}
+          - DNS Provider: {{ 'Cloudflare' if cloudflare_dns_enabled else 'Manual' }}
+
           =========================================

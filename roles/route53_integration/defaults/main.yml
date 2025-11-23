@@ -1,0 +1,27 @@
+---
+# AWS Route53 DNS Integration - Default Variables
+#
+# This role integrates with AWS Route53 for DNS management.
+# It translates generic dns_records format to Route53 API calls.
+#
+# Required credentials:
+# - route53_access_key: AWS IAM user access key with route53:ChangeResourceRecordSets permission
+# - route53_secret_key: AWS IAM user secret key
+#
+# See docs/DNS_PROVIDER_EXTENSIBILITY.md for implementation details
+
+# Route53 Integration Control
+route53_enabled: false
+route53_dns_enabled: false
+
+# AWS Configuration
+route53_region: "us-east-1"
+route53_access_key: ""
+route53_secret_key: ""
+
+# TTL defaults
+route53_default_ttl: 3600
+
+# Map generic dns_records to route53_dns_records
+# (typically passed from parent playbook)
+route53_dns_records: "{{ dns_records | default([]) }}"
