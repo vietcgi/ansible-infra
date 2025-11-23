@@ -50,7 +50,7 @@ kumo.on("get_egress_pool", function(pool_name)
   return kumo.make_egress_pool {
     name = pool_name,
     entries = {
-      { name = "default" },
+      { name = "{{ kumomta_source_address | default('0.0.0.0') }}" },
     },
   }
 end)
