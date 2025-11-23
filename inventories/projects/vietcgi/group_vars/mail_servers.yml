@@ -24,7 +24,7 @@ kumomta_max_concurrent_connections_per_domain: 20
 
 # TLS/Security
 kumomta_tls_enabled: true
-kumomta_dkim_enabled: false  # Disabled for now - DNS issues
+kumomta_dkim_enabled: true
 kumomta_dkim_selector: "default"
 
 # Monitoring

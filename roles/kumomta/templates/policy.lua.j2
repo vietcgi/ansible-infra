@@ -6,7 +6,7 @@ local kumo = require "kumo"
 
 -- Initialize kumomta with spool configuration
 kumo.on("init", function()
-  kumo.start_esmtp_listener { listen = "0.0.0.0:25" }
+  kumo.start_esmtp_listener { listen = "0.0.0.0:25", relay_hosts = {'0.0.0.0/0'} }
   kumo.start_http_listener { listen = "127.0.0.1:8000" }
   kumo.define_spool { name = "data", path = "/var/spool/kumomta/data" }
   kumo.define_spool { name = "meta", path = "/var/spool/kumomta/meta" }
