@@ -23,15 +23,22 @@
         mode: '0750'
         state: directory
 
-    - name: Set proper directory permissions
+    - name: Set proper directory permissions for config (restrictive)
+      ansible.builtin.file:
+        path: "{{ kumomta_config_dir }}"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0750'
+        state: directory
+
+    - name: Set queue and log directory permissions (readable by kumomta)
       ansible.builtin.file:
         path: "{{ item }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0700'
+        mode: '0750'
         state: directory
       loop:
-        - "{{ kumomta_config_dir }}"
         - "{{ kumomta_queue_dir }}"
         - "{{ kumomta_log_dir }}"
 
