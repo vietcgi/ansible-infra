@@ -11,7 +11,7 @@ kumo.on("init", function()
   kumo.start_esmtp_listener { listen = "0.0.0.0:{{ kumomta_listen_port | default(25) }}", relay_hosts = {'127.0.0.1', '47.151.22.142/32'} }
   kumo.start_esmtp_listener { listen = "0.0.0.0:{{ kumomta_submit_port | default(587) }}", relay_hosts = {'127.0.0.1', '47.151.22.142/32'} }
   kumo.start_http_listener { listen = "127.0.0.1:8000" }
-  kumo.start_http_listener { listen = "0.0.0.0:{{ kumomta_metrics_port | default(9184) }}", prometheus = true }
+  kumo.start_http_listener { listen = "0.0.0.0:{{ kumomta_metrics_port | default(9184) }}" }
 
   kumo.define_spool { name = "data", path = "/var/spool/kumomta/data" }
   kumo.define_spool { name = "meta", path = "/var/spool/kumomta/meta" }
