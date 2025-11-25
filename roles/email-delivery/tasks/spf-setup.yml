@@ -7,17 +7,51 @@
       ansible.builtin.set_fact:
         parent_domain: "{{ email_domain.split('.')[-2:] | join('.') }}"
 
+    - name: Check for existing SPF TXT Record on subdomain
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ email_domain }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+      register: existing_spf_records
+      when: not skip_spf_dns | default(false)
+
+    - name: Define desired SPF value
+      ansible.builtin.set_fact:
+        desired_spf_value: "v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all"
+
+    - name: Update existing SPF TXT Record on subdomain
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ (existing_spf_records.json.result | selectattr('content', 'match', '^v=spf1.*') | list | first).id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "TXT"
+          name: "{{ email_domain }}"
+          content: "{{ desired_spf_value }}"
+          ttl: 3600
+      when: 
+        - not skip_spf_dns | default(false)
+        - existing_spf_records.json.result | selectattr('content', 'match', '^v=spf1.*') | list | length > 0
+        - (existing_spf_records.json.result | selectattr('content', 'match', '^v=spf1.*') | list | first).content != desired_spf_value
+
     - name: Create SPF TXT Record on subdomain
       community.general.cloudflare_dns:
         zone: "{{ email_domain }}"
         record: "@"
         type: "TXT"
-        value: "v=spf1 mx {% for domain in spf_include_domains %}include:{{ domain }} {% endfor %}-all"
+        value: "{{ desired_spf_value }}"
         ttl: 3600
         api_token: "{{ cloudflare_api_token }}"
       register: spf_record_result
       ignore_errors: true
-      when: not skip_spf_dns | default(false)
+      when: 
+        - not skip_spf_dns | default(false)
+        - existing_spf_records.json.result | selectattr('content', 'match', '^v=spf1.*') | list | length == 0
 
     - name: Create SPF TXT Record on parent domain
       community.general.cloudflare_dns:

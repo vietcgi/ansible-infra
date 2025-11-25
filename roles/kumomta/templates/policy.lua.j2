@@ -24,7 +24,7 @@ kumo.on("smtp_server_message_received", function(msg)
     domain = "{{ email_domain }}",
     selector = "{{ dkim_selector | default('default') }}",
     headers = {"From", "To", "Subject", "Date", "Message-ID"},
-    key = "/opt/kumomta/etc/dkim/{{ email_domain }}.key",
+    key = "/opt/kumomta/etc/dkim/{{ dkim_selector | default('default') }}.key",
     over_sign = true,
   }
   msg:dkim_sign(signer)
