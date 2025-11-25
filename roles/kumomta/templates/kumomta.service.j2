@@ -38,13 +38,13 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=kumomta
 
-# Performance tuning - CPU and memory limits
-# CPUQuota=100% allows use of all available CPU cores
-CPUQuota={{ kumomta_cpu_quota }}
+# Performance tuning - Memory limits
 # MemoryLimit sets hard limit; KumoMTA's shrink_ready_queue activates near this limit
 MemoryLimit={{ kumomta_memory_limit }}
 # Account for CPU usage (helps with accurate reporting)
 CPUAccounting=yes
+# NOTE: Do NOT set CPUQuota here - it limits available_parallelism() detection
+# CPUQuota=100% means 1 CPU, not all CPUs. We want KumoMTA to use all available cores.
 
 [Install]
 WantedBy=multi-user.target
