@@ -13,8 +13,16 @@ kumo.on("init", function()
   kumo.start_http_listener { listen = "127.0.0.1:8000" }
   kumo.start_http_listener { listen = "0.0.0.0:{{ kumomta_metrics_port | default(9184) }}" }
 
-  kumo.define_spool { name = "data", path = "/var/spool/kumomta/data" }
-  kumo.define_spool { name = "meta", path = "/var/spool/kumomta/meta" }
+  kumo.define_spool {
+    name = "data",
+    path = "/var/spool/kumomta/data",
+    concurrency = {{ kumomta_worker_threads | default(4) }}
+  }
+  kumo.define_spool {
+    name = "meta",
+    path = "/var/spool/kumomta/meta",
+    concurrency = {{ kumomta_worker_threads | default(4) }}
+  }
 
   kumo.configure_local_logs {
     log_dir = "/var/log/kumomta",
