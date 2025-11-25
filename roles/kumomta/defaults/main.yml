@@ -50,8 +50,9 @@ kumomta_max_message_size: 104857600  # 100MB
 
 # Environment variables for systemd service (thread pool configuration)
 # These help KumoMTA detect and use proper concurrency
+# RAYON_NUM_THREADS is set dynamically based on CPU count (50% of cores, min 4)
 kumomta_env_variables:
-  RAYON_NUM_THREADS: "{{ kumomta_worker_threads }}"  # Rayon thread pool size
+  RAYON_NUM_THREADS: "{{ [[(ansible_processor_vcpus | default(4) | int) // 2, 4] | max, 32] | min }}"
   RUST_LOG: "info"
   RUST_BACKTRACE: "0"
 

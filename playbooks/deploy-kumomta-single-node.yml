@@ -30,12 +30,10 @@
     kumomta_max_concurrent_connections_per_domain: 50
 
     # Environment variables for thread pool control (Rayon + Rust threading)
+    # Dynamic based on system CPU count: 50% of cores, minimum 4, maximum 32
     kumomta_env_variables:
-      # Use 12 threads for parallel processing (matches kumomta_worker_threads in group_vars)
-      RAYON_NUM_THREADS: "12"
-      RAYON_THREAD_STACK_SIZE: "8388608"  # 8MB per thread
+      RAYON_NUM_THREADS: "{{ [[(ansible_processor_vcpus | default(4) | int) // 2, 4] | max, 32] | min }}"
       RUST_LOG: "info"
-      # Disable backtrace for performance
       RUST_BACKTRACE: "0"
 
     # Queue Management
