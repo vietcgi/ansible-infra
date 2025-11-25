@@ -18,7 +18,7 @@ kumomta_queue_max_attempts: 72  # 3 days with backoff
 kumomta_queue_expiration: 259200  # 3 days
 
 # Performance
-kumomta_worker_threads: 4
+kumomta_worker_threads: 12  # Use 50% of available 24 cores for balanced performance
 kumomta_max_connections: 1000
 kumomta_max_concurrent_connections_per_domain: 20
 
