@@ -112,12 +112,7 @@
       changed_when: false
       failed_when: service_enabled.rc != 0
 
-    - name: Verify socket activation is enabled
-      ansible.builtin.command:
-        cmd: "systemctl is-enabled kumomta-submission.socket"
-      register: socket_enabled
-      changed_when: false
-      failed_when: socket_enabled.rc != 0
+    # Socket activation disabled - daemon binds ports directly
 
     - name: Check disk space for queue directory
       ansible.builtin.command:
@@ -166,7 +161,7 @@
           Permissions: Correct (640 for configs, 600 for keys)
           Ownership: {{ kumomta_user }}:{{ kumomta_group }}
           Service Status: {{ service_status.status | default('unknown') }}
-          Socket Status: Enabled
+          Port Binding: Direct (daemon handles all ports)
 
           Disk Space ({{ kumomta_queue_dir }}):
           {{ disk_space.stdout }}

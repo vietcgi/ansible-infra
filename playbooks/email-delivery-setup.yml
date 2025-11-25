@@ -215,17 +215,8 @@
             {
               "zone": "{{ cloudflare_zone_name }}",
               "record": "{{ cloudflare_record_name if cloudflare_record_name != '@' else cloudflare_record_name }}",
-              "type": "TXT",
-              "value": "v=spf1 ip4:{{ email_server_ip }} ~all",
-              "ttl": 3600,
-              "proxied": false,
-              "state": "present"
-            },
-            {
-              "zone": "{{ cloudflare_zone_name }}",
-              "record": "_dmarc.{{ cloudflare_record_name if cloudflare_record_name != '@' else '' }}",
-              "type": "TXT",
-              "value": "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; pct={{ dmarc_percent }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}",
+              "type": "MX",
+              "value": "{{ email_domain }}",
               "ttl": 3600,
               "proxied": false,
               "state": "present"
@@ -247,25 +238,8 @@
   tasks:
     # After kumomta role completes, DKIM facts are now available
     # Add DKIM DNS record to the cloudflare_dns_records array
-    - name: Add DKIM DNS record for Cloudflare automation
-      set_fact:
-        cloudflare_dns_records: "{{ cloudflare_dns_records | default([]) + [dkim_record] }}"
-      vars:
-        # Construct DKIM record field: selector._domainkey.subdomain
-        # NOT selector._domainkey.full.domain.com (that would double the zone)
-        dkim_record_field: "{{ dkim_selector }}._domainkey{{ '.' + cloudflare_record_name if cloudflare_record_name != '@' else '' }}"
-        dkim_record:
-          zone: "{{ cloudflare_zone_name }}"
-          record: "{{ dkim_record_field }}"
-          type: "TXT"
-          value: "{{ dkim_dns_record_value }}"
-          ttl: 3600
-          proxied: false
-          state: "present"
-      when:
-        - cloudflare_dns_enabled
-        - dkim_public_key_value is defined
-      tags: [cloudflare, dns, dkim]
+    # DKIM DNS record is now added by the email-delivery role internally
+    # No need to manually add it here
 
     - name: Include Cloudflare integration role
       include_role:
@@ -294,9 +268,6 @@
         cloudflare_zone_id: "{{ cloudflare_zone_id }}"
         email_domain: "{{ email_domain }}"
         email_server_ip: "{{ email_server_ip }}"
-        skip_spf_dns: true
-        skip_dmarc_dns: true
-        skip_dkim_dns: false
       tags: [email-delivery]
 
   post_tasks:

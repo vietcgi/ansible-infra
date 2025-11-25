@@ -68,9 +68,74 @@
         - cloudflare
         - cloudflare_dns
 
+
+    - name: Check for existing DKIM DNS records
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ item.record }}.{{ item.zone }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+      loop: "{{ cloudflare_dns_records | default([]) }}"
+      when:
+        - cloudflare_dns_records is defined
+        - item.type == 'TXT'
+        - "'DKIM' in item.value"
+        - cloudflare_dns_enabled_actual | default(true)
+      register: existing_dkim_records
+      tags:
+        - cloudflare
+        - cloudflare_dns
+
+    - name: Update existing DKIM DNS records via API
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ item.json.result[0].id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "TXT"
+          name: "{{ item.item.record }}.{{ item.item.zone }}"
+          content: "{{ item.item.value }}"
+          ttl: 3600
+        status_code: [200]
+      loop: "{{ existing_dkim_records.results | default([]) }}"
+      when:
+        - existing_dkim_records.results is defined
+        - item.json is defined
+        - item.json.result | length > 0
+      tags:
+        - cloudflare
+        - cloudflare_dns
+
+    - name: Create DKIM DNS records via API if not exists
+      ansible.builtin.uri:
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ cloudflare_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: "TXT"
+          name: "{{ item.item.record }}.{{ item.item.zone }}"
+          content: "{{ item.item.value }}"
+          ttl: 3600
+        status_code: [200, 201]
+      loop: "{{ existing_dkim_records.results | default([]) }}"
+      when:
+        - existing_dkim_records.results is defined
+        - item.json is defined
+        - item.json.result | length == 0
+      tags:
+        - cloudflare
+        - cloudflare_dns
+
     - name: Create DNS records from configuration
       community.general.cloudflare_dns:
-        zone: "{{ item.zone }}"
+        zone: "{{ item.zone}}"
         record: "{{ item.record | default('@') }}"
         type: "{{ item.type }}"
         value: "{{ item.value }}"
@@ -82,6 +147,7 @@
       when:
         - cloudflare_dns_records is defined
         - item.value != ""  # Skip records with empty values (e.g., pending DKIM key)
+        - not (item.type == 'TXT' and 'DKIM' in item.value)  # Skip DKIM records (handled above)
         - cloudflare_dns_enabled_actual | default(true)  # Only create if domain is in zone
       register: dns_results
       no_log: false

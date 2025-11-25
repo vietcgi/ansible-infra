@@ -8,7 +8,7 @@
     owner: root
     group: root
     mode: '0644'
-  notify: reload systemd
+  register: service_unit_change
   become: true
 
 - name: Create systemd socket file (submission)
@@ -18,12 +18,13 @@
     owner: root
     group: root
     mode: '0644'
-  notify: reload systemd
+  register: socket_unit_change
   become: true
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
+  when: service_unit_change.changed or socket_unit_change.changed
   become: true
 
 - name: Enable KumoMTA service
@@ -34,11 +35,10 @@
   when: kumomta_state == "present"
   become: true
 
-- name: Enable KumoMTA submission socket
+- name: Disable KumoMTA submission socket (handled by daemon)
   ansible.builtin.systemd:
     name: kumomta-submission.socket
-    enabled: "{{ kumomta_service_enabled | bool }}"
-    state: "{{ 'started' if kumomta_service_enabled | bool else 'stopped' }}"
+    enabled: false
+    state: stopped
   when: kumomta_state == "present"
   become: true
-  register: socket_result

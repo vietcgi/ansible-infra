@@ -1,0 +1,49 @@
+---
+- name: Configure DNS via Cloudflare Integration
+  block:
+    - name: Set Cloudflare DNS records variable
+      ansible.builtin.set_fact:
+        cloudflare_dns_records: "{{ cloudflare_dns_records | default([]) + email_dns_records }}"
+        # Ensure the role knows we want to run it
+        cloudflare_enabled: true
+        cloudflare_dns_enabled: true
+
+    - name: Include Cloudflare Integration Role
+      ansible.builtin.include_role:
+        name: cloudflare_integration
+  when: cloudflare_dns_enabled | default(false)
+
+- name: Configure DNS via Route53 Integration
+  block:
+    - name: Set Route53 DNS records variable
+      ansible.builtin.set_fact:
+        route53_dns_records: "{{ route53_dns_records | default([]) + email_dns_records }}"
+        route53_enabled: true
+        route53_dns_enabled: true
+
+    - name: Include Route53 Integration Role
+      ansible.builtin.include_role:
+        name: route53_integration
+  when: route53_dns_enabled | default(false)
+
+- name: Display Manual DNS Instructions
+  block:
+    - name: Display DNS Records for Manual Entry
+      ansible.builtin.debug:
+        msg: |
+          ------------------------------------------------------------------
+          MANUAL DNS ACTION REQUIRED
+          ------------------------------------------------------------------
+          Please create the following records in your DNS provider:
+
+          {% for record in email_dns_records %}
+          Type:  {{ record.type }}
+          Name:  {{ record.record }}
+          Value: {{ record.value }}
+          TTL:   {{ record.ttl }}
+          Zone:  {{ record.zone }}
+          ------------------------------------------------------------------
+          {% endfor %}
+  when: 
+    - not (cloudflare_dns_enabled | default(false))
+    - not (route53_dns_enabled | default(false))

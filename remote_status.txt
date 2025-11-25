@@ -1,7 +1,0 @@
-● kumomta.service - KumoMTA Email Delivery Service
-     Loaded: loaded (/etc/systemd/system/kumomta.service; enabled; preset: enabled)
-     Active: activating (auto-restart) (Result: exit-code) since Fri 2025-11-21 00:59:13 UTC; 7s ago
-       Docs: https://github.com/kumocorp/kumomta
-    Process: 1519729 ExecStart=/opt/kumomta/sbin/kumod --policy /etc/kumomta/kumomta.conf (code=exited, status=1/FAILURE)
-   Main PID: 1519729 (code=exited, status=1/FAILURE)
-        CPU: 88ms

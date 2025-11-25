@@ -3,95 +3,15 @@
 
 - name: Setup DMARC Records
   block:
-    # Step 1: Check for existing DMARC records to prevent duplicates
-    - name: Check for existing DMARC records
-      ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name=_dmarc.{{ email_domain }}"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ cloudflare_api_token }}"
-          Content-Type: "application/json"
-        status_code: [200, 404]
-      register: existing_dmarc_records
-      when: cloudflare_api_token is defined and cloudflare_api_token != ""
-      changed_when: false
-      ignore_errors: true
-
-    - name: Extract existing DMARC record count
-      set_fact:
-        existing_dmarc_count: "{{ (existing_dmarc_records.json.result | default([])) | length if existing_dmarc_records.status | default(200) == 200 else 0 }}"
-        existing_dmarc_ids: "{{ (existing_dmarc_records.json.result | default([]) | map(attribute='id') | list) if existing_dmarc_records.status | default(200) == 200 else [] }}"
-      when: existing_dmarc_records is not skipped
-
-    - name: Display existing DMARC records found
-      debug:
-        msg: |
-          Found {{ existing_dmarc_count }} existing DMARC record(s) for _dmarc.{{ email_domain }}
-          {% if existing_dmarc_count | int > 0 %}
-          Record IDs: {{ existing_dmarc_ids | join(', ') }}
-          {% endif %}
-      when: existing_dmarc_records is not skipped
-
-    # Step 2: Remove duplicate/conflicting DMARC records if more than 1 exists
-    - name: Remove duplicate DMARC records (keep only the most recent/correct one)
-      block:
-        - name: Get details of all existing DMARC records
-          ansible.builtin.uri:
-            url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ item }}"
-            method: GET
-            headers:
-              Authorization: "Bearer {{ cloudflare_api_token }}"
-              Content-Type: "application/json"
-            status_code: 200
-          register: dmarc_record_details
-          loop: "{{ existing_dmarc_ids }}"
-          when: existing_dmarc_count | int > 1
-          changed_when: false
-
-        - name: Identify the most complete DMARC record (with sp=, pct=, rua=, ruf=)
-          set_fact:
-            records_with_all_fields: "{{ dmarc_record_details.results | map(attribute='json.result') | select('defined') | select('search', 'sp=') | select('search', 'pct=') | select('search', 'rua=') | select('search', 'ruf=') | list }}"
-            record_ids_to_delete: []
-          when: existing_dmarc_count | int > 1
-
-        - name: Set record to keep (most complete record)
-          set_fact:
-            record_to_keep: "{{ (records_with_all_fields | first) if (records_with_all_fields | length > 0) else (dmarc_record_details.results | map(attribute='json.result') | first) }}"
-          when: existing_dmarc_count | int > 1 and records_with_all_fields is defined
-
-        - name: Delete duplicate DMARC records
-          ansible.builtin.uri:
-            url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ item.json.result.id }}"
-            method: DELETE
-            headers:
-              Authorization: "Bearer {{ cloudflare_api_token }}"
-              Content-Type: "application/json"
-            status_code: 200
-          register: delete_result
-          loop: "{{ dmarc_record_details.results }}"
-          when:
-            - existing_dmarc_count | int > 1
-            - item.json.result.id != (record_to_keep.id | default(''))
-          changed_when: delete_result.status == 200
-
-      when:
-        - existing_dmarc_count | int > 1
-        - not skip_dmarc_dns | default(false)
-
-    # Step 3: Create or update the DMARC record
-    - name: Create DMARC TXT Record (only if not exists or needs update)
-      community.general.cloudflare_dns:
-        zone: "{{ email_domain }}"
-        record: "_dmarc"
-        type: "TXT"
-        value: "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}; pct={{ dmarc_percent }};"
-        ttl: 3600
-        api_token: "{{ cloudflare_api_token }}"
-      register: dmarc_record_result
-      when:
-        - (existing_dmarc_count | int) == 0 or (existing_dmarc_count | int) == 1
-        - not skip_dmarc_dns | default(false)
-      ignore_errors: true
+    - name: Add DMARC record to DNS list
+      ansible.builtin.set_fact:
+        email_dns_records: "{{ email_dns_records | default([]) + [{
+          'type': 'TXT',
+          'record': '_dmarc' + ('.' + dns_record_prefix if dns_record_prefix != '@' else ''),
+          'value': 'v=DMARC1; p=' + dmarc_policy + '; sp=' + dmarc_subdomain_policy + '; rua=mailto:' + dmarc_report_email + '; ruf=mailto:' + dmarc_forensics_email + '; pct=' + (dmarc_percent | string) + ';',
+          'ttl': 3600,
+          'zone': dns_zone_name
+        }] }}"
 
     - name: Display DMARC Status
       ansible.builtin.debug:
@@ -100,7 +20,7 @@
           Policy: {{ dmarc_policy }}
           Report Email: {{ dmarc_report_email }}
           Forensics Email: {{ dmarc_forensics_email }}
-          Record(s) after setup: {{ existing_dmarc_count if (existing_dmarc_count | int) > 1 else '1 (created or verified)' }}
+          Forensics Email: {{ dmarc_forensics_email }}
 
   rescue:
     - name: Handle DMARC Setup Error

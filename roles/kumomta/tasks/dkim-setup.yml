@@ -3,13 +3,7 @@
 
 - name: Set up DKIM for KumoMTA
   block:
-    - name: Create DKIM directory
-      ansible.builtin.file:
-        path: "{{ kumomta_home }}/etc/dkim"
-        owner: "{{ kumomta_user }}"
-        group: "{{ kumomta_group }}"
-        mode: '0700'
-        state: directory
+    # Directory creation handled in main.yml
 
     - name: Check if DKIM key exists for primary domain
       ansible.builtin.stat:
@@ -75,7 +69,7 @@
         mode: '0644'
         state: file
 
-    - name: Create symbolic link for selector if different from 'default'
+    - name: Create symbolic link for selector to domain key file
       ansible.builtin.file:
         src: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
         dest: "{{ kumomta_home }}/etc/dkim/{{ dkim_selector }}.key"
@@ -83,7 +77,7 @@
         group: "{{ kumomta_group }}"
         state: link
         force: yes
-      when: dkim_selector != 'default' and email_domain != dkim_selector
+      when: email_domain != dkim_selector
 
     - name: Extract DKIM public key from existing key (for DNS record creation)
       ansible.builtin.shell:

@@ -32,8 +32,8 @@
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        owner: kumomta
-        group: kumomta
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
         mode: '0755'
       become: true
       loop:

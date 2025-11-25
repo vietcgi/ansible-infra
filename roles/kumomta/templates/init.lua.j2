@@ -32,9 +32,8 @@ kumo.define_spool {
 
 -- DKIM Signing handler for email authentication
 -- This handler signs every inbound message with DKIM using the configured domain key
-kumo.on('smtp_server_message_received', function(msg)
-  -- Verify email_domain is configured
-  {% if email_domain is defined and email_domain != '' %}
+-- DKIM signing disabled here; handled by kumomta policy
+--[[
   local signer = kumo.dkim.rsa_sha256_signer {
     domain = '{{ email_domain }}',
     selector = '{{ dkim_selector | default("default") }}',
@@ -43,11 +42,7 @@ kumo.on('smtp_server_message_received', function(msg)
     over_sign = true,
   }
   msg:dkim_sign(signer)
-  {% else %}
-  -- Warning: email_domain not configured, DKIM signing disabled
-  kumo.log('WARN', 'email_domain not defined in init.lua template - DKIM signing disabled')
-  {% endif %}
-end)
+--]]
 
 -- Define queue configuration (retry intervals, max age, egress pool assignment)
 -- This is CRITICAL for message delivery - without this, messages won't be routed

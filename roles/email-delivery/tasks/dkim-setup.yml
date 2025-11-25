@@ -18,9 +18,9 @@
 
     - name: Extract DKIM public key
       ansible.builtin.shell: |
-        openssl rsa -in /opt/kumomta/etc/dkim/{{ dkim_selector }}.key -pubout | \
+        openssl rsa -in /opt/kumomta/etc/dkim/{{ dkim_selector }}.key -pubout 2>/dev/null | \
         grep -v "PUBLIC KEY" | \
-        tr -d '\n' > /tmp/dkim_public_{{ dkim_selector }}.txt
+        tr -d '\n\r\t ' > /tmp/dkim_public_{{ dkim_selector }}.txt
       changed_when: false
 
     - name: Read DKIM public key
@@ -28,47 +28,15 @@
         src: "/tmp/dkim_public_{{ dkim_selector }}.txt"
       register: dkim_public_key
 
-    - name: Check for existing DKIM DNS record
-      ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ dkim_selector }}._domainkey.{{ email_domain }}"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ cloudflare_api_token }}"
-          Content-Type: "application/json"
-      register: existing_dkim_records
-      when: not skip_dkim_dns | default(false)
-
-    - name: Update existing DKIM DNS record
-      ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records/{{ existing_dkim_records.json.result[0].id }}"
-        method: PUT
-        headers:
-          Authorization: "Bearer {{ cloudflare_api_token }}"
-          Content-Type: "application/json"
-        body_format: json
-        body:
-          type: "TXT"
-          name: "{{ dkim_selector }}._domainkey.{{ email_domain }}"
-          content: "v=DKIM1; k=rsa; p={{ dkim_public_key.content | b64decode }}"
-          ttl: 3600
-      when: 
-        - not skip_dkim_dns | default(false)
-        - existing_dkim_records.json.result | length > 0
-        - existing_dkim_records.json.result[0].content != ('v=DKIM1; k=rsa; p=' + (dkim_public_key.content | b64decode))
-
-    - name: Create DKIM DNS record
-      community.general.cloudflare_dns:
-        zone: "{{ cloudflare_zone_name | default('nguoivietcali.com') }}"
-        record: "{{ dkim_selector }}._domainkey.{{ email_domain }}"
-        type: "TXT"
-        value: 'v=DKIM1; k=rsa; p={{ dkim_public_key.content | b64decode }}'
-        ttl: 3600
-        api_token: "{{ cloudflare_api_token }}"
-      register: dkim_record_result
-      ignore_errors: true
-      when: 
-        - not skip_dkim_dns | default(false)
-        - existing_dkim_records.json.result | length == 0
+    - name: Add DKIM record to DNS list
+      ansible.builtin.set_fact:
+        email_dns_records: "{{ email_dns_records | default([]) + [{
+          'type': 'TXT',
+          'record': dkim_selector + '._domainkey' + ('.' + dns_record_prefix if dns_record_prefix != '@' else ''),
+          'value': ('v=DKIM1; k=rsa; p=' + (dkim_public_key.content | b64decode | trim)),
+          'ttl': 3600,
+          'zone': dns_zone_name
+        }] }}"
 
     - name: Set DKIM key permissions
       ansible.builtin.file:

@@ -3,41 +3,41 @@
 
 - name: Email Delivery Platform Setup
   block:
-    - name: Configure Cloudflare DNS Records
+    - name: Initialize DNS variables
+      ansible.builtin.set_fact:
+        email_dns_records: []
+        # Use cloudflare_zone_name if provided by playbook, otherwise fall back to email_domain
+        dns_zone_name: "{{ cloudflare_zone_name | default(email_domain, true) }}"
+
+    - name: Calculate DNS record prefix (subdomain)
+      ansible.builtin.set_fact:
+        # If email_domain is "sub.example.com" and zone is "example.com", prefix is "sub"
+        # If email_domain is "example.com" and zone is "example.com", prefix is "@"
+        dns_record_prefix: "{{ email_domain | regex_replace('.' + dns_zone_name + '$', '') if email_domain != dns_zone_name else '@' }}"
+
+    - name: Configure Cloudflare DNS Records (A/MX)
       ansible.builtin.include_tasks: cloudflare-dns.yml
       when: cloudflare_api_token is defined and cloudflare_api_token != ""
 
-    - name: Configure DKIM Keys and DNS Records
+    - name: Configure DKIM Keys (Generate Keys & Fact)
       ansible.builtin.include_tasks: dkim-setup.yml
 
-    - name: Configure SPF Records
+    - name: Configure SPF Records (Generate Fact)
       ansible.builtin.include_tasks: spf-setup.yml
 
-    - name: Configure DMARC Records
+    - name: Configure DMARC Records (Generate Fact)
       ansible.builtin.include_tasks: dmarc-setup.yml
 
+    - name: Debug DNS records before dispatch
+      ansible.builtin.debug:
+        msg: "Email DNS records to be created: {{ email_dns_records | to_nice_json }}"
+
+    - name: Dispatch DNS Configuration (Provider Agnostic)
+      ansible.builtin.include_tasks: dns-configure.yml
+
     # ========== DNS VERIFICATION TASKS ==========
-    # Post-deployment verification to ensure all DNS records are configured correctly
-    # with no duplicates or invalid formats
-
-    - name: Verify DMARC Record Configuration
-      ansible.builtin.include_tasks: dmarc-verification.yml
-      when: cloudflare_api_token is defined and cloudflare_api_token != ""
-      tags: [verify, dmarc]
-
-    - name: Verify DKIM Record Configuration
-      ansible.builtin.include_tasks: dkim-verification.yml
-      when: cloudflare_api_token is defined and cloudflare_api_token != ""
-      tags: [verify, dkim]
-
-    - name: Verify SPF Record Configuration
-      ansible.builtin.include_tasks: spf-verification.yml
-      when: cloudflare_api_token is defined and cloudflare_api_token != ""
-      tags: [verify, spf]
-
-    - name: Display DNS Verification Summary
-      ansible.builtin.include_tasks: dns-verification-summary.yml
-      tags: [verify]
+    # Verification is now handled by the provider roles or manual verification
+    # Legacy verification tasks removed to support multi-provider setup
 
     - name: Configure TLS Certificates
       ansible.builtin.include_tasks: tls-certificates.yml
