@@ -23,6 +23,24 @@
         mode: '0640'
       notify: restart kumomta
 
+    - name: Template Bounce Policy script
+      ansible.builtin.template:
+        src: bounce-policy.lua.j2
+        dest: "{{ kumomta_config_dir }}/policy/bounce_policy.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
+    - name: Template FBL Processor script
+      ansible.builtin.template:
+        src: fbl-processor.lua.j2
+        dest: "{{ kumomta_config_dir }}/policy/fbl_processor.lua"
+        owner: "{{ kumomta_user }}"
+        group: "{{ kumomta_group }}"
+        mode: '0640'
+      notify: restart kumomta
+
     - name: Set proper directory permissions for config (allow kumod access)
       ansible.builtin.file:
         path: "{{ kumomta_config_dir }}"
