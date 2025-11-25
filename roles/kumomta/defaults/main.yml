@@ -48,6 +48,13 @@ kumomta_connection_timeout: 300
 kumomta_io_timeout: 300
 kumomta_max_message_size: 104857600  # 100MB
 
+# Environment variables for systemd service (thread pool configuration)
+# These help KumoMTA detect and use proper concurrency
+kumomta_env_variables:
+  RAYON_NUM_THREADS: "{{ kumomta_worker_threads }}"  # Rayon thread pool size
+  RUST_LOG: "info"
+  RUST_BACKTRACE: "0"
+
 # TLS/Security
 kumomta_tls_enabled: true
 kumomta_tls_certificate: "{{ kumomta_config_dir }}/certs/kumomta.crt"
