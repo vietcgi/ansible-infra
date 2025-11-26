@@ -60,7 +60,9 @@ jobs:
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Run ansible-lint
-        run: ansible-lint --version && ansible-lint roles/ playbooks/
+        run: |
+          ansible-lint --version
+          ansible-lint roles/ playbooks/ --offline
         continue-on-error: false
 
       - name: Run yamllint
