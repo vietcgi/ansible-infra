@@ -39,13 +39,7 @@ warn_list:
   - key-order[task]  # Task key ordering preference
 
 # Offline mode (don't download schemas)
-offline: true
-
-# Mock modules with upstream metadata issues
-mock_modules:
-  - amazon.aws.aws_caller_info
-  - amazon.aws.route53
-  - amazon.aws.route53_zone
+offline: false
 
 # Enable opt-in security rules
 enable_list:
