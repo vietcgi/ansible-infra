@@ -41,10 +41,6 @@ warn_list:
 # Offline mode (don't download schemas)
 offline: false
 
-# Mock modules with incomplete metadata (upstream bugs)
-mock_modules:
-  - amazon.aws.sts_caller_identity
-
 # Enable opt-in security rules
 enable_list:
   - no-log-password

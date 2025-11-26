@@ -28,9 +28,9 @@
       when: route53_access_key and route53_secret_key
       block:
         - name: Test AWS API connectivity
-          amazon.aws.sts_caller_identity:
-            aws_access_key: "{{ route53_access_key }}"
-            aws_secret_key: "{{ route53_secret_key }}"
+          amazon.aws.aws_caller_info:
+            access_key: "{{ route53_access_key }}"
+            secret_key: "{{ route53_secret_key }}"
             region: "{{ route53_region }}"
           register: aws_identity
           ignore_errors: true
