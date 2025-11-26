@@ -3,6 +3,11 @@
 # Deploys and configures a production-ready Kubernetes cluster with networking, RBAC, and monitoring
 
 - name: Kubernetes Cluster Orchestration Block
+  tags:
+    - orchestration
+    - kubernetes
+    - cluster
+
   block:
     # Validate Kubernetes is enabled
     - name: Validate Kubernetes prerequisites
@@ -27,8 +32,8 @@
           - containerd
           - containerd.io
         state: present
-        update_cache: yes
-      become: yes
+        update_cache: true
+      become: true
       when:
         - ansible_os_family == 'Debian'
         - container_runtime_check.rc != 0
@@ -38,12 +43,12 @@
       ansible.builtin.file:
         path: /etc/containerd
         state: directory
-        mode: '0755'
-      become: yes
+        mode: "0755"
+      become: true
 
     - name: Generate containerd config
       ansible.builtin.shell: "containerd config default > /etc/containerd/config.toml"
-      become: yes
+      become: true
       when: container_runtime_check.rc != 0
 
     - name: Enable systemd cgroup driver in containerd
@@ -52,13 +57,13 @@
         regexp: "^\\s*systemd_cgroup = false"
         line: "            systemd_cgroup = true"
         state: present
-      become: yes
+      become: true
       notify: restart containerd
 
     # Disable swap for Kubernetes compatibility
     - name: Disable swap
       ansible.builtin.command: "swapoff -a"
-      become: yes
+      become: true
       changed_when: false
       ignore_errors: true
 
@@ -67,25 +72,25 @@
         path: /etc/fstab
         state: absent
         regexp: "\\bswap\\b"
-      become: yes
+      become: true
 
     # Configure kernel parameters for Kubernetes
     - name: Configure kernel parameters for Kubernetes
       ansible.builtin.lineinfile:
         path: /etc/sysctl.d/99-kubernetes.conf
         line: "{{ item }}"
-        create: yes
+        create: true
         state: present
       loop:
         - "net.ipv4.ip_forward = 1"
         - "net.bridge.bridge-nf-call-iptables = 1"
         - "net.bridge.bridge-nf-call-ip6tables = 1"
-      become: yes
+      become: true
       notify: reload sysctl
 
     - name: Load br_netfilter module
-      ansible.builtin.shell: "modprobe br_netfilter"
-      become: yes
+      ansible.builtin.command: "modprobe br_netfilter"
+      become: true
       changed_when: false
 
     # Install Kubernetes components
@@ -93,7 +98,7 @@
       ansible.builtin.apt_repository:
         repo: "deb https://pkgs.k8s.io/core:/stable:/v{{ orchestration_kubernetes_version | default('1.28') }}/deb/ /"
         state: present
-      become: yes
+      become: true
       when: ansible_os_family == 'Debian'
 
     - name: Install Kubernetes components
@@ -103,8 +108,8 @@
           - "kubeadm={{ orchestration_kubernetes_version | default('1.28') }}*"
           - "kubectl={{ orchestration_kubernetes_version | default('1.28') }}*"
         state: present
-        update_cache: yes
-      become: yes
+        update_cache: true
+      become: true
       when: ansible_os_family == 'Debian'
 
     - name: Hold Kubernetes packages
@@ -114,8 +119,8 @@
           - kubeadm
           - kubectl
         state: present
-        update_cache: yes
-      become: yes
+        update_cache: true
+      become: true
 
     # Initialize Kubernetes cluster (control plane)
     - name: Check if Kubernetes is already initialized
@@ -131,7 +136,7 @@
           --apiserver-advertise-address={{ ansible_default_ipv4.address }} \
           --control-plane-endpoint={{ orchestration_kubernetes_control_plane_endpoint | default(inventory_hostname) }}:6443 \
           --cluster-name={{ orchestration_cluster_name }}
-      become: yes
+      become: true
       when:
         - not k8s_init_check.stat.exists
         - "'control_plane' in group_names or 'master' in group_names"
@@ -141,23 +146,23 @@
       ansible.builtin.file:
         path: /root/.kube
         state: directory
-        mode: '0700'
-      become: yes
+        mode: "0700"
+      become: true
 
     - name: Copy admin kubeconfig
       ansible.builtin.copy:
         src: /etc/kubernetes/admin.conf
         dest: /root/.kube/config
-        remote_src: yes
-        mode: '0600'
-      become: yes
+        remote_src: true
+        mode: "0600"
+      become: true
       when: k8s_init_check.stat.exists or "'control_plane' in group_names"
 
     # Install network plugin (Flannel)
     - name: Install Flannel network plugin
       ansible.builtin.shell: |
         kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -170,7 +175,7 @@
     - name: Install Kubernetes Metrics Server
       ansible.builtin.shell: |
         kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -189,7 +194,7 @@
           metadata:
             name: prometheus
             namespace: monitoring
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -206,8 +211,8 @@
       ignore_errors: true
 
     - name: Join worker nodes to cluster
-      ansible.builtin.shell: "{{ join_command.content | b64decode }}"
-      become: yes
+      ansible.builtin.command: "{{ join_command.content | b64decode }}"
+      become: true
       when:
         - "'worker' in group_names or 'node' in group_names"
         - join_command.content is defined
@@ -222,7 +227,7 @@
     - name: Check cluster nodes status
       ansible.builtin.shell: |
         kubectl get nodes -o wide
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -233,7 +238,7 @@
     - name: Check cluster components status
       ansible.builtin.shell: |
         kubectl get componentstatuses
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -247,7 +252,7 @@
           node-role.kubernetes.io/worker=true \
           cluster-name={{ orchestration_cluster_name }} \
           --overwrite
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -264,14 +269,14 @@
     - name: Download and install Helm
       ansible.builtin.shell: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      become: yes
+      become: true
       when: helm_check.rc != 0
 
     - name: Add Prometheus Helm repository
       ansible.builtin.shell: |
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         helm repo update
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -289,7 +294,7 @@
             name: fast-ssd
           provisioner: kubernetes.io/no-provisioner
           volumeBindingMode: WaitForFirstConsumer
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -320,11 +325,6 @@
           Kubernetes cluster configuration encountered an error.
           This may occur if the cluster is already initialized or network plugins fail to install.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - orchestration
-    - kubernetes
-    - cluster
 
 - name: Display Kubernetes cluster status summary
   ansible.builtin.debug:

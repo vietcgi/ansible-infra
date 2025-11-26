@@ -3,57 +3,57 @@
 # Provides inbound connection filtering at application layer
 
 - name: "Debug: Configuring Application Firewall (ALF)"
-  debug:
+  ansible.builtin.debug:
     msg: "Configuring macOS Application Firewall with stealth mode"
 
 - name: "Check current Application Firewall status"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>&1 | grep -E "Firewall is|status"
   register: alf_status_check
   changed_when: false
   check_mode: false
 
 - name: "Display current ALF status"
-  debug:
+  ansible.builtin.debug:
     msg: "{{ alf_status_check.stdout_lines }}"
 
 - name: "Enable Application Firewall"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
   when: '"Firewall is off" in alf_status_check.stdout'
   register: alf_enable_result
   changed_when: alf_enable_result.rc == 0
 
 - name: "Enable Application Firewall stealth mode"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
   register: alf_stealth_result
   changed_when: '"Stealth mode" in alf_stealth_result.stdout or alf_stealth_result.rc == 0'
   when: macos_firewall_stealth_mode
 
 - name: "Enable Application Firewall logging"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on
   register: alf_logging_result
   changed_when: '"Logging" in alf_logging_result.stdout or alf_logging_result.rc == 0'
   when: macos_firewall_logging_enabled
 
 - name: "Block all incoming connections (optional - may break services)"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --setblockall on
   register: alf_blockall_result
   changed_when: alf_blockall_result.rc == 0
   when: macos_firewall_block_all_incoming
 
 - name: "Verify Application Firewall final status"
-  shell: |
+  ansible.builtin.shell: |
     /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
   register: alf_final_status
   changed_when: false
   check_mode: false
 
 - name: "Display final ALF configuration"
-  debug:
+  ansible.builtin.debug:
     msg: |
       Application Firewall Configuration Complete:
       {{ alf_final_status.stdout }}

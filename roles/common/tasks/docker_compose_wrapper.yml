@@ -38,7 +38,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   become: true
@@ -66,7 +66,7 @@
   ansible.builtin.file:
     path: /usr/local/lib/docker/cli-plugins
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   become: true
@@ -81,8 +81,8 @@
     dest: /usr/local/bin/docker-compose
     owner: root
     group: root
-    mode: '0755'
-    backup: yes
+    mode: "0755"
+    backup: true
   become: true
   tags:
     - docker_compose
@@ -95,8 +95,8 @@
     dest: /etc/docker/compose/.env
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_compose
@@ -109,8 +109,8 @@
     dest: /etc/docker/compose/docker-compose.defaults.yml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_defaults | default({}) | length > 0
   tags:
@@ -128,8 +128,8 @@
     dest: /etc/docker/compose/logging.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - docker_compose
@@ -140,7 +140,7 @@
   ansible.builtin.file:
     path: "{{ container_docker_compose_log_dir | default('/var/log/docker-compose') }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   become: true
@@ -155,8 +155,8 @@
     dest: /etc/docker/compose/networks.yml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_networks | default([]) | length > 0
   tags:
@@ -170,8 +170,8 @@
     dest: /etc/docker/compose/volumes.yml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_volumes | default([]) | length > 0
   tags:
@@ -191,8 +191,8 @@
     dest: /etc/docker/compose/healthchecks.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - docker_compose
@@ -203,7 +203,7 @@
   ansible.builtin.file:
     path: /etc/systemd/system/docker-compose@.service.d
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   become: true
@@ -218,8 +218,8 @@
     dest: /opt/docker-compose/sample.yml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_install_samples | default(false) | bool
   tags:
@@ -233,8 +233,8 @@
     dest: /etc/docker/compose/resource-limits.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_resource_limits | default({}) | length > 0
   tags:
@@ -257,7 +257,7 @@
     dest: /etc/bash_completion.d/docker-compose
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   become: true
   when: ansible_os_family != "Alpine"
   tags:
@@ -294,8 +294,8 @@
     dest: /etc/docker/compose/monitoring.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_compose_monitoring | default(false) | bool
   tags:

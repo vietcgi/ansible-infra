@@ -26,6 +26,12 @@
     - encryption_at_rest
 
 - name: Encrypt /var/log (system logs)
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_encrypt_logs is defined
+  tags:
+    - encryption_at_rest
+
   block:
     - name: Create encrypted container for logs
       ansible.builtin.shell: |
@@ -62,7 +68,7 @@
     - name: Set restricted permissions on log encryption key
       ansible.builtin.file:
         path: /etc/crypt_var_log.key
-        mode: '0400'
+        mode: "0400"
         owner: root
         group: root
       when:
@@ -78,21 +84,21 @@
         line: "crypt_var_log /dev/vg0/var_log /etc/crypt_var_log.key luks2"
         regexp: "^crypt_var_log"
         state: present
-        create: yes
-        mode: '0600'
+        create: true
+        mode: "0600"
       when:
         - common_encrypt_logs | bool
         - ansible_os_family != 'Darwin'
         - log_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
+- name: Encrypt /home (user data)
   when:
     - ansible_os_family != 'Darwin'
-    - common_encrypt_logs is defined
+    - common_encrypt_home is defined
   tags:
     - encryption_at_rest
 
-- name: Encrypt /home (user data)
   block:
     - name: Create encrypted container for home
       ansible.builtin.shell: |
@@ -128,7 +134,7 @@
     - name: Set restricted permissions on home encryption key
       ansible.builtin.file:
         path: /etc/crypt_home.key
-        mode: '0400'
+        mode: "0400"
         owner: root
         group: root
       when:
@@ -144,21 +150,21 @@
         line: "crypt_home /dev/vg0/home /etc/crypt_home.key luks2"
         regexp: "^crypt_home"
         state: present
-        create: yes
-        mode: '0600'
+        create: true
+        mode: "0600"
       when:
         - common_encrypt_home | bool
         - ansible_os_family != 'Darwin'
         - home_key_exists.stat.exists | default(false)
       tags:
         - encryption_at_rest
+- name: Encrypt swap space
   when:
     - ansible_os_family != 'Darwin'
-    - common_encrypt_home is defined
+    - common_encrypt_swap is defined
   tags:
     - encryption_at_rest
 
-- name: Encrypt swap space
   block:
     - name: Create encrypted swap
       ansible.builtin.shell: |
@@ -197,8 +203,8 @@
         line: "crypt_swap /swapfile /etc/crypt_swap.key luks2"
         regexp: "^crypt_swap"
         state: present
-        create: yes
-        mode: '0600'
+        create: true
+        mode: "0600"
       when:
         - common_encrypt_swap | bool
       tags:
@@ -210,18 +216,18 @@
         line: "/dev/mapper/crypt_swap none swap sw 0 0"
         regexp: "/dev/mapper/crypt_swap"
         state: present
-        backup: yes
+        backup: true
       when:
         - common_encrypt_swap | bool
       tags:
         - encryption_at_rest
+- name: Enable FileVault (macOS)
   when:
-    - ansible_os_family != 'Darwin'
-    - common_encrypt_swap is defined
+    - ansible_os_family == 'Darwin'
+    - common_encryption_enabled | bool
   tags:
     - encryption_at_rest
 
-- name: Enable FileVault (macOS)
   block:
     - name: Check FileVault status
       ansible.builtin.command:
@@ -244,13 +250,12 @@
       changed_when: false
       tags:
         - encryption_at_rest
+- name: Configure encrypted filesystem options
   when:
-    - ansible_os_family == 'Darwin'
-    - common_encryption_enabled | bool
+    - ansible_os_family != 'Darwin'
   tags:
     - encryption_at_rest
 
-- name: Configure encrypted filesystem options
   block:
     - name: Set mount options for encrypted partitions
       ansible.builtin.lineinfile:
@@ -258,7 +263,7 @@
         regexp: "^/dev/mapper/crypt_"
         line: "{{ item }}"
         state: present
-        backup: yes
+        backup: true
       loop:
         - "/dev/mapper/crypt_var_log /var/log ext4 defaults,noexec,nodev 0 2"
         - "/dev/mapper/crypt_home /home ext4 defaults,nodev 0 2"
@@ -267,11 +272,6 @@
       ignore_errors: true
       tags:
         - encryption_at_rest
-  when:
-    - ansible_os_family != 'Darwin'
-  tags:
-    - encryption_at_rest
-
 - name: Display encryption configuration status
   ansible.builtin.debug:
     msg: |

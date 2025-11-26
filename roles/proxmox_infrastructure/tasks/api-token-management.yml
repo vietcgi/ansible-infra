@@ -4,6 +4,12 @@
 - name: API Token Management
   block:
     - name: "Create API token: {{ token_item.name }}"
+      loop: "{{ proxmox_api_tokens }}"
+      loop_control:
+        loop_var: token_item
+        label: "{{ token_item.name }}"
+      when: proxmox_api_tokens | length > 0
+
       block:
         - name: "Check if user exists: {{ token_item.user }}"
           ansible.builtin.shell: |
@@ -54,12 +60,6 @@
         - name: "Token creation error: {{ token_item.name }}"
           ansible.builtin.debug:
             msg: "Warning: API token {{ token_item.name }} creation had issues. Check logs."
-
-      loop: "{{ proxmox_api_tokens }}"
-      loop_control:
-        loop_var: token_item
-        label: "{{ token_item.name }}"
-      when: proxmox_api_tokens | length > 0
 
     - name: Display API tokens created
       ansible.builtin.debug:

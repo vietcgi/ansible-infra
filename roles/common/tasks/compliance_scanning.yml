@@ -36,7 +36,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_scanning
 
@@ -46,7 +46,7 @@
     dest: /opt/compliance-scanning/run-cis-audit.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_scanning
     - cis_benchmark
@@ -84,7 +84,7 @@
     dest: /opt/compliance-scanning/run-full-scan.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_scanning
 
@@ -106,18 +106,18 @@
     state: directory
     owner: root
     group: root
-    mode: '0750'
+    mode: "0750"
   tags:
     - compliance_scanning
 
 - name: Configure AIDE for auto-update after scan
   ansible.builtin.lineinfile:
     path: /etc/aide/aide.conf.d/05_aide_post
-    create: yes
+    create: true
     line: "# AIDE post-scan configuration"
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - compliance_scanning
     - aide
@@ -128,7 +128,7 @@
     dest: /usr/local/bin/generate-compliance-report
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_scanning
 
@@ -138,7 +138,7 @@
     dest: /etc/logrotate.d/compliance
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - compliance_scanning
 

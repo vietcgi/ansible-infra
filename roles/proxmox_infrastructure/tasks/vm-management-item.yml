@@ -97,7 +97,8 @@
   rescue:
     - name: "Disk configuration error: {{ vm_item.name }}"
       ansible.builtin.debug:
-        msg: "Warning: Disk configuration failed for {{ vm_item.name }}: {{ ansible_failed_result.msg | default('Unknown error') }}"
+        msg: "Warning: Disk configuration failed for {{ vm_item.name }}: {{ ansible_failed_result.msg | default('Unknown error')
+          }}"
 
 - name: "Start VM if needed: {{ vm_item.name }}"
   community.proxmox.proxmox_kvm:

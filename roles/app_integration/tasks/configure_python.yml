@@ -2,7 +2,7 @@
 # Configure Python/Django application with Auth0 integration
 
 - name: Display Python configuration
-  debug:
+  ansible.builtin.debug:
     msg: |
       Configuring Python Application
       ===============================
@@ -20,7 +20,7 @@
     - python
 
 - name: Check for requirements.txt
-  stat:
+  ansible.builtin.stat:
     path: "{{ app_root_path }}/requirements.txt"
   register: requirements_stat
   tags:
@@ -28,7 +28,7 @@
     - python
 
 - name: Check for Django settings.py
-  stat:
+  ansible.builtin.stat:
     path: "{{ app_root_path }}/settings.py"
   register: django_settings_stat
   when: app_framework == "django"
@@ -37,7 +37,7 @@
     - python
 
 - name: Create Python Auth0 config module
-  copy:
+  ansible.builtin.copy:
     content: |
       """
       Auth0 Configuration for {{ app_name }}
@@ -74,13 +74,13 @@
     owner: "{{ app_config_user | default('root') }}"
     group: "{{ app_config_group | default('root') }}"
     mode: "0644"
-    backup: yes
+    backup: true
   tags:
     - app_integration
     - python
 
 - name: Create Django Auth0 settings snippet
-  copy:
+  ansible.builtin.copy:
     content: |
       # Auth0 Django Integration
       # Add these settings to your Django settings.py
@@ -120,14 +120,14 @@
     owner: "{{ app_config_user | default('root') }}"
     group: "{{ app_config_group | default('root') }}"
     mode: "0644"
-    backup: yes
+    backup: true
   when: app_framework == "django"
   tags:
     - app_integration
     - python
 
 - name: Python configuration complete
-  debug:
+  ansible.builtin.debug:
     msg: |
       Python Auth0 Integration: ✓
 

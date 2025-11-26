@@ -12,7 +12,7 @@
 
 - name: Client Infrastructure Onboarding
   hosts: all
-  gather_facts: yes
+  gather_facts: true
   vars:
     # Default state: present (create), absent (destroy)
     onboarding_state: "present"
@@ -24,7 +24,7 @@
 
   pre_tasks:
     - name: Display onboarding configuration
-      debug:
+      ansible.builtin.debug:
         msg: |
           Client Onboarding Configuration
           ================================
@@ -38,7 +38,7 @@
         - always
 
     - name: Validate required variables for onboarding
-      assert:
+      ansible.builtin.assert:
         that:
           - client_name is defined
           - client_name | length > 0
@@ -55,7 +55,7 @@
         - always
 
     - name: Display infrastructure plan
-      debug:
+      ansible.builtin.debug:
         msg: |
           Onboarding Plan
           ===============
@@ -126,7 +126,7 @@
 
   post_tasks:
     - name: Display onboarding summary (create)
-      debug:
+      ansible.builtin.debug:
         msg: |
           Client Onboarding Complete
           ===========================
@@ -173,7 +173,7 @@
         - always
 
     - name: Display offboarding summary (destroy)
-      debug:
+      ansible.builtin.debug:
         msg: |
           Client Infrastructure Teardown
           ===============================
@@ -204,7 +204,7 @@
         - always
 
     - name: Generate onboarding report
-      copy:
+      ansible.builtin.copy:
         content: |
           # Client Onboarding Report
 
@@ -259,12 +259,12 @@
           **Version**: 1.0
         dest: "/tmp/{{ client_name }}_onboarding_report_{{ ansible_date_time.iso8601 }}.md"
       delegate_to: localhost
-      become: no
+      become: false
       tags:
         - always
 
     - name: Display report location
-      debug:
+      ansible.builtin.debug:
         msg: "Onboarding report saved to: /tmp/{{ client_name }}_onboarding_report_{{ ansible_date_time.iso8601 }}.md"
       tags:
         - always

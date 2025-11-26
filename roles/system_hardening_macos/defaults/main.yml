@@ -25,13 +25,13 @@
 macos_firewall_enabled: true
 macos_firewall_stealth_mode: true
 macos_firewall_logging_enabled: true
-macos_firewall_block_all_incoming: false  # false = allow needed services
+macos_firewall_block_all_incoming: false # false = allow needed services
 
 # Packet Filter (PF) - Network-layer firewall
 macos_pf_enabled: true
-macos_pf_rate_limit_ssh: true             # Enable rate limiting
-macos_pf_ssh_rate_limit_count: 5          # Max 5 connections
-macos_pf_ssh_rate_limit_window: 30        # Per 30 seconds
+macos_pf_rate_limit_ssh: true # Enable rate limiting
+macos_pf_ssh_rate_limit_count: 5 # Max 5 connections
+macos_pf_ssh_rate_limit_window: 30 # Per 30 seconds
 
 ## ============================================================================
 ## SSH SECURITY
@@ -42,7 +42,7 @@ macos_ssh_hardening_enabled: true
 
 # SSH Key Exchange (post-quantum safe options first)
 macos_ssh_key_exchange:
-  - sntrup761x25519-sha512@openssh.com    # Post-quantum (OpenSSH 8.10+)
+  - sntrup761x25519-sha512@openssh.com # Post-quantum (OpenSSH 8.10+)
   - curve25519-sha256
   - curve25519-sha256@libssh.org
 
@@ -68,7 +68,7 @@ macos_sshd_allow_tcp_forwarding: "no"
 macos_sshd_x11_forwarding: "no"
 macos_sshd_max_auth_tries: 3
 macos_sshd_max_sessions: 5
-macos_sshd_client_alive_interval: 300     # 5 minutes
+macos_sshd_client_alive_interval: 300 # 5 minutes
 macos_sshd_client_alive_count_max: 3
 
 ## ============================================================================
@@ -77,7 +77,7 @@ macos_sshd_client_alive_count_max: 3
 
 # System Integrity Protection (SIP) - MUST be true for production
 macos_sip_check_enabled: true
-macos_sip_required: true                  # Non-negotiable for security
+macos_sip_required: true # Non-negotiable for security
 
 # Gatekeeper - Code signature enforcement
 macos_gatekeeper_enabled: true
@@ -91,10 +91,10 @@ macos_xprotect_check_enabled: true
 
 # Sudo Configuration
 macos_sudo_password_required: true
-macos_sudo_timeout_minutes: 5             # Session timeout
+macos_sudo_timeout_minutes: 5 # Session timeout
 macos_sudo_logging_enabled: true
-macos_sudo_requiretty: true               # Require TTY for sudo
-macos_sudo_use_pty: true                  # Use pseudo-terminal
+macos_sudo_requiretty: true # Require TTY for sudo
+macos_sudo_use_pty: true # Use pseudo-terminal
 
 # Login Window Security
 macos_disable_auto_login: true
@@ -120,7 +120,7 @@ macos_disable_remote_apple_events: true
 # DNS Security (DoH/DoT)
 macos_dns_security_enabled: true
 macos_dns_servers:
-  - 9.9.9.9                               # Quad9 (DoH capable)
+  - 9.9.9.9 # Quad9 (DoH capable)
   - 149.112.112.112
 
 ## ============================================================================
@@ -129,7 +129,7 @@ macos_dns_servers:
 
 # OpenBSM Audit Logging
 macos_audit_logging_enabled: true
-macos_audit_flags: "ad,ad,-ad,-lo,-ss,-lo,-ss,-ps"  # NIST recommended
+macos_audit_flags: "ad,ad,-ad,-lo,-ss,-lo,-ss,-ps" # NIST recommended
 
 # Log Retention
 macos_log_retention_days: 30

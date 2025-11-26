@@ -2,7 +2,7 @@
 # Test KumoMTA Service
 - name: Test KumoMTA Service
   hosts: localhost
-  gather_facts: yes
+  gather_facts: true
   vars:
     kumomta_listen_port: 25
     kumomta_submit_port: 587
@@ -12,61 +12,61 @@
 
   tasks:
     - name: Check kumomta service exists
-      stat:
+      ansible.builtin.stat:
         path: /etc/systemd/system/kumomta.service
       register: service_file
       failed_when: not service_file.stat.exists
 
     - name: Check kumomta service is enabled
-      systemd:
+      ansible.builtin.systemd:
         name: kumomta.service
       register: service_status
       changed_when: false
 
     - name: Verify service is running
-      systemd:
+      ansible.builtin.systemd:
         name: kumomta.service
         state: started
       register: service_state
       changed_when: service_state.changed
 
     - name: Check if SMTP port is listening (port 25)
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ kumomta_listen_port }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: smtp_port
 
     - name: Check if submission port is listening (port 587)
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ kumomta_submit_port }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: submit_port
 
     - name: Check if TLS port is listening (port 465)
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ kumomta_tls_port }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: tls_port
 
     - name: Check if admin port is listening (port 8008)
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ kumomta_admin_port }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: admin_port
 
     - name: Check if metrics port is listening (port 9184)
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ kumomta_metrics_port }}"
         timeout: 5
-      ignore_errors: yes
+      ignore_errors: true
       register: metrics_port
 
     - name: Service test summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           Service Status: {{ service_status.status.ActiveState }}
           SMTP (25): {{ "✓ Listening" if smtp_port.state == "started" else "⚠ Not listening" }}

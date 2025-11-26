@@ -1,7 +1,7 @@
 ---
 - hosts: localhost
   connection: local
-  gather_facts: yes
+  gather_facts: true
   vars:
     # Enable all major features
     common_ssh_hardening_enabled: true

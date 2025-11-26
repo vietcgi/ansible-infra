@@ -36,7 +36,7 @@
     state: directory
     owner: consul
     group: consul
-    mode: '0750'
+    mode: "0750"
   become: true
   loop:
     - /etc/consul.d
@@ -50,10 +50,11 @@
 # Download and install Consul binary
 - name: Download Consul binary
   ansible.builtin.get_url:
-    url: "{{ service_discovery_consul_download_url | default('https://releases.hashicorp.com/consul/' + service_discovery_consul_version + '/consul_' + service_discovery_consul_version + '_' + ansible_system | lower + '_' + consul_arch + '.zip') }}"
+    url: "{{ service_discovery_consul_download_url | default('https://releases.hashicorp.com/consul/' + service_discovery_consul_version
+      + '/consul_' + service_discovery_consul_version + '_' + ansible_system | lower + '_' + consul_arch + '.zip') }}"
     dest: /tmp/consul.zip
     checksum: "{{ service_discovery_consul_checksum | default(omit) }}"
-    mode: '0644'
+    mode: "0644"
   become: true
   register: consul_download
   tags:
@@ -66,10 +67,10 @@
   ansible.builtin.unarchive:
     src: /tmp/consul.zip
     dest: /usr/local/bin/
-    remote_src: yes
+    remote_src: true
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   become: true
   when: consul_download.changed
   notify: restart consul
@@ -96,9 +97,9 @@
     dest: /etc/consul.d/server.json
     owner: consul
     group: consul
-    mode: '0640'
-    backup: yes
-    validate: '/usr/local/bin/consul validate /etc/consul.d'
+    mode: "0640"
+    backup: true
+    validate: "/usr/local/bin/consul validate /etc/consul.d"
   become: true
   register: consul_server_config
   tags:
@@ -113,9 +114,9 @@
     dest: /etc/consul.d/client.json
     owner: consul
     group: consul
-    mode: '0640'
-    backup: yes
-    validate: '/usr/local/bin/consul validate /etc/consul.d'
+    mode: "0640"
+    backup: true
+    validate: "/usr/local/bin/consul validate /etc/consul.d"
   become: true
   when: service_discovery_consul_node_type | default('server') == 'client'
   register: consul_client_config
@@ -137,8 +138,8 @@
     dest: /etc/consul.d/dns.json
     owner: consul
     group: consul
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: service_discovery_consul_dns_enabled | default(true) | bool
   tags:
@@ -153,9 +154,9 @@
     dest: /etc/consul.d/custom.json
     owner: consul
     group: consul
-    mode: '0640'
-    backup: yes
-    validate: '/usr/local/bin/consul validate /etc/consul.d'
+    mode: "0640"
+    backup: true
+    validate: "/usr/local/bin/consul validate /etc/consul.d"
   become: true
   when: service_discovery_consul_custom_config | default({}) | length > 0
   tags:
@@ -170,8 +171,8 @@
     dest: /etc/systemd/system/consul.service
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   register: consul_systemd
   notify: reload systemd
@@ -208,7 +209,8 @@
 # Verify Consul is running and responding
 - name: Verify Consul health
   ansible.builtin.uri:
-    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500) }}/v1/status/leader"
+    url: "http://{{ service_discovery_consul_bind_addr | default('127.0.0.1') }}:{{ service_discovery_consul_http_port | default(8500)
+      }}/v1/status/leader"
     method: GET
     status_code: 200
   register: consul_health_check
@@ -226,8 +228,8 @@
     dest: /etc/systemd/resolved.conf.d/consul.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: service_discovery_consul_dns_integration | default(true) | bool and ansible_service_mgr == 'systemd'
   notify: restart systemd-resolved
@@ -243,8 +245,8 @@
     dest: /etc/logrotate.d/consul
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - consul

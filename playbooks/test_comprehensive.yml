@@ -1,7 +1,7 @@
 ---
 - hosts: localhost
   connection: local
-  gather_facts: yes
+  gather_facts: true
   vars:
     common_hostname: "test-host"
     common_domain: "example.com"

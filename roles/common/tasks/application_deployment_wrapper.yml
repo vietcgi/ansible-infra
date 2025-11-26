@@ -3,6 +3,11 @@
 # Manages multi-tier application deployment with rolling updates, canary releases, and auto-scaling
 
 - name: Application Deployment Automation Block
+  tags:
+    - deployment
+    - applications
+    - orchestration
+
   block:
     # Validate deployment configuration
     - name: Validate application deployment prerequisites
@@ -26,7 +31,7 @@
             labels:
               app-tier: "{{ item.tier | default('general') }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -47,7 +52,7 @@
             name: "{{ item.name }}-config"
           data: "{{ item.config | default({}) }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -117,7 +122,7 @@
                       initialDelaySeconds: 5
                       periodSeconds: 5
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -148,7 +153,7 @@
                 port: "{{ item.service_port | default(80) }}"
                 targetPort: "{{ item.port | default(8080) }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -188,7 +193,7 @@
                     type: Utilization
                     averageUtilization: "{{ item.target_memory | default(80) }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -233,7 +238,7 @@
                   - protocol: UDP
                     port: 53
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -255,7 +260,7 @@
     - name: Check deployment status
       ansible.builtin.shell: |
         kubectl get deployments -n {{ deployment_namespace }} -o wide
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -268,7 +273,7 @@
     - name: Check pod status
       ansible.builtin.shell: |
         kubectl get pods -n {{ deployment_namespace }} -o wide
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -296,7 +301,7 @@
               - port: metrics
                 interval: 30s
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -326,11 +331,6 @@
           Application deployment encountered an error.
           This may occur if the Kubernetes cluster is not ready or container images are unavailable.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - deployment
-    - applications
-    - orchestration
 
 - name: Display application deployment summary
   ansible.builtin.debug:

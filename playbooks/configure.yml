@@ -8,19 +8,19 @@
 #   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --tags grafana
 #   ansible-playbook playbooks/configure.yml -i inventories/production/hosts.yml --skip-tags monitoring
 
-- name: ansible-infra - Configure Servers
+- name: Ansible-infra - Configure Servers
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
   vars:
     ansible_user: "{{ remote_user | default('ubuntu') }}"
 
   pre_tasks:
     - name: Validate configuration prerequisites
-      ping:
+      ansible.builtin.ping:
 
     - name: Display configuration info
-      debug:
+      ansible.builtin.debug:
         msg: |
           Configuring Server:
             Hostname: {{ inventory_hostname }}
@@ -72,7 +72,7 @@
 
   post_tasks:
     - name: Verify full configuration
-      assert:
+      ansible.builtin.assert:
         that:
           - ansible_os_family is defined
           - ansible_distribution is defined
@@ -80,7 +80,7 @@
         success_msg: "✓ Server configured with full stack successfully"
 
     - name: Display configuration completion summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           Configuration Complete for {{ inventory_hostname }}
           ================================================

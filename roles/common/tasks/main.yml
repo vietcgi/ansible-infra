@@ -3,7 +3,7 @@
 # Provides OS-agnostic server foundation setup
 
 - name: Import task files
-  include_tasks: "{{ item }}"
+  ansible.builtin.include_tasks: "{{ item }}"
   loop:
     # Core foundation tasks
     - validate_os.yml
@@ -81,12 +81,12 @@
     - advanced_monitoring_wrapper.yml
 
 - name: Display role completion summary
-  debug:
+  ansible.builtin.debug:
     msg: "Common role applied successfully - base server configuration complete"
   when: not ansible_check_mode
 
 - name: Display PHASE 2.A status
-  debug:
+  ansible.builtin.debug:
     msg: |
       ✓ PHASE 2.A Monitoring Stack Status:
       - Prometheus: {{ 'Enabled' if monitoring_prometheus_enabled | default(true) else 'Disabled' }}
@@ -99,7 +99,7 @@
   when: not ansible_check_mode
 
 - name: Display PHASE 2.B status
-  debug:
+  ansible.builtin.debug:
     msg: |
       ✓ PHASE 2.B Container Deployment Status:
       - Docker: {{ 'Enabled' if container_docker_enabled | default(true) else 'Disabled' }}
@@ -113,7 +113,7 @@
   when: not ansible_check_mode
 
 - name: Display PHASE 2.C status
-  debug:
+  ansible.builtin.debug:
     msg: |
       ✓ PHASE 2.C Service Discovery & Load Balancing Status:
       - Consul: {{ 'Enabled' if service_discovery_consul_enabled | default(false) else 'Disabled' }}
@@ -129,7 +129,7 @@
   when: not ansible_check_mode
 
 - name: Display PHASE 2.D status
-  debug:
+  ansible.builtin.debug:
     msg: |
       ✓ PHASE 2.D Security & PKI Infrastructure Status:
       - Vault: {{ 'Enabled' if security_vault_enabled | default(false) else 'Disabled' }}

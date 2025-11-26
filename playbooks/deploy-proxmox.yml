@@ -5,7 +5,7 @@
 - name: Deploy Proxmox Infrastructure
   hosts: proxmox_hypervisors
   gather_facts: true
-  serial: 1                                   # Process nodes sequentially
+  serial: 1 # Process nodes sequentially
   become: false
 
   pre_tasks:

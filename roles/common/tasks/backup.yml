@@ -16,6 +16,14 @@
     - always
 
 - name: Install Bacula backup client
+  when:
+    - backup_enabled | bool
+    - backup_client == "bacula"
+  tags:
+    - backup
+    - bacula
+    - packages
+
   block:
     - name: Install Bacula package (Debian/Ubuntu)
       ansible.builtin.package:
@@ -24,7 +32,7 @@
       when: ansible_os_family == 'Debian'
 
     - name: Install Bacula package (RHEL/CentOS)
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: bacula-client
         state: present
       when: ansible_os_family == 'RedHat'
@@ -34,7 +42,7 @@
         path: "{{ item }}"
         owner: bacula
         group: bacula
-        mode: '0750'
+        mode: "0750"
         state: directory
       loop:
         - /var/spool/bacula
@@ -46,30 +54,32 @@
         dest: /etc/bacula/bacula-fd.conf
         owner: root
         group: root
-        mode: '0640'
-        backup: yes
+        mode: "0640"
+        backup: true
       notify: restart bacula-fd
 
     - name: Enable and start Bacula FD service
       ansible.builtin.systemd:
         name: bacula-fd
-        enabled: yes
+        enabled: true
         state: started
-        daemon_reload: yes
-
-  when:
-    - backup_enabled | bool
-    - backup_client == "bacula"
-  tags:
-    - backup
-    - bacula
-    - packages
+        daemon_reload: true
 
 - name: Install Restic backup client
+  when:
+    - backup_enabled | bool
+    - backup_client == "restic"
+  tags:
+    - backup
+    - restic
+    - packages
+
   block:
     - name: Download and install Restic
       ansible.builtin.get_url:
-        url: "https://github.com/restic/restic/releases/download/v{{ restic_version | default('0.16.4') }}/restic_{{ restic_version | default('0.16.4') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.bz2"
+        url: "https://github.com/restic/restic/releases/download/v{{ restic_version | default('0.16.4') }}/restic_{{ restic_version
+          | default('0.16.4') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64')
+          }}.bz2"
         dest: /tmp/restic.bz2
         timeout: 30
       when: backup_client == "restic"
@@ -87,7 +97,7 @@
         path: "{{ item }}"
         owner: root
         group: root
-        mode: '0700'
+        mode: "0700"
         state: directory
       loop:
         - /var/lib/restic
@@ -100,9 +110,9 @@
         dest: /etc/restic/.env
         owner: root
         group: root
-        mode: '0600'
-        backup: yes
-      no_log: yes
+        mode: "0600"
+        backup: true
+      no_log: true
 
     - name: Initialize Restic repository
       ansible.builtin.command:
@@ -112,24 +122,22 @@
         RESTIC_PASSWORD: "{{ backup_restic_password }}"
         RESTIC_REPOSITORY: "{{ backup_restic_repo_path | default('/var/lib/restic') }}"
       when: backup_client == "restic" and backup_restic_password is defined
-      no_log: yes
-
-  when:
-    - backup_enabled | bool
-    - backup_client == "restic"
-  tags:
-    - backup
-    - restic
-    - packages
+      no_log: true
 
 - name: Configure backup scheduling
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - scheduling
+    - configuration
+
   block:
     - name: Create backup script directory
       ansible.builtin.file:
         path: /usr/local/bin/backup
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Create Bacula backup script
@@ -138,7 +146,7 @@
         dest: /usr/local/bin/backup/bacula-backup.sh
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
       when: backup_client == "bacula"
 
     - name: Create Restic backup script
@@ -147,7 +155,7 @@
         dest: /usr/local/bin/backup/restic-backup.sh
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
       when: backup_client == "restic"
 
     - name: Create backup cron job
@@ -160,13 +168,13 @@
         user: root
       when: backup_client in ["bacula", "restic"]
 
+- name: Configure backup retention policy
   when: backup_enabled | bool
   tags:
     - backup
-    - scheduling
+    - retention
     - configuration
 
-- name: Configure backup retention policy
   block:
     - name: Set Bacula retention
       ansible.builtin.lineinfile:
@@ -217,16 +225,16 @@
           FORGET_POLICY="--keep-daily {{ backup_retention_days }} --keep-weekly {{ (backup_retention_days / 7) | int }} --keep-monthly {{ (backup_retention_days / 30) | int }} --keep-yearly 1"
         owner: root
         group: root
-        mode: '0600'
+        mode: "0600"
       when: backup_client == "restic"
 
+- name: Configure backup verification
   when: backup_enabled | bool
   tags:
     - backup
-    - retention
+    - verification
     - configuration
 
-- name: Configure backup verification
   block:
     - name: Create backup verification script
       ansible.builtin.copy:
@@ -265,7 +273,7 @@
           echo "[$(date +'%Y-%m-%d %H:%M:%S')] Backup verification completed" >> "$LOG_FILE"
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Schedule backup verification
       ansible.builtin.cron:
@@ -275,13 +283,13 @@
         user: root
       when: backup_verify_after_backup | bool
 
+- name: Configure backup monitoring and alerts
   when: backup_enabled | bool
   tags:
     - backup
-    - verification
-    - configuration
+    - monitoring
+    - alerting
 
-- name: Configure backup monitoring and alerts
   block:
     - name: Create backup status check script
       ansible.builtin.copy:
@@ -317,7 +325,7 @@
           exit 0
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Create backup monitoring cron
       ansible.builtin.cron:
@@ -326,12 +334,6 @@
         hour: "*"
         minute: "0"
         user: root
-
-  when: backup_enabled | bool
-  tags:
-    - backup
-    - monitoring
-    - alerting
 
 - name: Set up backup logging
   ansible.builtin.copy:
@@ -369,13 +371,18 @@
       }
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: backup_enabled | bool
   tags:
     - backup
     - logging
 
 - name: Verify backup configuration
+  when: backup_enabled | bool
+  tags:
+    - backup
+    - validate
+
   block:
     - name: Check Bacula FD status
       ansible.builtin.systemd:
@@ -395,12 +402,7 @@
         - backup_restic_password is defined
       changed_when: false
       failed_when: false
-      no_log: yes
-
-  when: backup_enabled | bool
-  tags:
-    - backup
-    - validate
+      no_log: true
 
 - name: Display backup configuration summary
   ansible.builtin.debug:
@@ -436,4 +438,3 @@
   when: backup_enabled | bool
   tags:
     - backup
-

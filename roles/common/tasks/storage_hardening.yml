@@ -4,7 +4,7 @@
 # Compliance: CIS Benchmark 1.1.x, NIST CM-2
 
 - name: Ensure /tmp exists and is properly mounted
-  ansible.builtin.mount:
+  ansible.posix.mount:
     path: /tmp
     src: tmpfs
     fstype: tmpfs
@@ -17,9 +17,9 @@
 - name: Harden /var mount options
   ansible.builtin.lineinfile:
     path: /etc/fstab
-    regexp: '^\S+\s+/var\s'
+    regexp: "^\\S+\\s+/var\\s"
     line: "{{ item }} /var ext4 defaults,noexec,nodev,relatime 0 2"
-    backup: yes
+    backup: true
   loop: "{{ ansible_mounts | selectattr('mount', 'equalto', '/var') | map(attribute='device') | list }}"
   when: ansible_mounts | selectattr('mount', 'equalto', '/var') | list | length > 0
   notify: remount filesystems
@@ -30,9 +30,9 @@
 - name: Harden /home mount options
   ansible.builtin.lineinfile:
     path: /etc/fstab
-    regexp: '^\S+\s+/home\s'
+    regexp: "^\\S+\\s+/home\\s"
     line: "{{ item }} /home ext4 defaults,nodev,nosuid,relatime 0 2"
-    backup: yes
+    backup: true
   loop: "{{ ansible_mounts | selectattr('mount', 'equalto', '/home') | map(attribute='device') | list }}"
   when: ansible_mounts | selectattr('mount', 'equalto', '/home') | list | length > 0
   notify: remount filesystems
@@ -66,7 +66,7 @@
 - name: Enable SMART monitoring for disks
   ansible.builtin.service:
     name: smartd
-    enabled: yes
+    enabled: true
     state: started
   when: ansible_os_family == 'Debian'
   tags:
@@ -79,7 +79,7 @@
     dest: /etc/disk-quotas.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - storage_hardening
     - quotas
@@ -98,7 +98,7 @@
     dest: /usr/local/bin/check-disk-usage.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - storage_hardening
     - monitoring
@@ -120,7 +120,7 @@
     dest: /usr/local/bin/check-fs-integrity.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - storage_hardening
     - integrity
@@ -144,7 +144,7 @@
     dest: /usr/local/bin/check-lvm.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - storage_hardening
     - lvm
@@ -167,7 +167,7 @@
     dest: /etc/logrotate.d/storage
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - storage_hardening
     - logging
@@ -177,7 +177,7 @@
     path: /etc/modprobe.d/blacklist.conf
     line: "blacklist usb-storage"
     state: present
-    create: yes
+    create: true
   when: not storage_allow_usb | default(false)
   tags:
     - storage_hardening

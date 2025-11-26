@@ -4,6 +4,8 @@
 - name: High Availability (HA) Setup
   block:
     - name: Configure HA Groups
+      when: proxmox_ha_groups | length > 0
+
       block:
         - name: "Create HA Group: {{ ha_group.group_name }}"
           community.proxmox.proxmox_ha_group:
@@ -32,9 +34,9 @@
               - {{ group.group_name }}: {{ group.nodes | join(', ') }}
               {% endfor %}
 
-      when: proxmox_ha_groups | length > 0
-
     - name: Configure HA Resources
+      when: proxmox_ha_resources | length > 0
+
       block:
         - name: "Register VM in HA: {{ ha_resource.vmid }}"
           community.proxmox.proxmox_ha_resource:
@@ -64,8 +66,6 @@
               {% for resource in proxmox_ha_resources %}
               - VM {{ resource.vmid }}: Group={{ resource.group }}, MaxRestart={{ resource.max_restart | default(3) }}
               {% endfor %}
-
-      when: proxmox_ha_resources | length > 0
 
     - name: Configure HA Resource Manager
       block:

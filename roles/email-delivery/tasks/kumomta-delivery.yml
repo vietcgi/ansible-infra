@@ -14,7 +14,7 @@
         dest: /opt/kumomta/etc/email-delivery-queue.lua
         owner: kumod
         group: kumod
-        mode: '0644'
+        mode: "0644"
       notify: restart kumomta
       when: kumomta_etc_dir.stat.exists
 
@@ -24,7 +24,7 @@
         dest: /opt/kumomta/etc/email-delivery-policy.lua
         owner: kumod
         group: kumod
-        mode: '0644'
+        mode: "0644"
       notify: restart kumomta
       when: kumomta_etc_dir.stat.exists
 

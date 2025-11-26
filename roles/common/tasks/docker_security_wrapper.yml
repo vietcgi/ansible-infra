@@ -40,8 +40,8 @@
     dest: /etc/docker/daemon.json.d/security.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   register: docker_security_config
   tags:
@@ -60,8 +60,8 @@
     dest: /etc/docker/daemon.json.d/disable-experimental.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -82,8 +82,8 @@
     dest: /etc/apparmor.d/docker
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: apparmor_dir.stat.exists and container_docker_apparmor_enabled | default(true) | bool
   register: apparmor_profile
@@ -117,8 +117,8 @@
     dest: /etc/selinux/docker_context
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: selinux_dir.stat.exists and container_docker_selinux_enabled | default(true) | bool
   tags:
@@ -132,7 +132,7 @@
     path: /var/run/docker.sock
     owner: root
     group: docker
-    mode: '0660'
+    mode: "0660"
   become: true
   tags:
     - docker_security
@@ -145,8 +145,8 @@
     dest: /etc/docker/daemon.json.d/resource-limits.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_resource_limits | default({}) | length > 0
   tags:
@@ -165,8 +165,8 @@
     dest: /etc/docker/daemon.json.d/capabilities.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -183,8 +183,8 @@
     dest: /etc/docker/daemon.json.d/filesystem.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -197,8 +197,8 @@
     dest: /etc/docker/daemon.json.d/userns-remap.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_userns_remap_enabled | default(false) | bool
   tags:
@@ -213,8 +213,8 @@
     dest: /etc/docker/daemon.json.d/network-security.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -231,8 +231,8 @@
     dest: /etc/docker/daemon.json.d/image-verification.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -245,8 +245,8 @@
     dest: /etc/docker/daemon.json.d/audit-logging.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_audit_logging | default(true) | bool
   tags:
@@ -261,8 +261,8 @@
     dest: /etc/docker/seccomp.json
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_seccomp_enabled | default(true) | bool
   tags:
@@ -312,8 +312,8 @@
     dest: /etc/docker/container-security-policy.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -326,8 +326,8 @@
     dest: /etc/docker/image-scanning.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_image_scanning | default(false) | bool
   tags:
@@ -341,8 +341,8 @@
     dest: /etc/docker/security-monitoring.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: container_docker_security_monitoring | default(true) | bool
   tags:
@@ -356,8 +356,8 @@
     dest: /etc/docker/SECURITY_CHECKLIST.md
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - docker_security
@@ -385,8 +385,8 @@
         dest: /etc/docker/trivy-config.yaml
         owner: root
         group: root
-        mode: '0644'
-        backup: yes
+        mode: "0644"
+        backup: true
       become: true
       when: docker_trivy_enabled | default(true) | bool
       tags:
@@ -400,8 +400,8 @@
         dest: /usr/local/bin/docker-image-scan.sh
         owner: root
         group: root
-        mode: '0755'
-        backup: yes
+        mode: "0755"
+        backup: true
       become: true
       when: docker_trivy_enabled | default(true) | bool
       tags:
@@ -469,8 +469,8 @@
         dest: /etc/falco/falco.yaml
         owner: root
         group: root
-        mode: '0644'
-        backup: yes
+        mode: "0644"
+        backup: true
       become: true
       notify: restart falco
       when: docker_falco_enabled | default(true) | bool
@@ -485,8 +485,8 @@
         dest: /etc/falco/rules.d/container_security_rules.yaml
         owner: root
         group: root
-        mode: '0644'
-        backup: yes
+        mode: "0644"
+        backup: true
       become: true
       notify: restart falco
       when: docker_falco_enabled | default(true) | bool
@@ -498,7 +498,7 @@
     - name: Enable and start Falco service
       ansible.builtin.systemd:
         name: falco
-        enabled: yes
+        enabled: true
         state: started
       become: true
       when: docker_falco_enabled | default(true) | bool

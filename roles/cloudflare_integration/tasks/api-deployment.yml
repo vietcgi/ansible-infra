@@ -92,7 +92,7 @@
               threshold: "{{ cloudflare_waf_rate_limit_threshold }}"
               period: "{{ cloudflare_waf_rate_limit_period }}"
               description: "Ansible-managed WAF rate limit"
-            status_code: [200, 400]  # 400 if rule exists
+            status_code: [200, 400] # 400 if rule exists
           register: rate_limit_result
           changed_when: "rate_limit_result.status == 200"
           no_log: true
@@ -285,7 +285,7 @@
           Content-Type: "application/json"
         body_format: json
         body:
-          value: "{{ cloudflare_cache_browser_ttl * 60 }}"  # Convert minutes to seconds
+          value: "{{ cloudflare_cache_browser_ttl * 60 }}" # Convert minutes to seconds
         status_code: 200
       register: browser_cache_result
       changed_when: "'success' in browser_cache_result.json and browser_cache_result.json.success"

@@ -8,15 +8,15 @@
 #   ansible-playbook playbooks/maintenance.yml -i inventories/production/hosts.yml --tags logs
 #   ansible-playbook playbooks/maintenance.yml -i inventories/staging/hosts.yml
 
-- name: ansible-infra - Maintenance Tasks
+- name: Ansible-infra - Maintenance Tasks
   hosts: all
-  become: yes
-  gather_facts: yes
-  serial: 1  # Update servers one at a time
+  become: true
+  gather_facts: true
+  serial: 1 # Update servers one at a time
 
   pre_tasks:
     - name: Display maintenance window info
-      debug:
+      ansible.builtin.debug:
         msg: |
           Starting Maintenance Window for {{ inventory_hostname }}
           ======================================================
@@ -28,45 +28,49 @@
           - Backup verification
 
     - name: Check system health before maintenance
-      command: /usr/bin/uptime
+      ansible.builtin.command: /usr/bin/uptime
       register: pre_maintenance_uptime
       changed_when: false
 
   tasks:
     - name: System updates
-      block:
-        - name: Update package cache (Debian-based)
-          apt:
-            update_cache: yes
-            cache_valid_time: 3600
-          when: ansible_os_family == "Debian"
-
-        - name: Upgrade packages (Debian-based)
-          apt:
-            upgrade: dist
-            autoremove: yes
-            autoclean: yes
-          when: ansible_os_family == "Debian"
-
-        - name: Update packages (RedHat-based)
-          yum:
-            name: "*"
-            state: latest
-          when: ansible_os_family == "RedHat"
-
       tags:
         - updates
         - maintenance
 
+      block:
+        - name: Update package cache (Debian-based)
+          ansible.builtin.apt:
+            update_cache: true
+            cache_valid_time: 3600
+          when: ansible_os_family == "Debian"
+
+        - name: Upgrade packages (Debian-based)
+          ansible.builtin.apt:
+            upgrade: dist
+            autoremove: true
+            autoclean: true
+          when: ansible_os_family == "Debian"
+
+        - name: Update packages (RedHat-based)
+          ansible.builtin.dnf:
+            name: "*"
+            state: latest
+          when: ansible_os_family == "RedHat"
+
     - name: Cleanup logs
+      tags:
+        - logs
+        - maintenance
+
       block:
         - name: Rotate logs manually
-          command: logrotate -f /etc/logrotate.conf
+          ansible.builtin.command: logrotate -f /etc/logrotate.conf
           changed_when: false
           when: ansible_os_family != "Darwin"
 
         - name: Clear old logs (>30 days)
-          find:
+          ansible.builtin.find:
             paths: /var/log
             age: 30d
             type: f
@@ -74,58 +78,54 @@
           register: old_logs
 
         - name: Delete old logs
-          file:
+          ansible.builtin.file:
             path: "{{ item.path }}"
             state: absent
           loop: "{{ old_logs.files }}"
           when: old_logs.files is defined
 
-      tags:
-        - logs
-        - maintenance
-
     - name: Clear caches
-      block:
-        - name: Clear package manager cache (Debian-based)
-          apt:
-            autoclean: yes
-          when: ansible_os_family == "Debian"
-
-        - name: Clear package manager cache (RedHat-based)
-          command: yum clean all
-          changed_when: false
-          when: ansible_os_family == "RedHat"
-
       tags:
         - cache
         - maintenance
 
+      block:
+        - name: Clear package manager cache (Debian-based)
+          ansible.builtin.apt:
+            autoclean: true
+          when: ansible_os_family == "Debian"
+
+        - name: Clear package manager cache (RedHat-based)
+          ansible.builtin.command: yum clean all
+          changed_when: false
+          when: ansible_os_family == "RedHat"
+
     - name: Validate monitoring
+      tags:
+        - monitoring
+        - maintenance
+
       block:
         - name: Check Grafana Agent status
-          systemd:
+          ansible.builtin.systemd:
             name: grafana-agent
             state: started
           when: ansible_os_family != "Darwin"
 
         - name: Check Node Exporter status
-          systemd:
+          ansible.builtin.systemd:
             name: node_exporter
             state: started
           when: ansible_os_family != "Darwin"
 
-      tags:
-        - monitoring
-        - maintenance
-
   post_tasks:
     - name: Check system health after maintenance
-      command: /usr/bin/uptime
+      ansible.builtin.command: /usr/bin/uptime
       register: post_maintenance_uptime
       changed_when: false
 
     - name: Display maintenance completion summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           Maintenance Completed for {{ inventory_hostname }}
           ===================================================

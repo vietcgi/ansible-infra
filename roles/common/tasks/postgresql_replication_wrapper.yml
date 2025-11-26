@@ -4,6 +4,12 @@
 # Supports WAL archiving, hot standby, and replication slots
 
 - name: PostgreSQL Replication Configuration Block
+  tags:
+    - database
+    - postgresql
+    - replication
+    - ha
+
   block:
     # Validate PostgreSQL is enabled
     - name: Validate PostgreSQL replication prerequisites
@@ -26,20 +32,20 @@
       ansible.builtin.apt:
         name: "postgresql-{{ database_postgresql_version | default('15') }}"
         state: present
-        update_cache: yes
+        update_cache: true
       when:
         - ansible_os_family == 'Debian'
         - postgresql_version_check.rc != 0
-      become: yes
+      become: true
 
     - name: Install PostgreSQL server (RedHat/CentOS)
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: "postgresql{{ database_postgresql_version | default('15') }}-server"
         state: present
       when:
         - ansible_os_family == 'RedHat'
         - postgresql_version_check.rc != 0
-      become: yes
+      become: true
 
     # Create replication user on primary
     - name: Create PostgreSQL replication user
@@ -48,7 +54,7 @@
         password: "{{ database_postgresql_replication_password }}"
         role_attr_flags: "LOGIN,REPLICATION"
         state: present
-      become: yes
+      become: true
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
 
@@ -75,7 +81,8 @@
         - key: "archive_mode"
           value: "on"
         - key: "archive_command"
-          value: "'{{ database_postgresql_archive_command | default(\"test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f\") }}'"
+          value: "'{{ database_postgresql_archive_command | default(\"test ! -f /var/lib/postgresql/wal_archive/%f && cp %p
+            /var/lib/postgresql/wal_archive/%f\") }}'"
         - key: "archive_timeout"
           value: "{{ database_postgresql_archive_timeout | default(300) }}"
         - key: "synchronous_commit"
@@ -88,17 +95,18 @@
           value: "on"
         - key: "log_disconnections"
           value: "on"
-      become: yes
+      become: true
       notify: restart postgresql
 
     # Configure pg_hba.conf for replication
     - name: Add replication entry to pg_hba.conf
       ansible.builtin.lineinfile:
         path: "/etc/postgresql/{{ database_postgresql_version | default('15') }}/main/pg_hba.conf"
-        line: "host    replication    {{ database_postgresql_replication_user | default('replication') }}    {{ hostvars[item].ansible_default_ipv4.address }}/32    md5"
+        line: "host    replication    {{ database_postgresql_replication_user | default('replication') }}    {{ hostvars[item].ansible_default_ipv4.address
+          }}/32    md5"
         state: present
       loop: "{{ groups['database_replicas'] | default([]) }}"
-      become: yes
+      become: true
       notify: restart postgresql
 
     # Create WAL archive directory
@@ -109,15 +117,15 @@
         owner: postgres
         group: postgres
         mode: "0700"
-      become: yes
+      become: true
 
     # Restart PostgreSQL to apply configuration changes
     - name: Restart PostgreSQL on primary
       ansible.builtin.systemd:
         name: "postgresql"
         state: restarted
-        enabled: yes
-      become: yes
+        enabled: true
+      become: true
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
 
     # Setup replication on replicas
@@ -125,7 +133,7 @@
       ansible.builtin.systemd:
         name: "postgresql"
         state: stopped
-      become: yes
+      become: true
       when: "'replica' in group_names or inventory_hostname in groups['database_replicas'] | default([])"
 
     - name: Create base backup on replica
@@ -139,7 +147,7 @@
         -W
       environment:
         PGPASSWORD: "{{ database_postgresql_replication_password }}"
-      become: yes
+      become: true
       become_user: postgres
       when: "'replica' in group_names or inventory_hostname in groups['database_replicas'] | default([])"
 
@@ -151,7 +159,7 @@
         owner: postgres
         group: postgres
         mode: "0600"
-      become: yes
+      become: true
       when: "'replica' in group_names or inventory_hostname in groups['database_replicas'] | default([])"
 
     # Start PostgreSQL on replicas
@@ -159,8 +167,8 @@
       ansible.builtin.systemd:
         name: "postgresql"
         state: started
-        enabled: yes
-      become: yes
+        enabled: true
+      become: true
       when: "'replica' in group_names or inventory_hostname in groups['database_replicas'] | default([])"
 
     # Verify replication status on primary
@@ -174,7 +182,7 @@
         db: postgres
         query: "SELECT usename, client_addr, state, sync_state, write_lsn FROM pg_stat_replication"
       register: replication_status
-      become: yes
+      become: true
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
 
@@ -189,7 +197,7 @@
         db: postgres
         query: "SELECT pg_create_physical_replication_slot('{{ item }}', false)"
       loop: "{{ groups['database_replicas'] | default([]) }}"
-      become: yes
+      become: true
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
       ignore_errors: true
@@ -199,7 +207,7 @@
       community.postgresql.postgresql_query:
         db: postgres
         query: "ALTER SYSTEM SET wal_keep_size = '{{ database_postgresql_wal_keep_size | default(\"1GB\") }}';"
-      become: yes
+      become: true
       become_user: postgres
       when: "'primary' in group_names or inventory_hostname == groups['database_primary'][0] | default(inventory_hostname)"
       ignore_errors: true
@@ -216,7 +224,7 @@
           value: "latest"
         - key: "wal_backup_command"
           value: "'{{ database_postgresql_wal_backup_command | default(\"cp %p /var/lib/postgresql/wal_backup/%f\") }}'"
-      become: yes
+      become: true
       notify: restart postgresql
 
     # Create WAL backup directory for PITR
@@ -227,7 +235,7 @@
         owner: postgres
         group: postgres
         mode: "0700"
-      become: yes
+      become: true
 
     # Setup streaming replication slot monitoring
     - name: Create replication slot monitoring script
@@ -240,7 +248,7 @@
           #!/bin/bash
           # Monitor PostgreSQL replication slots
           psql -U postgres -t -c "SELECT slot_name, slot_type, active FROM pg_replication_slots;" 2>/dev/null
-      become: yes
+      become: true
 
     # Setup backup script for daily backups
     - name: Create database backup script
@@ -250,7 +258,7 @@
         owner: root
         group: root
         mode: "0755"
-      become: yes
+      become: true
 
     # Schedule daily backups via cron
     - name: Schedule daily PostgreSQL backups
@@ -261,7 +269,7 @@
         job: "/usr/local/bin/database_backup.sh > /var/log/postgresql_backup.log 2>&1"
         user: root
         state: present
-      become: yes
+      become: true
 
     # Setup health check endpoint
     - name: Create PostgreSQL health check script
@@ -271,7 +279,7 @@
         owner: root
         group: root
         mode: "0755"
-      become: yes
+      become: true
 
     # Configure systemd health check timer
     - name: Create PostgreSQL health check systemd service
@@ -294,7 +302,7 @@
 
           [Install]
           WantedBy=multi-user.target
-      become: yes
+      become: true
       notify: reload systemd
 
     # Configure logrotate for PostgreSQL logs
@@ -305,7 +313,7 @@
         owner: root
         group: root
         mode: "0644"
-      become: yes
+      become: true
 
     # Setup PostgreSQL monitoring for Prometheus
     - name: Create PostgreSQL metrics endpoint configuration
@@ -333,7 +341,7 @@
           track_counts = on
           track_io_timing = on
           track_functions = 'all'
-      become: yes
+      become: true
       notify: restart postgresql
 
     # Final verification
@@ -341,21 +349,21 @@
       ansible.builtin.command: "psql -U postgres -t -c 'SHOW max_wal_senders;'"
       register: pg_wal_senders_check
       changed_when: false
-      become: yes
+      become: true
       become_user: postgres
 
     - name: Verify PostgreSQL WAL archiving
       ansible.builtin.command: "psql -U postgres -t -c 'SHOW archive_mode;'"
       register: pg_archive_mode_check
       changed_when: false
-      become: yes
+      become: true
       become_user: postgres
 
     - name: Verify replication slots
       ansible.builtin.command: "psql -U postgres -t -c 'SELECT COUNT(*) FROM pg_replication_slots;'"
       register: pg_slots_check
       changed_when: false
-      become: yes
+      become: true
       become_user: postgres
       ignore_errors: true
 
@@ -383,12 +391,6 @@
           PostgreSQL replication configuration encountered an error.
           This may occur if PostgreSQL is not yet installed or configured.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - database
-    - postgresql
-    - replication
-    - ha
 
 - name: Display PostgreSQL replication status
   ansible.builtin.debug:

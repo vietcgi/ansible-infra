@@ -18,7 +18,8 @@
 # Detect system architecture for HAProxy installation
 - name: Set HAProxy architecture facts
   ansible.builtin.set_fact:
-    haproxy_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine }}"
+    haproxy_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine
+      }}"
   tags:
     - haproxy
     - installation
@@ -43,7 +44,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   become: true
   loop:
     - /etc/haproxy
@@ -75,9 +76,9 @@
     dest: /etc/haproxy/haproxy.cfg
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
-    validate: 'haproxy -f %s -c'
+    mode: "0644"
+    backup: true
+    validate: "haproxy -f %s -c"
   become: true
   register: haproxy_config
   notify: reload haproxy
@@ -92,8 +93,8 @@
     dest: /etc/haproxy/defaults.cfg
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: loadbalancing_haproxy_defaults_enabled | default(false) | bool
   register: haproxy_defaults_config
@@ -110,8 +111,8 @@
     dest: "/etc/haproxy/frontends/{{ item.name | default('frontend-' + loop.index | string) }}.cfg"
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   loop: "{{ loadbalancing_haproxy_frontends | default([]) }}"
   when: loadbalancing_haproxy_frontends | default([]) | length > 0
   register: haproxy_frontend_config
@@ -128,8 +129,8 @@
     dest: "/etc/haproxy/backends/{{ item.name | default('backend-' + loop.index | string) }}.cfg"
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   loop: "{{ loadbalancing_haproxy_backends | default([]) }}"
   when: loadbalancing_haproxy_backends | default([]) | length > 0
   register: haproxy_backend_config
@@ -146,8 +147,8 @@
     dest: /etc/haproxy/consul-integration.cfg
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: service_discovery_consul_enabled | default(false) | bool
   register: haproxy_consul_config
@@ -165,8 +166,8 @@
     dest: /etc/haproxy/stats.cfg
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: loadbalancing_haproxy_stats_enabled | default(true) | bool
   register: haproxy_stats_config
@@ -184,8 +185,8 @@
     dest: /etc/haproxy/ssl-cert.pem
     owner: root
     group: root
-    mode: '0600'
-    backup: yes
+    mode: "0600"
+    backup: true
   become: true
   when:
     - loadbalancing_haproxy_ssl_enabled | default(false) | bool
@@ -205,8 +206,8 @@
     dest: /etc/systemd/system/haproxy.service
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   register: haproxy_systemd
   notify: reload systemd
@@ -243,7 +244,8 @@
 # Verify HAProxy is running and responding
 - name: Verify HAProxy health
   ansible.builtin.uri:
-    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_frontend_port | default(80) }}/status"
+    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_frontend_port | default(80)
+      }}/status"
     method: GET
     status_code: [200, 404]
   register: haproxy_health_check
@@ -257,7 +259,8 @@
 # Verify HAProxy stats API is available (if enabled)
 - name: Verify HAProxy stats API
   ansible.builtin.uri:
-    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_stats_port | default(8404) }}/stats"
+    url: "http://{{ loadbalancing_haproxy_bind_addr | default('127.0.0.1') }}:{{ loadbalancing_haproxy_stats_port | default(8404)
+      }}/stats"
     method: GET
     status_code: [200, 401]
   register: haproxy_stats_check
@@ -287,8 +290,8 @@
     dest: /etc/logrotate.d/haproxy
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - haproxy
@@ -345,8 +348,8 @@
     dest: /etc/haproxy/metrics-export.cfg
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   when: monitoring_prometheus_enabled | default(false) | bool
   register: haproxy_metrics_export

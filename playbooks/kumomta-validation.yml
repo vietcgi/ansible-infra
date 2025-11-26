@@ -81,7 +81,7 @@
         dest: "/tmp/kumomta-validation-{{ inventory_hostname }}.txt"
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       vars:
         report_timestamp: "{{ ansible_date_time.iso8601 }}"
         report_service_status: "{{ kumomta_service.status | default({}) }}"
@@ -142,7 +142,7 @@
       ansible.builtin.fetch:
         src: "/tmp/kumomta-validation-{{ inventory_hostname }}.txt"
         dest: "/tmp/kumomta-reports/"
-        flat: yes
+        flat: true
       delegate_to: "{{ item }}"
       loop: "{{ groups['kumomta'] }}"
       failed_when: false

@@ -34,7 +34,7 @@
         state: directory
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
       become: true
       loop:
         - "{{ kumomta_config_dir }}"
@@ -45,8 +45,9 @@
       when: not kumod_binary.stat.exists
 
     - name: Set KumoMTA .deb download URL (direct GitHub release)
-      set_fact:
-        kumomta_deb_url: "https://github.com/KumoCorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version }}.Ubuntu22.04_amd64.deb"
+      ansible.builtin.set_fact:
+        kumomta_deb_url: "https://github.com/KumoCorp/kumomta/releases/download/{{ kumomta_version }}/kumomta.{{ kumomta_version
+          }}.Ubuntu22.04_amd64.deb"
       when: not kumod_binary.stat.exists
 
     - name: Download KumoMTA .deb package from GitHub releases

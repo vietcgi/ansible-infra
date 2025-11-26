@@ -11,6 +11,8 @@
       register: dkim_key_stat
 
     - name: Generate DKIM RSA key pair for primary domain
+      when: not dkim_key_stat.stat.exists
+
       block:
         - name: Generate private DKIM key
           ansible.builtin.command:
@@ -24,17 +26,19 @@
             dest: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
             owner: "{{ kumomta_user }}"
             group: "{{ kumomta_group }}"
-            mode: '0600'
+            mode: "0600"
           when: genrsa_result.rc == 0
 
         - name: Generate public DKIM key from private key
-          ansible.builtin.shell:
-            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout -out {{ kumomta_home }}/etc/dkim/{{ email_domain }}.pub"
+          ansible.builtin.command:
+            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout -out {{ kumomta_home }}/etc/dkim/{{
+              email_domain }}.pub"
           changed_when: false
 
         - name: Extract DKIM public key for DNS record
           ansible.builtin.shell:
-            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN PUBLIC' | grep -v 'END PUBLIC' | tr -d '\\n'"
+            cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN
+              PUBLIC' | grep -v 'END PUBLIC' | tr -d '\\n'"
           register: dkim_public_key
           changed_when: false
 
@@ -51,14 +55,12 @@
               Type: TXT
               Value: v=DKIM1; k=rsa; p={{ dkim_public_key.stdout }}
 
-      when: not dkim_key_stat.stat.exists
-
     - name: Verify DKIM keys exist and have correct permissions
       ansible.builtin.file:
         path: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.key"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0600'
+        mode: "0600"
         state: file
 
     - name: Set public key permissions (readable by all)
@@ -66,7 +68,7 @@
         path: "{{ kumomta_home }}/etc/dkim/{{ email_domain }}.pub"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0644'
+        mode: "0644"
         state: file
 
     - name: Create symbolic link for selector to domain key file
@@ -76,12 +78,13 @@
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
         state: link
-        force: yes
+        force: true
       when: email_domain != dkim_selector
 
     - name: Extract DKIM public key from existing key (for DNS record creation)
       ansible.builtin.shell:
-        cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN PUBLIC' | grep -v 'END PUBLIC' | tr -d '\\n'"
+        cmd: "openssl rsa -in {{ kumomta_home }}/etc/dkim/{{ email_domain }}.key -pubout 2>/dev/null | grep -v 'BEGIN PUBLIC'
+          | grep -v 'END PUBLIC' | tr -d '\\n'"
       register: dkim_public_key_extracted
       changed_when: false
 

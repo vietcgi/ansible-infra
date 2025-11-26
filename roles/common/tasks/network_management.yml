@@ -49,8 +49,8 @@
     dest: /etc/netplan/99-static-ips.yaml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - ansible_os_family == 'Debian'
     - ansible_distribution_version is version('18.04', '>=')
@@ -67,8 +67,8 @@
     dest: /etc/network/interfaces
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - ansible_os_family == 'Debian'
     - ansible_distribution_version is version('18.04', '<')
@@ -80,19 +80,6 @@
     - static_ip
 
 - name: Configure static IP addresses (RHEL/CentOS via nmcli)
-  block:
-    - name: Create network config files for RHEL/CentOS
-      ansible.builtin.template:
-        src: rhel_network_config.j2
-        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.interface }}"
-        owner: root
-        group: root
-        mode: '0644'
-        backup: yes
-      loop: "{{ network_static_ips | default([]) }}"
-      when: network_static_ips is defined
-      notify: restart network service
-
   when:
     - ansible_os_family == 'RedHat'
     - network_static_ips is defined
@@ -105,8 +92,21 @@
 # Network Bonding Configuration
 # ========================================================================
 
+  block:
+    - name: Create network config files for RHEL/CentOS
+      ansible.builtin.template:
+        src: rhel_network_config.j2
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.interface }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      loop: "{{ network_static_ips | default([]) }}"
+      when: network_static_ips is defined
+      notify: restart network service
+
 - name: Install bonding kernel module (Linux)
-  ansible.builtin.modprobe:
+  community.general.modprobe:
     name: bonding
     state: present
   when:
@@ -122,8 +122,8 @@
     dest: /etc/netplan/99-bonding.yaml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - ansible_os_family == 'Debian'
     - ansible_distribution_version is version('18.04', '>=')
@@ -141,8 +141,8 @@
     dest: /etc/network/interfaces
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - ansible_os_family == 'Debian'
     - ansible_distribution_version is version('18.04', '<')
@@ -155,6 +155,18 @@
     - bonding
 
 - name: Configure bonding for RHEL/CentOS
+  when:
+    - ansible_os_family == 'RedHat'
+    - network_bonding_enabled | default(false) | bool
+    - network_bonds is defined
+  tags:
+    - network_management
+    - bonding
+
+# ========================================================================
+# keepalived for Virtual IP (VIP) & HA Failover
+# ========================================================================
+
   block:
     - name: Create bonding module configuration
       ansible.builtin.copy:
@@ -167,7 +179,7 @@
           {% endfor %}
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Create bond interface configurations
       ansible.builtin.template:
@@ -175,8 +187,8 @@
         dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item.name }}"
         owner: root
         group: root
-        mode: '0644'
-        backup: yes
+        mode: "0644"
+        backup: true
       loop: "{{ network_bonds | default([]) }}"
       notify: restart network service
 
@@ -191,22 +203,10 @@
           NM_CONTROLLED=no
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       loop: "{{ query('nested', network_bonds | default([]), wantjson=False) }}"
       when: item[0].interfaces is defined
       notify: restart network service
-
-  when:
-    - ansible_os_family == 'RedHat'
-    - network_bonding_enabled | default(false) | bool
-    - network_bonds is defined
-  tags:
-    - network_management
-    - bonding
-
-# ========================================================================
-# keepalived for Virtual IP (VIP) & HA Failover
-# ========================================================================
 
 - name: Install keepalived for virtual IP failover
   ansible.builtin.package:
@@ -226,8 +226,8 @@
     dest: /etc/keepalived/keepalived.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - ansible_os_family != 'Darwin'
     - network_keepalived_enabled | default(false) | bool
@@ -242,7 +242,7 @@
 - name: Create keepalived health check scripts
   ansible.builtin.copy:
     dest: "/usr/local/bin/keepalived_{{ item.name }}_check.sh"
-    mode: '0755'
+    mode: "0755"
     content: |
       #!/bin/bash
       # Health check for {{ item.name }}
@@ -275,9 +275,9 @@
 - name: Enable and start keepalived service
   ansible.builtin.systemd:
     name: keepalived
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when:
     - ansible_os_family != 'Darwin'
     - network_keepalived_enabled | default(false) | bool

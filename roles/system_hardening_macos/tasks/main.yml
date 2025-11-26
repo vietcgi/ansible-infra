@@ -3,21 +3,21 @@
 # Runs hardening tasks in dependency order
 
 - name: "Verify platform is macOS"
-  assert:
+  ansible.builtin.assert:
     that:
       - ansible_os_family == "Darwin"
     fail_msg: "This role only supports macOS (Darwin). Current OS: {{ ansible_os_family }}"
     quiet: true
 
 - name: "Verify macOS version is 14 or higher"
-  assert:
+  ansible.builtin.assert:
     that:
       - ansible_distribution_major_version | int >= 14
     fail_msg: "macOS 14 (Sonoma) or higher required. Current: {{ ansible_distribution_version }}"
     quiet: true
 
 - name: "Debug: Starting macOS system hardening"
-  debug:
+  ansible.builtin.debug:
     msg: |
       Starting macOS system hardening on {{ inventory_hostname }}
       macOS Version: {{ ansible_distribution_version }}
@@ -28,15 +28,21 @@
 ## ============================================================================
 
 - name: "Block: Critical System Checks"
+  when: macos_sip_check_enabled
+
+## ============================================================================
+## FIREWALL HARDENING
+## ============================================================================
+
   block:
     - name: "Check if System Integrity Protection is enabled"
-      shell: csrutil status
+      ansible.builtin.command: csrutil status
       register: sip_status
       changed_when: false
       check_mode: false
 
     - name: "Verify SIP is enabled (non-negotiable for production)"
-      assert:
+      ansible.builtin.assert:
         that:
           - '"enabled" in sip_status.stdout'
         fail_msg: |
@@ -48,26 +54,20 @@
       when: macos_sip_required
 
     - name: "Display SIP status"
-      debug:
+      ansible.builtin.debug:
         msg: "System Integrity Protection: {{ sip_status.stdout_lines }}"
-  when: macos_sip_check_enabled
-
-## ============================================================================
-## FIREWALL HARDENING
-## ============================================================================
-
 - name: "Block: Firewall Hardening"
   block:
     - name: "Include Application Firewall (ALF) hardening"
-      include_tasks: firewall_alf.yml
+      ansible.builtin.include_tasks: firewall_alf.yml
       when: macos_firewall_enabled and not macos_skip_firewall_config
 
     - name: "Include Packet Filter (PF) hardening"
-      include_tasks: firewall_pf.yml
+      ansible.builtin.include_tasks: firewall_pf.yml
       when: macos_pf_enabled and not macos_skip_firewall_config
   rescue:
     - name: "Display firewall error (non-critical)"
-      debug:
+      ansible.builtin.debug:
         msg: "Firewall configuration encountered an issue. Review logs."
 
 ## ============================================================================
@@ -77,11 +77,11 @@
 - name: "Block: SSH Security Hardening"
   block:
     - name: "Include SSH daemon hardening"
-      include_tasks: ssh_hardening.yml
+      ansible.builtin.include_tasks: ssh_hardening.yml
       when: macos_ssh_hardening_enabled and not macos_skip_ssh_hardening
   rescue:
     - name: "Display SSH hardening error"
-      debug:
+      ansible.builtin.debug:
         msg: "SSH hardening encountered an issue. Review logs."
 
 ## ============================================================================
@@ -91,7 +91,7 @@
 - name: "Block: System Integrity Verification"
   block:
     - name: "Include system integrity checks"
-      include_tasks: system_integrity.yml
+      ansible.builtin.include_tasks: system_integrity.yml
       when: macos_sip_check_enabled
 
 ## ============================================================================
@@ -101,16 +101,11 @@
 - name: "Block: User Access Control Hardening"
   block:
     - name: "Include user access control hardening"
-      include_tasks: user_access.yml
-
-## ============================================================================
-## NETWORK & SERVICES HARDENING
-## ============================================================================
-
+      ansible.builtin.include_tasks: user_access.yml
 - name: "Block: Network & Services Hardening"
   block:
     - name: "Include network services hardening"
-      include_tasks: network_services.yml
+      ansible.builtin.include_tasks: network_services.yml
       when: not macos_skip_service_disabling
 
 ## ============================================================================
@@ -120,7 +115,7 @@
 - name: "Block: System Logging Configuration"
   block:
     - name: "Include system logging configuration"
-      include_tasks: logging.yml
+      ansible.builtin.include_tasks: logging.yml
       when: macos_audit_logging_enabled
 
 ## ============================================================================
@@ -130,14 +125,9 @@
 - name: "Block: System Update Configuration"
   block:
     - name: "Include system update configuration"
-      include_tasks: system_updates.yml
-
-## ============================================================================
-## COMPLETION SUMMARY
-## ============================================================================
-
+      ansible.builtin.include_tasks: system_updates.yml
 - name: "Display hardening completion summary"
-  debug:
+  ansible.builtin.debug:
     msg: |
       ✓ macOS system hardening completed on {{ inventory_hostname }}
 

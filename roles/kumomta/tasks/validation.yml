@@ -78,7 +78,8 @@
 
     - name: Fail if directory has wrong ownership
       ansible.builtin.fail:
-        msg: "Directory owned by {{ dir_stat.stat.pw_name }}:{{ dir_stat.stat.gr_name }} but should be {{ kumomta_user }}:{{ kumomta_group }}"
+        msg: "Directory owned by {{ dir_stat.stat.pw_name }}:{{ dir_stat.stat.gr_name }} but should be {{ kumomta_user }}:{{
+          kumomta_group }}"
       when: (dir_stat.stat.pw_name + ':' + dir_stat.stat.gr_name) != (kumomta_user + ':' + kumomta_group)
 
     - name: Test service startup (check only, do not start)
@@ -149,7 +150,7 @@
         dest: "{{ kumomta_config_dir }}/validation-report.txt"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
 
     - name: Display validation report
       ansible.builtin.debug:

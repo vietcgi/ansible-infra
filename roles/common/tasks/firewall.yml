@@ -4,6 +4,13 @@
 # Enables stateful packet filtering with DDoS protection
 
 - name: Install firewall for Debian/Ubuntu
+  when:
+    - ansible_os_family in ['Debian']
+    - firewall_enabled | default(true)
+  tags:
+    - firewall
+    - security
+
   block:
     - name: Install UFW firewall
       ansible.builtin.package:
@@ -13,7 +20,7 @@
     - name: Enable UFW service
       ansible.builtin.systemd:
         name: ufw
-        enabled: yes
+        enabled: true
         state: started
 
     - name: Configure UFW defaults (ingress, egress, IPv6)
@@ -21,15 +28,15 @@
         path: /etc/ufw/ufw.conf
         regexp: "^{{ item.key }}="
         line: "{{ item.key }}={{ item.value }}"
-        backup: yes
+        backup: true
       loop:
-        - { key: 'DEFAULT_INPUT_POLICY', value: 'DROP' }
-        - { key: 'DEFAULT_OUTPUT_POLICY', value: 'ACCEPT' }
-        - { key: 'DEFAULT_FORWARD_POLICY', value: 'DROP' }
-        - { key: 'DEFAULT_APPLICATION_POLICY', value: 'SKIP' }
-        - { key: 'MANAGE_BUILTINS', value: 'yes' }
-        - { key: 'IPV6', value: 'yes' }  # Full IPv6 support and hardening
-        - { key: 'LOGLEVEL', value: 'low' }  # Packet logging enabled
+        - { key: "DEFAULT_INPUT_POLICY", value: "DROP" }
+        - { key: "DEFAULT_OUTPUT_POLICY", value: "ACCEPT" }
+        - { key: "DEFAULT_FORWARD_POLICY", value: "DROP" }
+        - { key: "DEFAULT_APPLICATION_POLICY", value: "SKIP" }
+        - { key: "MANAGE_BUILTINS", value: "yes" }
+        - { key: "IPV6", value: "yes" } # Full IPv6 support and hardening
+        - { key: "LOGLEVEL", value: "low" } # Packet logging enabled
       notify: restart ufw
 
     - name: Allow SSH connections
@@ -77,9 +84,9 @@
         proto: "{{ item.proto }}"
         comment: "DDoS protection: {{ item.description }}"
       loop:
-        - { port: 22, proto: 'tcp', description: 'SSH rate limit' }
-        - { port: 80, proto: 'tcp', description: 'HTTP rate limit' }
-        - { port: 443, proto: 'tcp', description: 'HTTPS rate limit' }
+        - { port: 22, proto: "tcp", description: "SSH rate limit" }
+        - { port: 80, proto: "tcp", description: "HTTP rate limit" }
+        - { port: 443, proto: "tcp", description: "HTTPS rate limit" }
       when: firewall_enable_ddos_protection | default(true)
 
     - name: Configure egress filtering rules
@@ -103,10 +110,10 @@
         path: /etc/ufw/ufw.conf
         regexp: "^{{ item.key }}="
         line: "{{ item.key }}={{ item.value }}"
-        backup: yes
+        backup: true
       loop:
-        - { key: 'TRACKING', value: 'yes' }
-        - { key: 'CONNECTION_RATE_LIMIT', value: '300/minute' }
+        - { key: "TRACKING", value: "yes" }
+        - { key: "CONNECTION_RATE_LIMIT", value: "300/minute" }
       notify: restart ufw
       when: firewall_enable_stateful_tracking | default(true)
 
@@ -150,14 +157,14 @@
         policy: deny
       when: firewall_enabled | default(true)
 
+- name: Install firewall for RHEL/CentOS
   when:
-    - ansible_os_family in ['Debian']
+    - ansible_os_family in ['RedHat', 'Rocky', 'Alma']
     - firewall_enabled | default(true)
   tags:
     - firewall
     - security
 
-- name: Install firewall for RHEL/CentOS
   block:
     - name: Install firewalld
       ansible.builtin.package:
@@ -167,34 +174,34 @@
     - name: Enable firewalld service
       ansible.builtin.systemd:
         name: firewalld
-        enabled: yes
+        enabled: true
         state: started
 
     - name: Set firewalld default zone
       ansible.posix.firewalld:
         zone: "{{ firewall_zone | default('public') }}"
         state: present
-        permanent: yes
+        permanent: true
 
     - name: Configure firewalld to use stateful tracking
       ansible.builtin.lineinfile:
         path: /etc/firewalld/firewalld.conf
         regexp: "^FirewallBackend="
         line: "FirewallBackend=nftables"
-        backup: yes
+        backup: true
       notify: restart firewalld
 
     - name: Enable masquerading for NAT (if needed)
       ansible.posix.firewalld:
         zone: "{{ firewall_zone | default('public') }}"
         masquerade: "{{ firewall_enable_masquerading | default(false) }}"
-        permanent: yes
+        permanent: true
         state: present
 
     - name: Allow SSH service
       ansible.posix.firewalld:
         service: ssh
-        permanent: yes
+        permanent: true
         state: enabled
         zone: "{{ firewall_zone | default('public') }}"
       when: firewall_allow_ssh | default(true)
@@ -202,7 +209,7 @@
     - name: Allow custom services
       ansible.posix.firewalld:
         service: "{{ item.service }}"
-        permanent: yes
+        permanent: true
         state: "{{ item.state | default('enabled') }}"
         zone: "{{ firewall_zone | default('public') }}"
       loop: "{{ firewall_services | default([]) }}"
@@ -211,7 +218,7 @@
     - name: Allow custom ports with rate limiting
       ansible.posix.firewalld:
         port: "{{ item.port }}/{{ item.proto | default('tcp') }}"
-        permanent: yes
+        permanent: true
         state: "{{ item.state | default('enabled') }}"
         zone: "{{ firewall_zone | default('public') }}"
         timeout: "{{ item.timeout | default(0) }}"
@@ -222,7 +229,7 @@
     - name: Add IP-based filtering rules (rich rules)
       ansible.posix.firewalld:
         rich_rule: "{{ item }}"
-        permanent: yes
+        permanent: true
         state: enabled
         zone: "{{ firewall_zone | default('public') }}"
       loop: "{{ firewall_rich_rules | default([]) }}"
@@ -230,6 +237,8 @@
       notify: restart firewalld
 
     - name: Enable ICMP (ping) with rate limiting
+      when: firewall_allow_icmp | default(true)
+
       block:
         - name: Create custom firewalld rule for ICMP rate limiting
           ansible.builtin.copy:
@@ -242,23 +251,14 @@
             dest: /etc/firewalld/rules/ipv4/icmp-rate-limit.xml
             owner: root
             group: root
-            mode: '0644'
+            mode: "0644"
           notify: restart firewalld
-
-      when: firewall_allow_icmp | default(true)
 
     - name: Reload firewalld to apply changes
       ansible.builtin.systemd:
         name: firewalld
         state: reloaded
       when: firewall_enabled | default(true)
-
-  when:
-    - ansible_os_family in ['RedHat', 'Rocky', 'Alma']
-    - firewall_enabled | default(true)
-  tags:
-    - firewall
-    - security
 
 - name: Display firewall status summary
   ansible.builtin.debug:
@@ -284,6 +284,9 @@
     - firewall
 
 - name: Verify firewall connectivity
+  tags:
+    - firewall
+    - validate
   block:
     - name: Test SSH connectivity through firewall
       ansible.builtin.wait_for:
@@ -299,7 +302,3 @@
       when: ssh_test.state == "started"
       tags:
         - firewall
-
-  tags:
-    - firewall
-    - validate

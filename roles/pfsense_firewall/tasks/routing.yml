@@ -12,6 +12,8 @@
           Routes to Configure: {{ pfsense_routes | length | default(0) }}
 
     - name: Configure gateways
+      when: pfsense_gateways | length | default(0) > 0
+
       block:
         - name: Create/update gateways
           pfsensible.core.pfsense_gateway:
@@ -33,9 +35,9 @@
               - {{ result.item.name }} ({{ result.item.interface }}): {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: pfsense_gateways | length | default(0) > 0
-
     - name: Set default gateway
+      when: pfsense_default_gateway_ipv4 is defined
+
       block:
         - name: Configure default gateway
           pfsensible.core.pfsense_default_gateway:
@@ -51,9 +53,9 @@
               IPv4 Gateway: {{ pfsense_default_gateway_ipv4 }}
               Status: {{ default_gw_result.changed | ternary('Changed', 'Unchanged') }}
 
-      when: pfsense_default_gateway_ipv4 is defined
-
     - name: Configure static routes
+      when: pfsense_routes | length | default(0) > 0
+
       block:
         - name: Create/update static routes
           pfsensible.core.pfsense_route:
@@ -72,8 +74,6 @@
               {% for result in route_config_results.results %}
               - {{ result.item.destination }} via {{ result.item.gateway }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
-
-      when: pfsense_routes | length | default(0) > 0
 
     - name: Display routing configuration summary
       ansible.builtin.debug:

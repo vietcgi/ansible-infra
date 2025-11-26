@@ -26,6 +26,8 @@
         port_forward_nat_rules: "{{ opnsense_nat_rules | selectattr('type', 'equalto', 'port_forward') | list }}"
 
     - name: Configure Source NAT rules
+      when: source_nat_rules | length > 0
+
       block:
         - name: Apply Source NAT rules (SNAT)
           oxlorg.opnsense.nat_source:
@@ -54,9 +56,9 @@
               - {{ result.item.description | default(result.item.source + ' -> ' + result.item.target) }}: {{ result.changed | ternary('Changed', 'Unchanged') }}
               {% endfor %}
 
-      when: source_nat_rules | length > 0
-
     - name: Configure 1:1 NAT rules
+      when: one_to_one_nat_rules | length > 0
+
       block:
         - name: Apply 1:1 NAT rules (Bi-directional mapping)
           oxlorg.opnsense.nat_one_to_one:
@@ -82,9 +84,9 @@
               - External: {{ result.item.external }} <-> Internal: {{ result.item.internal }}: {{ result.changed | ternary('Changed', 'Unchanged') }}
               {% endfor %}
 
-      when: one_to_one_nat_rules | length > 0
-
     - name: Configure Port Forwarding rules
+      when: port_forward_nat_rules | length > 0
+
       block:
         - name: Apply Port Forwarding rules
           ansible.builtin.debug:
@@ -99,8 +101,6 @@
               {% for rule in port_forward_nat_rules %}
               - {{ rule.description | default(rule.protocol + ' ' + rule.external_port) }}: {{ rule.external }}:{{ rule.external_port }} -> {{ rule.internal }}:{{ rule.internal_port }}
               {% endfor %}
-
-      when: port_forward_nat_rules | length > 0
 
     - name: Display NAT configuration summary
       ansible.builtin.debug:

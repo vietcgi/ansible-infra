@@ -3,8 +3,8 @@
 
 - name: Converge - Apply common role to test instances
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   pre_tasks:
     - name: Display test environment information

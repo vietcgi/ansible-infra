@@ -2,14 +2,14 @@
 # Manage Auth0 users (create, update, delete)
 
 - name: Create users in Auth0
-  debug:
+  ansible.builtin.debug:
     msg: "Managing {{ auth0_users | length }} users in Auth0"
   tags:
     - auth0
     - users
 
 - name: Display users to be created
-  debug:
+  ansible.builtin.debug:
     msg: |
       {% for user in auth0_users %}
       - {{ user.email }} ({{ user.given_name }} {{ user.family_name }})
@@ -20,7 +20,7 @@
     - users
 
 - name: Create temporary Python script for user management
-  copy:
+  ansible.builtin.copy:
     content: |
       #!/usr/bin/env python3
       import sys
@@ -110,13 +110,13 @@
           print(f"ERROR: {str(e)}")
           sys.exit(1)
     dest: /tmp/auth0_create_users.py
-    mode: '0755'
+    mode: "0755"
   tags:
     - auth0
     - users
 
 - name: Execute user creation script
-  shell: python3 /tmp/auth0_create_users.py
+  ansible.builtin.command: python3 /tmp/auth0_create_users.py
   register: auth0_user_creation
   failed_when: auth0_user_creation.rc != 0
   changed_when: "'created' in auth0_user_creation.stdout.lower()"
@@ -125,7 +125,7 @@
     - users
 
 - name: Extract JSON from user script output
-  shell: |
+  ansible.builtin.shell: |
     echo '{{ auth0_user_creation.stdout }}' | sed -n '/=== CREATED_USERS_JSON_START ===/,/=== CREATED_USERS_JSON_END ===/p' | sed '1d;$d'
   register: extracted_users_json
   changed_when: false
@@ -134,14 +134,14 @@
     - users
 
 - name: Parse extracted JSON into users list
-  set_fact:
+  ansible.builtin.set_fact:
     created_auth0_users: "{{ extracted_users_json.stdout | from_json }}"
   tags:
     - auth0
     - users
 
 - name: Display created users
-  debug:
+  ansible.builtin.debug:
     msg: |
       ========================================
       Auth0 Users Created/Verified
@@ -159,7 +159,7 @@
     - users
 
 - name: Clean up user script
-  file:
+  ansible.builtin.file:
     path: /tmp/auth0_create_users.py
     state: absent
   tags:

@@ -17,7 +17,7 @@
         dest: "{{ kumomta_config_dir }}/cluster-config.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Set up peer discovery
@@ -26,7 +26,7 @@
         dest: "{{ kumomta_config_dir }}/peer-discovery.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Configure cluster consensus protocol
@@ -35,7 +35,7 @@
         dest: "{{ kumomta_config_dir }}/consensus-config.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Create cluster health check script
@@ -44,7 +44,7 @@
         dest: "{{ kumomta_config_dir }}/cluster-health-check.sh"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
 
     - name: Configure cluster metrics aggregation
       ansible.builtin.template:
@@ -52,7 +52,7 @@
         dest: "{{ kumomta_config_dir }}/cluster-metrics.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Set up queue distribution policy
@@ -61,7 +61,7 @@
         dest: "{{ kumomta_config_dir }}/queue-distribution.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Configure load balancing
@@ -70,7 +70,7 @@
         dest: "{{ kumomta_config_dir }}/load-balancing.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Create cluster join script
@@ -79,12 +79,12 @@
         dest: "{{ kumomta_config_dir }}/cluster-join.sh"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
 
     - name: Set up firewall rules for cluster communication
       block:
         - name: Allow cluster consensus port
-          ansible.builtin.ufw:
+          community.general.ufw:
             rule: allow
             port: "{{ kumomta_cluster_consensus_port }}"
             proto: tcp
@@ -92,7 +92,7 @@
           when: kumomta_cluster_ufw_enabled | bool
 
         - name: Allow cluster data port
-          ansible.builtin.ufw:
+          community.general.ufw:
             rule: allow
             port: "{{ kumomta_cluster_data_port }}"
             proto: tcp

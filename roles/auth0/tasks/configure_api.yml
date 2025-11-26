@@ -2,7 +2,7 @@
 # Configure Auth0 API resource
 
 - name: Display API configuration
-  debug:
+  ansible.builtin.debug:
     msg: |
       Configuring API: {{ auth0_api.name }}
       Identifier: {{ auth0_api.identifier }}

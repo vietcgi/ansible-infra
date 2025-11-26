@@ -3,6 +3,12 @@
 # Configures synchronous multi-master MySQL/MariaDB clustering
 
 - name: MySQL Galera Cluster Configuration Block
+  tags:
+    - database
+    - mysql
+    - galera
+    - ha
+
   block:
     # Validate MySQL Galera is enabled
     - name: Validate MySQL Galera prerequisites
@@ -21,14 +27,14 @@
           - "mariadb-server-{{ database_mysql_version | default('10.6') }}"
           - "mariadb-plugin-columnstore"
         state: present
-        update_cache: yes
+        update_cache: true
       when:
         - ansible_os_family == 'Debian'
         - database_mysql_enabled | default(false) | bool
-      become: yes
+      become: true
 
     - name: Install MariaDB with Galera support (RedHat/CentOS)
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name:
           - "MariaDB-server"
           - "MariaDB-client"
@@ -36,7 +42,7 @@
       when:
         - ansible_os_family == 'RedHat'
         - database_mysql_enabled | default(false) | bool
-      become: yes
+      become: true
 
     # Configure my.cnf for Galera
     - name: Configure my.cnf for Galera clustering
@@ -46,7 +52,7 @@
         owner: root
         group: root
         mode: "0644"
-      become: yes
+      become: true
       notify: restart mysql
 
     # Create backup user for SST
@@ -58,7 +64,7 @@
         state: present
         login_unix_socket: /var/run/mysqld/mysqld.sock
       when: "'primary' in group_names or inventory_hostname == groups['database_mysql_primary'][0] | default(inventory_hostname)"
-      become: yes
+      become: true
       become_user: mysql
 
     # Create MySQL data directory
@@ -69,7 +75,7 @@
         owner: mysql
         group: mysql
         mode: "0755"
-      become: yes
+      become: true
 
     # Bootstrap primary node (wsrep_new_cluster)
     - name: Bootstrap Galera cluster on primary
@@ -80,7 +86,7 @@
       register: galera_status
       changed_when: false
       failed_when: false
-      become: yes
+      become: true
       become_user: mysql
       when: "'primary' in group_names or inventory_hostname == groups['database_mysql_primary'][0] | default(inventory_hostname)"
 
@@ -90,18 +96,19 @@
         systemctl restart mariadb
         sleep 10
         systemctl unset-environment _WSREP_NEW_CLUSTER
-      become: yes
+      become: true
       when:
         - "'primary' in group_names or inventory_hostname == groups['database_mysql_primary'][0] | default(inventory_hostname)"
-        - galera_status.query_result[0][0] is not defined or galera_status.query_result[0][0].Value == "00000000-0000-0000-0000-000000000000"
+        - galera_status.query_result[0][0] is not defined or galera_status.query_result[0][0].Value ==
+          "00000000-0000-0000-0000-000000000000"
 
     # Start MySQL on secondary nodes
     - name: Start MariaDB on secondary nodes
       ansible.builtin.systemd:
         name: mariadb
         state: started
-        enabled: yes
-      become: yes
+        enabled: true
+      become: true
       when: "'replica' in group_names or inventory_hostname in groups['database_mysql_secondary'] | default([])"
 
     # Wait for cluster convergence
@@ -117,7 +124,7 @@
         query:
           - "SHOW STATUS LIKE 'wsrep%'"
       register: galera_cluster_status
-      become: yes
+      become: true
       become_user: mysql
 
     - name: Display Galera cluster status
@@ -133,7 +140,7 @@
       ansible.builtin.apt:
         name: "galera-arbitrator"
         state: present
-      become: yes
+      become: true
       when:
         - ansible_os_family == 'Debian'
         - groups['database_mysql_cluster'] | length == 2
@@ -144,7 +151,7 @@
         login_unix_socket: /var/run/mysqld/mysqld.sock
         query:
           - "CREATE DATABASE IF NOT EXISTS galera_monitor"
-      become: yes
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -152,15 +159,10 @@
       community.mysql.mysql_query:
         login_unix_socket: /var/run/mysqld/mysqld.sock
         query:
-          - "CREATE TABLE IF NOT EXISTS galera_monitor.cluster_status (
-               node_name VARCHAR(255) PRIMARY KEY,
-               cluster_state VARCHAR(50),
-               cluster_size INT,
-               local_state INT,
-               local_state_uuid VARCHAR(36),
-               last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-             )"
-      become: yes
+          - "CREATE TABLE IF NOT EXISTS galera_monitor.cluster_status ( node_name VARCHAR(255) PRIMARY KEY, cluster_state
+            VARCHAR(50), cluster_size INT, local_state INT, local_state_uuid VARCHAR(36), last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ON UPDATE CURRENT_TIMESTAMP )"
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -172,7 +174,7 @@
         owner: mysql
         group: mysql
         mode: "0750"
-      become: yes
+      become: true
 
     - name: Update mysql.cnf for IST cache
       ansible.builtin.lineinfile:
@@ -180,7 +182,7 @@
         regexp: "^#?wsrep_provider_options"
         line: "wsrep_provider_options='gcache.size=1G;gcache.dir=/var/lib/mysql/gcache'"
         state: present
-      become: yes
+      become: true
       notify: restart mysql
 
     # Setup Galera replication monitoring script
@@ -191,7 +193,7 @@
         owner: root
         group: root
         mode: "0755"
-      become: yes
+      become: true
 
     # Setup systemd health check service
     - name: Create MySQL Galera health check systemd service
@@ -214,7 +216,7 @@
 
           [Install]
           WantedBy=multi-user.target
-      become: yes
+      become: true
       notify: reload systemd
 
     # Configure backup user with proper privileges
@@ -222,9 +224,10 @@
       community.mysql.mysql_query:
         login_unix_socket: /var/run/mysqld/mysqld.sock
         query:
-          - "GRANT RELOAD, LOCK TABLES, PROCESS, REPLICATION CLIENT ON *.* TO '{{ database_mysql_sst_user | default('sstuser') }}'@'localhost' IDENTIFIED BY '{{ database_mysql_sst_password }}';"
+          - "GRANT RELOAD, LOCK TABLES, PROCESS, REPLICATION CLIENT ON *.* TO '{{ database_mysql_sst_user | default('sstuser')
+            }}'@'localhost' IDENTIFIED BY '{{ database_mysql_sst_password }}';"
           - "FLUSH PRIVILEGES;"
-      become: yes
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -235,7 +238,7 @@
         regexp: "^#?slow_query_log"
         line: "slow_query_log = 1"
         state: present
-      become: yes
+      become: true
       notify: restart mysql
 
     - name: Configure slow query log file
@@ -244,7 +247,7 @@
         regexp: "^#?slow_query_log_file"
         line: "slow_query_log_file = /var/log/mysql/slow-query.log"
         state: present
-      become: yes
+      become: true
       notify: restart mysql
 
     - name: Set slow query threshold
@@ -253,7 +256,7 @@
         regexp: "^#?long_query_time"
         line: "long_query_time = {{ database_mysql_slow_query_threshold | default(2) }}"
         state: present
-      become: yes
+      become: true
       notify: restart mysql
 
     # Configure logrotate
@@ -264,7 +267,7 @@
         owner: root
         group: root
         mode: "0644"
-      become: yes
+      become: true
 
     # Setup backup script
     - name: Create database backup script
@@ -274,7 +277,7 @@
         owner: root
         group: root
         mode: "0755"
-      become: yes
+      become: true
 
     # Schedule daily backups
     - name: Schedule daily MySQL backups
@@ -285,7 +288,7 @@
         job: "/usr/local/bin/database_backup.sh > /var/log/mysql_backup.log 2>&1"
         user: root
         state: present
-      become: yes
+      become: true
 
     # Setup Prometheus exporter for MySQL metrics
     - name: Create MySQL metrics configuration
@@ -303,7 +306,7 @@
           password={{ database_mysql_exporter_password | default('exporter_pass') }}
           host=localhost
           port=3306
-      become: yes
+      become: true
 
     # Final verification
     - name: Verify cluster convergence
@@ -312,7 +315,7 @@
         query:
           - "SHOW STATUS LIKE 'wsrep_cluster_size'"
       register: cluster_size
-      become: yes
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -322,7 +325,7 @@
         query:
           - "SHOW STATUS LIKE 'wsrep_local_state'"
       register: cluster_state
-      become: yes
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -332,7 +335,7 @@
         query:
           - "SHOW STATUS LIKE 'wsrep_ready'"
       register: cluster_ready
-      become: yes
+      become: true
       become_user: mysql
       ignore_errors: true
 
@@ -359,12 +362,6 @@
         msg: |
           MySQL Galera configuration encountered an error.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - database
-    - mysql
-    - galera
-    - ha
 
 - name: Display MySQL Galera cluster status
   ansible.builtin.debug:

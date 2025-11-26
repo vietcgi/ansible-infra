@@ -51,7 +51,8 @@
 
     - name: Display API test result
       ansible.builtin.debug:
-        msg: "Cloudflare API validation: {{ 'PASSED' if cf_api_test is not skipped and cf_api_test.status == 200 else 'SKIPPED or FAILED' }}"
+        msg: "Cloudflare API validation: {{ 'PASSED' if cf_api_test is not skipped and cf_api_test.status == 200 else 'SKIPPED
+          or FAILED' }}"
       when: cf_api_test is defined
 
 # ============================================================================
@@ -63,15 +64,16 @@
   block:
     - name: Validate domain is in Cloudflare zone
       ansible.builtin.debug:
-        msg: "{% if cloudflare_dns_enabled_actual | default(true) %}Proceeding with DNS creation{% else %}Skipping DNS creation - domain not in configured Cloudflare zone{% endif %}"
+        msg: "{% if cloudflare_dns_enabled_actual | default(true) %}Proceeding with DNS creation{% else %}Skipping DNS creation
+          - domain not in configured Cloudflare zone{% endif %}"
       tags:
         - cloudflare
         - cloudflare_dns
 
-
     - name: Check for existing DKIM DNS records
       ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ item.record }}.{{ item.zone }}"
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ item.record
+          }}.{{ item.zone }}"
         method: GET
         headers:
           Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -135,7 +137,7 @@
 
     - name: Create DNS records from configuration
       community.general.cloudflare_dns:
-        zone: "{{ item.zone}}"
+        zone: "{{ item.zone }}"
         record: "{{ item.record | default('@') }}"
         type: "{{ item.type }}"
         value: "{{ item.value }}"
@@ -146,9 +148,9 @@
       loop: "{{ cloudflare_dns_records | default([]) }}"
       when:
         - cloudflare_dns_records is defined
-        - item.value != ""  # Skip records with empty values (e.g., pending DKIM key)
-        - not (item.type == 'TXT' and 'DKIM' in item.value)  # Skip DKIM records (handled above)
-        - cloudflare_dns_enabled_actual | default(true)  # Only create if domain is in zone
+        - item.value != "" # Skip records with empty values (e.g., pending DKIM key)
+        - not (item.type == 'TXT' and 'DKIM' in item.value) # Skip DKIM records (handled above)
+        - cloudflare_dns_enabled_actual | default(true) # Only create if domain is in zone
       register: dns_results
       no_log: false
       tags:
@@ -190,7 +192,7 @@
       ansible.builtin.file:
         path: /var/log/cloudflare
         state: directory
-        mode: '0755'
+        mode: "0755"
         owner: root
         group: root
 
@@ -198,7 +200,7 @@
       ansible.builtin.template:
         src: cloudflare_health_check.sh.j2
         dest: /usr/local/bin/cloudflare-health-check
-        mode: '0755'
+        mode: "0755"
         owner: root
         group: root
 

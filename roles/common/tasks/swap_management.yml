@@ -25,6 +25,14 @@
     - swap_management
 
 - name: Create swap file (if needed)
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_swap_size is defined
+    - common_swap_size | int > 0
+    - "existing_swap.stdout == 'none'"
+  tags:
+    - swap_management
+
   block:
     - name: Check if swap file exists
       ansible.builtin.stat:
@@ -45,7 +53,7 @@
     - name: Set swap file permissions
       ansible.builtin.file:
         path: /swapfile
-        mode: '0600'
+        mode: "0600"
       when:
         - common_swap_size > 0
       tags:
@@ -75,20 +83,18 @@
         line: "/swapfile none swap sw 0 0"
         regexp: "/swapfile"
         state: present
-        backup: yes
+        backup: true
       when:
         - common_swap_size > 0
       tags:
         - swap_management
+- name: Disable swap (if common_disable_swap is true)
   when:
     - ansible_os_family != 'Darwin'
-    - common_swap_size is defined
-    - common_swap_size | int > 0
-    - "existing_swap.stdout == 'none'"
+    - common_disable_swap | bool
   tags:
     - swap_management
 
-- name: Disable swap (if common_disable_swap is true)
   block:
     - name: Turn off all swap
       ansible.builtin.command:
@@ -104,7 +110,7 @@
         path: /etc/fstab
         regexp: "^/swapfile|.*swap.*sw.*0.*0"
         state: absent
-        backup: yes
+        backup: true
       tags:
         - swap_management
 
@@ -114,13 +120,13 @@
         state: absent
       tags:
         - swap_management
+- name: Configure swap encryption (if enabled)
   when:
     - ansible_os_family != 'Darwin'
-    - common_disable_swap | bool
+    - common_encrypt_swap is defined
   tags:
     - swap_management
 
-- name: Configure swap encryption (if enabled)
   block:
     - name: Install encryption tools
       ansible.builtin.package:
@@ -134,6 +140,8 @@
         - swap_management
 
     - name: Create encrypted swap partition
+      when:
+        - common_encrypt_swap | bool
       block:
         - name: Create temporary encrypted container
           ansible.builtin.shell: |
@@ -162,19 +170,11 @@
             - common_swap_device | length > 0
           tags:
             - swap_management
-      when:
-        - common_encrypt_swap | bool
-  when:
-    - ansible_os_family != 'Darwin'
-    - common_encrypt_swap is defined
-  tags:
-    - swap_management
-
 - name: Configure swap performance tuning
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
-    sysctl_set: yes
+    sysctl_set: true
     state: present
   loop:
     - { key: "vm.swappiness", value: "{{ common_swap_swappiness | default(30) }}" }

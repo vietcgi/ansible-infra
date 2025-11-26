@@ -32,13 +32,20 @@
         → SSH user management is DISABLED
         → Only Auth0/RBAC systems are active
       {% endif %}
-    verbosity: 1  # Show at -v or higher verbosity
+    verbosity: 1 # Show at -v or higher verbosity
   when: not ansible_check_mode
   tags:
     - users
     - user_create
 
 - name: Create user accounts from managed_users (SSH ENABLED)
+  when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
+  tags:
+    - users
+    - user_create
+
   block:
     - name: Create user accounts
       ansible.builtin.user:
@@ -46,12 +53,12 @@
         state: present
         shell: "{{ user_item.value.system.shell }}"
         groups: "{{ user_item.value.system.groups | join(',') }}"
-        append: yes
-        createhome: yes
+        append: true
+        createhome: true
         home: "{{ user_item.value.system.home }}"
         comment: "{{ user_item.value.auth0.given_name }} {{ user_item.value.auth0.family_name }}"
-        password: '!'  # Explicitly lock account (no password login)
-        password_lock: yes  # Ensure account is locked
+        password: "!" # Explicitly lock account (no password login)
+        password_lock: true # Ensure account is locked
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: user_item
@@ -61,26 +68,26 @@
       tags:
         - users
         - user_create
+- name: Configure sudo access for enabled users (SSH ENABLED)
   when:
     - ssh_config is defined
     - ssh_config.enabled | bool
   tags:
     - users
-    - user_create
+    - user_sudo
 
-- name: Configure sudo access for enabled users (SSH ENABLED)
   block:
     - name: Add sudo privileges for users with sudo_access enabled
       ansible.builtin.lineinfile:
         path: /etc/sudoers.d/{{ sudo_item.key }}
         line: "{{ sudo_item.key }} ALL=(ALL) NOPASSWD:ALL"
-        create: yes
-        create_mode: '0440'
-        mode: '0440'
+        create: true
+        create_mode: "0440"
+        mode: "0440"
         owner: root
         group: root
-        backup: yes
-        validate: 'visudo -cf %s'
+        backup: true
+        validate: "visudo -cf %s"
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: sudo_item
@@ -96,7 +103,7 @@
       ansible.builtin.file:
         path: /etc/sudoers.d/{{ sudo_item.key }}
         state: absent
-        force: yes
+        force: true
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: sudo_item
@@ -111,7 +118,7 @@
       ansible.builtin.file:
         path: /etc/sudoers.d/{{ sudo_item.key }}
         state: absent
-        force: yes
+        force: true
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: sudo_item
@@ -122,13 +129,6 @@
       tags:
         - users
         - user_revoke
-  when:
-    - ssh_config is defined
-    - ssh_config.enabled | bool
-  tags:
-    - users
-    - user_sudo
-
 - name: Disable user shell for disabled users (SSH ENABLED, set to nologin)
   ansible.builtin.user:
     name: "{{ nologin_item.key }}"
@@ -147,14 +147,21 @@
     - user_revoke
 
 - name: Manage SSH authorized keys for users (SSH ENABLED)
+  when:
+    - ssh_config is defined
+    - ssh_config.enabled | bool
+  tags:
+    - users
+    - user_ssh_keys
+
   block:
     - name: Add SSH authorized keys for enabled users
-      ansible.builtin.authorized_key:
+      ansible.posix.authorized_key:
         user: "{{ ssh_key_item.key }}"
         key: "{{ lookup('file', ssh_key_path | default('~/.ssh/id_rsa.pub')) }}"
         state: present
-        exclusive: yes
-        key_options: 'restrict,pty'  # Restrict key to interactive shell only, no commands
+        exclusive: true
+        key_options: "restrict,pty" # Restrict key to interactive shell only, no commands
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: ssh_key_item
@@ -169,10 +176,10 @@
         - user_ssh_keys
 
     - name: Remove SSH authorized keys for disabled users
-      ansible.builtin.authorized_key:
+      ansible.posix.authorized_key:
         user: "{{ ssh_key_item.key }}"
         state: absent
-        exclusive: yes
+        exclusive: true
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: ssh_key_item
@@ -182,20 +189,20 @@
       tags:
         - users
         - user_revoke
+- name: Kill active sessions for disabled users (SSH ENABLED)
   when:
     - ssh_config is defined
     - ssh_config.enabled | bool
   tags:
     - users
-    - user_ssh_keys
+    - user_revoke
 
-- name: Kill active sessions for disabled users (SSH ENABLED)
   block:
     - name: Get list of active sessions for disabled users
       ansible.builtin.command: pgrep -f "sshd.*{{ session_item.key }}"
       register: active_sessions
       changed_when: false
-      failed_when: active_sessions.rc not in [0, 1]  # 0=found, 1=not found (expected)
+      failed_when: active_sessions.rc not in [0, 1] # 0=found, 1=not found (expected)
       loop: "{{ managed_users | dict2items }}"
       loop_control:
         loop_var: session_item
@@ -208,7 +215,8 @@
 
     - name: Terminate active SSH sessions gracefully (TERM signal)
       ansible.builtin.command: "kill -TERM {{ item }}"
-      loop: "{{ active_sessions.results | selectattr('stdout_lines', 'defined') | map(attribute='stdout_lines') | flatten }}"
+      loop: "{{ active_sessions.results | selectattr('stdout_lines', 'defined') | map(attribute='stdout_lines') | flatten
+        }}"
       when: item | length > 0
       register: term_kill_result
       failed_when: term_kill_result.rc != 0 and "'No such process' not in term_kill_result.stderr"
@@ -218,7 +226,8 @@
 
     - name: Force kill lingering SSH sessions (KILL signal)
       ansible.builtin.command: "kill -9 {{ item }}"
-      loop: "{{ active_sessions.results | selectattr('stdout_lines', 'defined') | map(attribute='stdout_lines') | flatten }}"
+      loop: "{{ active_sessions.results | selectattr('stdout_lines', 'defined') | map(attribute='stdout_lines') | flatten
+        }}"
       when:
         - item | length > 0
         - term_kill_result.failed is defined and term_kill_result.failed
@@ -227,25 +236,19 @@
       tags:
         - users
         - user_revoke
-  when:
-    - ssh_config is defined
-    - ssh_config.enabled | bool
-  tags:
-    - users
-    - user_revoke
-
 - name: Audit log user management changes
   block:
     - name: Log user creation/modification
       ansible.builtin.lineinfile:
         path: /var/log/user-management.log
-        line: "[{{ ansible_date_time.iso8601 }}] {{ audit_item.key }}: enabled={{ audit_item.value.enabled }} shell={{ audit_item.value.system.shell }} status_reason={{ audit_item.value.status_reason | default('') }}"
-        create: yes
-        create_mode: '0600'
-        mode: '0600'
+        line: "[{{ ansible_date_time.iso8601 }}] {{ audit_item.key }}: enabled={{ audit_item.value.enabled }} shell={{ audit_item.value.system.shell
+          }} status_reason={{ audit_item.value.status_reason | default('') }}"
+        create: true
+        create_mode: "0600"
+        mode: "0600"
         owner: root
         group: root
-        backup: yes
+        backup: true
         insertafter: EOF
       loop: "{{ managed_users | dict2items }}"
       loop_control:
@@ -263,7 +266,7 @@
       Enabled users: {{ managed_users | dict2items | selectattr('value.enabled', 'equalto', true) | map(attribute='key') | list }}
       Disabled users: {{ managed_users | dict2items | selectattr('value.enabled', 'equalto', false) | map(attribute='key') | list }}
       Total users managed: {{ managed_users | length }}
-    verbosity: 1  # Show at -v or higher verbosity
+    verbosity: 1 # Show at -v or higher verbosity
   when:
     - managed_users is defined
     - not ansible_check_mode

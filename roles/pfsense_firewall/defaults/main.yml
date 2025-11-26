@@ -17,17 +17,13 @@ pfsense_ha_virtual_ipv6: ""
 
 # Interface Configuration
 pfsense_interfaces: []
-
 # Firewall Rules
 pfsense_firewall_rules: []
-
 # NAT Rules
 pfsense_nat_rules: []
-
 # IPsec VPN
 pfsense_ipsec_enabled: false
 pfsense_ipsec_tunnels: []
-
 # System Settings
 pfsense_hostname: pfsense
 pfsense_domain: ""

@@ -34,6 +34,8 @@
           {%- endif -%}
 
     - name: Configure sync interface
+      when: pfsense_ha_enabled | bool
+
       block:
         - name: Identify sync interface
           ansible.builtin.set_fact:
@@ -54,9 +56,9 @@
               3. Enable XMLRPC Sync if desired
               4. Select services to synchronize
 
-      when: pfsense_ha_enabled | bool
-
     - name: Create CARP Virtual IPs
+      when: pfsense_ha_virtual_ips | length | default(0) > 0
+
       block:
         - name: Display CARP VIP configuration
           ansible.builtin.debug:
@@ -93,8 +95,6 @@
               5. Repeat on secondary node with same configuration
           loop: "{{ pfsense_ha_virtual_ips }}"
           when: pfsense_ha_virtual_ips | length > 0
-
-      when: pfsense_ha_virtual_ips | length | default(0) > 0
 
     - name: Display CARP failover behavior
       ansible.builtin.debug:

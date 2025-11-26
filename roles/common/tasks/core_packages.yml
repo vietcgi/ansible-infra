@@ -2,51 +2,51 @@
 # Install core utilities and packages
 
 - name: Install core packages (Debian-based)
-  apt:
+  ansible.builtin.apt:
     name: "{{ common_core_packages }}"
     state: present
-    update_cache: yes
+    update_cache: true
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
   failed_when: false
   tags:
     - packages
     - core-packages
 
 - name: Install core packages (RedHat-based)
-  yum:
+  ansible.builtin.dnf:
     name: "{{ common_core_packages }}"
     state: present
   when: ansible_os_family == "RedHat"
-  become: yes
+  become: true
   tags:
     - packages
     - core-packages
 
 - name: Install core packages (macOS)
-  homebrew:
+  community.general.homebrew:
     name: "{{ item }}"
     state: present
   loop: "{{ common_core_packages }}"
   when: ansible_os_family == "Darwin"
-  ignore_errors: true  # Some packages may not be available on macOS
+  ignore_errors: true # Some packages may not be available on macOS
   tags:
     - packages
     - core-packages
 
 - name: Install core packages (Alpine)
-  apk:
+  community.general.apk:
     name: "{{ common_core_packages }}"
     state: present
   when: ansible_os_family == "Alpine"
-  become: yes
-  ignore_errors: true  # Some packages may not be available in Alpine repos
+  become: true
+  ignore_errors: true # Some packages may not be available in Alpine repos
   tags:
     - packages
     - core-packages
 
 - name: Display installed packages summary
-  debug:
+  ansible.builtin.debug:
     msg: "Core utilities installed successfully"
   tags:
     - packages

@@ -3,32 +3,32 @@
 # No hardcoded values - all variables must be provided via inventory or command line
 
 # Domain & Infrastructure (REQUIRED - must be set in inventory or -e)
-email_domain: ""                     # REQUIRED: e.g., "example.com"
-email_server_ip: ""                  # REQUIRED: e.g., "192.0.2.1"
+email_domain: "" # REQUIRED: e.g., "example.com"
+email_server_ip: "" # REQUIRED: e.g., "192.0.2.1"
 email_hostname: "{{ email_domain }}"
 
 # Cloudflare DNS Configuration (REQUIRED - must be set via Ansible Vault)
-cloudflare_api_token: "{{ vault_cloudflare_api_token }}"  # REQUIRED: from vault
-cloudflare_zone_id: "{{ vault_cloudflare_zone_id }}"      # REQUIRED: from vault
-cloudflare_email_records: []  # Auto-generated, do not modify
+cloudflare_api_token: "{{ vault_cloudflare_api_token }}" # REQUIRED: from vault
+cloudflare_zone_id: "{{ vault_cloudflare_zone_id }}" # REQUIRED: from vault
+cloudflare_email_records: [] # Auto-generated, do not modify
 
 # DKIM Configuration
 dkim_selector: "default"
 dkim_key_size: 2048
 
 # DMARC Configuration (Optional - set custom emails or use defaults)
-dmarc_policy: "none"                 # Options: none, quarantine, reject
+dmarc_policy: "none" # Options: none, quarantine, reject
 dmarc_subdomain_policy: "quarantine"
-dmarc_report_email: ""               # Optional: e.g., "dmarc-reports@example.com"
-dmarc_forensics_email: ""            # Optional: e.g., "dmarc-forensics@example.com"
-dmarc_percent: 100                   # Percentage of emails to apply policy
+dmarc_report_email: "" # Optional: e.g., "dmarc-reports@example.com"
+dmarc_forensics_email: "" # Optional: e.g., "dmarc-forensics@example.com"
+dmarc_percent: 100 # Percentage of emails to apply policy
 
 # SPF Configuration (Optional - for including other mail servers)
-spf_include_domains: []              # Optional: e.g., ["sendgrid.net", "mail.example.com"]
+spf_include_domains: [] # Optional: e.g., ["sendgrid.net", "mail.example.com"]
 
 # Let's Encrypt TLS Certificates
-letsencrypt_email: ""                # REQUIRED: e.g., "admin@example.com"
-letsencrypt_domains: []              # Auto-generated from email_domain if not set
+letsencrypt_email: "" # REQUIRED: e.g., "admin@example.com"
+letsencrypt_domains: [] # Auto-generated from email_domain if not set
 
 # KumoMTA Integration
 kumomta_enabled: true
@@ -40,20 +40,19 @@ kumomta_dkim_selector: "{{ dkim_selector }}"
 kumomta_max_delivery_attempts: 5
 kumomta_max_retry_delay: 86400
 kumomta_max_messages_per_minute: 300
-kumomta_max_message_size: 104857600  # 100MB
+kumomta_max_message_size: 104857600 # 100MB
 kumomta_sender_messages_per_minute: 100
 
 # Email Routing
 email_relay_enabled: false
-email_alternate_domains: []  # Additional domains for local delivery
+email_alternate_domains: [] # Additional domains for local delivery
 kumomta_relay_enabled: false
-kumomta_relay_host: ""  # Set to enable relay delivery
+kumomta_relay_host: "" # Set to enable relay delivery
 kumomta_relay_port: 25
 kumomta_relay_use_tls: false
 kumomta_relay_require_tls: false
 email_allowed_senders: []
 email_rejected_domains: []
-
 # Monitoring
 monitoring_enabled: true
 grafana_dashboard_enabled: true

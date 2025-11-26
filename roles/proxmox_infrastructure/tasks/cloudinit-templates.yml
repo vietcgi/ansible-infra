@@ -9,7 +9,7 @@
           ansible.builtin.get_url:
             url: "{{ template_item.image_url }}"
             dest: "/tmp/{{ template_item.name }}.qcow2"
-            mode: '0644'
+            mode: "0644"
             timeout: 300
           register: template_download
           when: template_item.image_url is defined

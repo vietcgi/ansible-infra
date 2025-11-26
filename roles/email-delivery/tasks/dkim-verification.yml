@@ -5,7 +5,8 @@
   block:
     - name: Fetch DKIM records from Cloudflare
       ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ dkim_selector }}._domainkey.{{ email_domain }}"
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ dkim_selector
+          }}._domainkey.{{ email_domain }}"
         method: GET
         headers:
           Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -16,13 +17,13 @@
       changed_when: false
 
     - name: Extract DKIM record count
-      set_fact:
+      ansible.builtin.set_fact:
         dkim_record_count: "{{ (dkim_records_response.json.result | default([])) | length }}"
         dkim_records_list: "{{ dkim_records_response.json.result | default([]) }}"
       when: dkim_records_response is not skipped
 
     - name: Display DKIM record verification status
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           DKIM Record Verification
@@ -40,7 +41,7 @@
           {% endif %}
 
     - name: Display DKIM record details
-      debug:
+      ansible.builtin.debug:
         msg: |
           Record {{ loop_index }}:
           Name: {{ item.name }}
@@ -55,7 +56,7 @@
       when: dkim_records_list is defined and dkim_records_list | length > 0
 
     - name: Verify DKIM record format
-      assert:
+      ansible.builtin.assert:
         that:
           - dkim_records_list[0].content is defined
           - "'v=DKIM1' in dkim_records_list[0].content"
@@ -67,7 +68,7 @@
         - dkim_records_list | length > 0
 
     - name: Display verification success
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           ✓ DKIM Configuration Verified
@@ -82,7 +83,7 @@
 
   rescue:
     - name: Handle DKIM verification error
-      debug:
+      ansible.builtin.debug:
         msg: |
           ⚠ DKIM Verification Warning
 

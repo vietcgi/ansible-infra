@@ -27,8 +27,10 @@
 
     - name: Identify current site
       ansible.builtin.set_fact:
-        current_site_name: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) | map(attribute='key') | first }}"
-        current_site_data: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) | map(attribute='value') | first }}"
+        current_site_name: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) |
+          map(attribute='key') | first }}"
+        current_site_data: "{{ wireguard_sites | dict2items | selectattr('value.gateway', 'equalto', inventory_hostname) |
+          map(attribute='value') | first }}"
 
     - name: Validate current site identified
       ansible.builtin.assert:
@@ -39,7 +41,8 @@
 
     - name: Build list of remote sites (for peering)
       ansible.builtin.set_fact:
-        remote_sites: "{{ wireguard_sites | dict2items | rejectattr('key', 'equalto', current_site_name) | map(attribute='value') | list }}"
+        remote_sites: "{{ wireguard_sites | dict2items | rejectattr('key', 'equalto', current_site_name) | map(attribute='value')
+          | list }}"
 
     - name: Validate at least one remote site exists
       ansible.builtin.assert:
@@ -114,7 +117,8 @@
       ansible.builtin.assert:
         that:
           - wireguard_inter_site_routes | length == remote_sites | length
-        fail_msg: "Route count mismatch: expected {{ remote_sites | length }}, got {{ wireguard_inter_site_routes | length }}"
+        fail_msg: "Route count mismatch: expected {{ remote_sites | length }}, got {{ wireguard_inter_site_routes | length
+          }}"
 
     - name: Display inter-site routing plan
       ansible.builtin.debug:

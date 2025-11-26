@@ -15,6 +15,11 @@
     - always
 
 - name: Download and install Vault
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - packages
+
   block:
     - name: Check current Vault version
       ansible.builtin.command: vault version
@@ -24,9 +29,11 @@
 
     - name: Download Vault binary
       ansible.builtin.get_url:
-        url: "https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version | default('1.16.3') }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.zip"
+        url: "https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version | default('1.16.3')
+          }}_linux_{{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}.zip"
         dest: /tmp/vault.zip
-        checksum: "sha256:https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version | default('1.16.3') }}_SHA256SUMS"
+        checksum: "sha256:https://releases.hashicorp.com/vault/{{ vault_version | default('1.16.3') }}/vault_{{ vault_version
+          | default('1.16.3') }}_SHA256SUMS"
         timeout: 30
       when: vault_version_check.rc != 0
       register: vault_download
@@ -37,8 +44,8 @@
         dest: /usr/local/bin/
         owner: root
         group: root
-        mode: '0755'
-        remote_src: yes
+        mode: "0755"
+        remote_src: true
       when: vault_download is changed
 
     - name: Enable Vault binary capabilities
@@ -49,10 +56,10 @@
     - name: Create vault user
       ansible.builtin.user:
         name: vault
-        system: yes
+        system: true
         shell: /bin/false
         home: /var/lib/vault
-        createhome: yes
+        createhome: true
         state: present
 
     - name: Set vault directory permissions
@@ -60,26 +67,27 @@
         path: "{{ item }}"
         owner: vault
         group: vault
-        mode: '0750'
+        mode: "0750"
         state: directory
       loop:
         - /var/lib/vault
         - /etc/vault
         - /var/log/vault
 
+- name: Configure Vault TLS certificates
   when: vault_enabled | bool
   tags:
     - vault
-    - packages
+    - configuration
+    - tls
 
-- name: Configure Vault TLS certificates
   block:
     - name: Create Vault TLS directory
       ansible.builtin.file:
         path: /etc/vault/tls
         owner: vault
         group: vault
-        mode: '0700'
+        mode: "0700"
         state: directory
 
     - name: Copy Vault CA certificate
@@ -88,7 +96,7 @@
         dest: /etc/vault/tls/ca.crt
         owner: vault
         group: vault
-        mode: '0644'
+        mode: "0644"
       when: vault_ca_cert_path is defined
       notify: restart vault
 
@@ -98,7 +106,7 @@
         dest: /etc/vault/tls/client.crt
         owner: vault
         group: vault
-        mode: '0644'
+        mode: "0644"
       when: vault_client_cert_path is defined
       notify: restart vault
 
@@ -108,15 +116,9 @@
         dest: /etc/vault/tls/client.key
         owner: vault
         group: vault
-        mode: '0600'
+        mode: "0600"
       when: vault_client_key_path is defined
       notify: restart vault
-
-  when: vault_enabled | bool
-  tags:
-    - vault
-    - configuration
-    - tls
 
 - name: Configure Vault agent
   ansible.builtin.template:
@@ -124,8 +126,8 @@
     dest: /etc/vault/agent.hcl
     owner: vault
     group: vault
-    mode: '0600'
-    backup: yes
+    mode: "0600"
+    backup: true
   notify: restart vault
   when: vault_enabled | bool
   tags:
@@ -138,7 +140,7 @@
     dest: /etc/systemd/system/vault.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify:
     - reload systemd
     - restart vault
@@ -148,6 +150,12 @@
     - services
 
 - name: Configure Vault auto-unseal (if enabled)
+  when: vault_enabled | bool
+  tags:
+    - vault
+    - autounseal
+    - configuration
+
   block:
     - name: Create auto-unseal configuration
       ansible.builtin.template:
@@ -155,8 +163,8 @@
         dest: /etc/vault/autounseal.hcl
         owner: vault
         group: vault
-        mode: '0600'
-        backup: yes
+        mode: "0600"
+        backup: true
       when: vault_autounseal_enabled | default(false) | bool
       notify: restart vault
 
@@ -168,13 +176,13 @@
         state: present
       when: vault_autounseal_enabled | default(false) | bool
 
+- name: Set up Vault authentication
   when: vault_enabled | bool
   tags:
     - vault
-    - autounseal
+    - authentication
     - configuration
 
-- name: Set up Vault authentication
   block:
     - name: Configure AppRole authentication
       ansible.builtin.template:
@@ -182,7 +190,7 @@
         dest: /etc/vault/approle.conf
         owner: vault
         group: vault
-        mode: '0600'
+        mode: "0600"
       when: vault_auth_method == "approle"
       notify: restart vault
 
@@ -192,7 +200,7 @@
         dest: /etc/vault/jwt.conf
         owner: vault
         group: vault
-        mode: '0600'
+        mode: "0600"
       when: vault_auth_method == "jwt"
       notify: restart vault
 
@@ -202,23 +210,17 @@
         dest: /etc/vault/token.txt
         owner: vault
         group: vault
-        mode: '0600'
+        mode: "0600"
       when: vault_auth_method == "token" and vault_token | length > 0
-      no_log: yes
+      no_log: true
       notify: restart vault
-
-  when: vault_enabled | bool
-  tags:
-    - vault
-    - authentication
-    - configuration
 
 - name: Enable and start Vault service
   ansible.builtin.systemd:
     name: vault
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when: vault_enabled | bool
   tags:
     - vault
@@ -241,13 +243,21 @@
     - validate
 
 - name: Configure secrets injection
+  when:
+    - vault_enabled | bool
+    - vault_secrets_injection_enabled | default(false) | bool
+  tags:
+    - vault
+    - secrets
+    - configuration
+
   block:
     - name: Create secrets injection directory
       ansible.builtin.file:
         path: /etc/vault/secrets
         owner: vault
         group: vault
-        mode: '0700'
+        mode: "0700"
         state: directory
 
     - name: Configure Vault secrets template
@@ -256,7 +266,7 @@
         dest: "/etc/vault/secrets/{{ item.name }}.tpl"
         owner: vault
         group: vault
-        mode: '0600'
+        mode: "0600"
       loop: "{{ vault_secrets_templates | default([]) }}"
       when: vault_secrets_templates is defined
       notify: restart vault
@@ -276,22 +286,20 @@
       when: vault_secrets_templates is defined
       notify: restart vault
 
-  when:
-    - vault_enabled | bool
-    - vault_secrets_injection_enabled | default(false) | bool
+- name: Set up Vault audit logging
+  when: vault_enabled | bool
   tags:
     - vault
-    - secrets
-    - configuration
+    - audit
+    - logging
 
-- name: Set up Vault audit logging
   block:
     - name: Enable file audit backend
       ansible.builtin.file:
         path: /var/log/vault/audit
         owner: vault
         group: vault
-        mode: '0700'
+        mode: "0700"
         state: directory
 
     - name: Configure Vault audit logs
@@ -306,12 +314,6 @@
           }
         state: present
       notify: restart vault
-
-  when: vault_enabled | bool
-  tags:
-    - vault
-    - audit
-    - logging
 
 - name: Configure log rotation for Vault
   ansible.builtin.copy:
@@ -339,7 +341,7 @@
       }
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: vault_enabled | bool
   tags:
     - vault
@@ -389,4 +391,3 @@
   when: vault_enabled | bool
   tags:
     - vault
-

@@ -42,7 +42,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   become: true
@@ -73,8 +73,8 @@
     dest: /etc/docker/daemon.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   register: docker_daemon_config_result
   tags:
@@ -95,8 +95,8 @@
     dest: /etc/docker/daemon.json.d/logging.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_configure_logging | default(true)
   tags:
@@ -111,8 +111,8 @@
     dest: /etc/docker/config.json
     owner: root
     group: docker
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_registry_credentials | default([]) | length > 0
   tags:
@@ -131,8 +131,8 @@
     dest: /etc/docker/daemon.json.d/storage.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_storage_driver | default(false)
   tags:
@@ -147,8 +147,8 @@
     dest: /etc/docker/daemon.json.d/network.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_network_config | default({}) | length > 0
   tags:
@@ -164,8 +164,7 @@
     enabled: true
     daemon_reload: true
   become: true
-  when: docker_daemon_config_result.changed or
-        (container_docker_configure_logging | default(true) | bool)
+  when: docker_daemon_config_result.changed or (container_docker_configure_logging | default(true) | bool)
   register: docker_daemon_restart
   tags:
     - docker
@@ -198,7 +197,7 @@
   ansible.builtin.user:
     name: "{{ item }}"
     groups: docker
-    append: yes
+    append: true
     state: present
   become: true
   loop: "{{ container_docker_users | default([]) }}"
@@ -215,9 +214,9 @@
     dest: /etc/sudoers.d/docker
     owner: root
     group: root
-    mode: '0440'
-    backup: yes
-    validate: '/usr/sbin/visudo -cf %s'
+    mode: "0440"
+    backup: true
+    validate: "/usr/sbin/visudo -cf %s"
   become: true
   when: container_docker_sudo_access | default(false) | bool
   tags:
@@ -260,8 +259,8 @@
     dest: /etc/docker/daemon.json.d/syslog.json
     owner: root
     group: root
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: container_docker_syslog_enabled | default(false) | bool
   tags:
@@ -284,23 +283,23 @@
 
 # Final health check: verify Docker daemon functionality
 - name: Docker installation health check
+  when: container_docker_enabled | default(false)
+  tags:
+    - health
+
   block:
     - name: Test Docker daemon connectivity
-      ansible.builtin.shell: docker info
+      ansible.builtin.command: docker info
       register: docker_ping_result
       tags:
         - docker
         - health
 
     - name: Retrieve Docker system information
-      ansible.builtin.shell: docker version --format='{{.Server.Version}}'
+      ansible.builtin.shell: docker version --format='{{ '{{' }}.Server.Version{{ '}}' }}'
       register: docker_system_info
       tags:
         - docker
-  when: container_docker_enabled | default(false)
-  tags:
-    - health
-
 - name: Log Docker installation completion
   ansible.builtin.debug:
     msg: |

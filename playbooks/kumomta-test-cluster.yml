@@ -3,7 +3,7 @@
 - name: Deploy KumoMTA Cluster
   hosts: wg-node2,wg-node3
   become: true
-  gather_facts: yes
+  gather_facts: true
   vars:
     kumomta_enabled: true
     kumomta_monitoring_enabled: true
@@ -20,7 +20,7 @@
       ansible.builtin.file:
         path: "{{ test_results_dir }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       run_once: true
 
     - name: Display cluster deployment info

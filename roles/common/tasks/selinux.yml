@@ -14,6 +14,11 @@
     - always
 
 - name: Install SELinux packages
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - packages
+
   block:
     - name: Install SELinux core packages
       ansible.builtin.package:
@@ -34,12 +39,13 @@
         state: present
       when: selinux_install_gui | default(false) | bool
 
+- name: Configure SELinux kernel parameters
   when: selinux_enabled | bool
   tags:
     - selinux
-    - packages
+    - kernel
+    - configuration
 
-- name: Configure SELinux kernel parameters
   block:
     - name: Enable SELinux in GRUB configuration
       ansible.builtin.lineinfile:
@@ -55,13 +61,12 @@
       changed_when: false
       failed_when: false
 
+- name: Set SELinux policy and mode
   when: selinux_enabled | bool
   tags:
     - selinux
-    - kernel
     - configuration
 
-- name: Set SELinux policy and mode
   block:
     - name: Set SELinux policy type
       ansible.builtin.lineinfile:
@@ -87,12 +92,13 @@
       changed_when: false
       failed_when: false
 
+- name: Configure SELinux file contexts
   when: selinux_enabled | bool
   tags:
     - selinux
+    - contexts
     - configuration
 
-- name: Configure SELinux file contexts
   block:
     - name: Restore SELinux contexts for system directories
       ansible.builtin.command: "restorecon -Rv /{{ item }}"
@@ -118,27 +124,27 @@
       changed_when: false
       failed_when: false
 
+- name: Configure SELinux boolean settings
   when: selinux_enabled | bool
   tags:
     - selinux
-    - contexts
+    - booleans
     - configuration
 
-- name: Configure SELinux boolean settings
   block:
     - name: Set SELinux booleans for common services
-      ansible.builtin.seboolean:
+      ansible.posix.seboolean:
         name: "{{ item.name }}"
         state: "{{ item.state }}"
-        persistent: yes
+        persistent: true
       loop: "{{ selinux_booleans | default([]) }}"
       when: selinux_booleans is defined
 
     - name: Enable common SELinux booleans
-      ansible.builtin.seboolean:
+      ansible.posix.seboolean:
         name: "{{ item }}"
-        state: yes
-        persistent: yes
+        state: true
+        persistent: true
       loop:
         - httpd_can_network_connect
         - httpd_can_network_relay
@@ -146,38 +152,39 @@
         - allow_user_tcp_ports
       when: selinux_enable_common_booleans | default(true) | bool
 
-  when: selinux_enabled | bool
-  tags:
-    - selinux
-    - booleans
-    - configuration
-
 - name: Configure SELinux user mappings
-  block:
-    - name: Create custom SELinux user mappings
-      ansible.builtin.command: "semanage user -a -R '{{ item.role }}' -s {{ item.level | default('s0-s0:c0.c1023') }} '{{ item.username }}'"
-      loop: "{{ selinux_user_mappings | default([]) }}"
-      when: selinux_user_mappings is defined
-      changed_when: false
-      failed_when: false
-
   when: selinux_enabled | bool
   tags:
     - selinux
     - users
     - configuration
 
+  block:
+    - name: Create custom SELinux user mappings
+      ansible.builtin.command: "semanage user -a -R '{{ item.role }}' -s {{ item.level | default('s0-s0:c0.c1023') }} '{{
+        item.username }}'"
+      loop: "{{ selinux_user_mappings | default([]) }}"
+      when: selinux_user_mappings is defined
+      changed_when: false
+      failed_when: false
+
 - name: Enable SELinux audit logging
+  when: selinux_enabled | bool
+  tags:
+    - selinux
+    - audit
+    - logging
+
   block:
     - name: Configure auditd for SELinux
       ansible.builtin.lineinfile:
         path: /etc/audit/rules.d/selinux.rules
         state: present
-        create: yes
+        create: true
         line: "-w /etc/selinux/ -p wa -k selinux_changes"
         owner: root
         group: root
-        mode: '0640'
+        mode: "0640"
       notify: restart auditd
 
     - name: Enable SELinux denial logging
@@ -188,20 +195,20 @@
         state: present
       notify: restart auditd
 
+- name: Create SELinux policy modules
   when: selinux_enabled | bool
   tags:
     - selinux
-    - audit
-    - logging
+    - policies
+    - configuration
 
-- name: Create SELinux policy modules
   block:
     - name: Create SELinux policy directory
       ansible.builtin.file:
         path: /usr/share/selinux/custom
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Deploy custom SELinux policies
@@ -210,7 +217,7 @@
         content: "{{ item.policy }}"
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       loop: "{{ selinux_custom_policies | default([]) }}"
       when: selinux_custom_policies is defined
 
@@ -225,13 +232,12 @@
       changed_when: false
       failed_when: false
 
+- name: Verify SELinux configuration
   when: selinux_enabled | bool
   tags:
     - selinux
-    - policies
-    - configuration
+    - validate
 
-- name: Verify SELinux configuration
   block:
     - name: Check SELinux status
       ansible.builtin.command: getenforce
@@ -253,11 +259,6 @@
       changed_when: false
       failed_when: false
 
-  when: selinux_enabled | bool
-  tags:
-    - selinux
-    - validate
-
 - name: Configure SELinux log rotation
   ansible.builtin.copy:
     dest: /etc/logrotate.d/selinux
@@ -274,7 +275,7 @@
       }
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: selinux_enabled | bool
   tags:
     - selinux
@@ -313,4 +314,3 @@
   when: selinux_enabled | bool
   tags:
     - selinux
-

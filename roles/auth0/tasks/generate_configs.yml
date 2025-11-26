@@ -2,17 +2,17 @@
 # Generate configuration files for applications
 
 - name: Create app config directory
-  file:
+  ansible.builtin.file:
     path: "{{ playbook_dir }}/{{ client_name }}_auth0_configs"
     state: directory
   delegate_to: localhost
-  become: no
+  become: false
   tags:
     - auth0
     - configuration
 
 - name: Generate environment variables file
-  copy:
+  ansible.builtin.copy:
     content: |
       # Auth0 Configuration for {{ client_name }}
       # Generated: {{ ansible_date_time.iso8601 }}
@@ -31,13 +31,13 @@
       {% endfor %}
     dest: "{{ playbook_dir }}/{{ client_name }}_auth0_configs/.env"
   delegate_to: localhost
-  become: no
+  become: false
   tags:
     - auth0
     - configuration
 
 - name: Display generated configs
-  debug:
+  ansible.builtin.debug:
     msg: "Configuration files generated in: {{ playbook_dir }}/{{ client_name }}_auth0_configs/"
   tags:
     - auth0

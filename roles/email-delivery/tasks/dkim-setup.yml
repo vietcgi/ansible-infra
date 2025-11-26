@@ -30,20 +30,16 @@
 
     - name: Add DKIM record to DNS list
       ansible.builtin.set_fact:
-        email_dns_records: "{{ email_dns_records | default([]) + [{
-          'type': 'TXT',
-          'record': dkim_selector + '._domainkey' + ('.' + dns_record_prefix if dns_record_prefix != '@' else ''),
-          'value': ('v=DKIM1; k=rsa; p=' + (dkim_public_key.content | b64decode | trim)),
-          'ttl': 3600,
-          'zone': dns_zone_name
-        }] }}"
+        email_dns_records: "{{ email_dns_records | default([]) + [{'type': 'TXT', 'record': dkim_selector + '._domainkey'
+          + ('.' + dns_record_prefix if dns_record_prefix != '@' else ''), 'value': ('v=DKIM1; k=rsa; p=' + (dkim_public_key.content
+          | b64decode | trim)), 'ttl': 3600, 'zone': dns_zone_name}] }}"
 
     - name: Set DKIM key permissions
       ansible.builtin.file:
         path: "/opt/kumomta/etc/dkim/{{ dkim_selector }}.key"
         owner: kumod
         group: kumod
-        mode: '0600'
+        mode: "0600"
       notify: restart kumomta
 
     - name: Display DKIM Status

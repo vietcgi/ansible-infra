@@ -19,13 +19,10 @@ opnsense_ha_virtual_ip: ""
 
 # Interface Configuration
 opnsense_interfaces: []
-
 # Firewall Rules
 opnsense_firewall_rules: []
-
 # NAT Rules
 opnsense_nat_rules: []
-
 # System Settings
 opnsense_hostname: opnsense
 opnsense_domain: ""
@@ -38,7 +35,6 @@ opnsense_dns_servers:
 opnsense_wireguard_enabled: false
 opnsense_wireguard_port: 51820
 opnsense_wireguard_peers: []
-
 # Backup
 opnsense_backup_enabled: false
 opnsense_backup_schedule: "0 2 * * *"

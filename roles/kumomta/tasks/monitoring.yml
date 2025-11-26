@@ -8,7 +8,7 @@
         path: "{{ kumomta_config_dir }}/metrics"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Create Prometheus scrape configuration
@@ -26,7 +26,7 @@
               scrape_interval: {{ kumomta_metrics_scrape_interval }}
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Template Grafana dashboard configuration
@@ -35,7 +35,7 @@
         dest: "{{ kumomta_config_dir }}/metrics/kumomta-dashboard.json"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       when: kumomta_grafana_enabled | bool
 
     - name: Configure syslog logging
@@ -44,7 +44,7 @@
         dest: /etc/rsyslog.d/30-kumomta.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       notify: restart rsyslog
       when: kumomta_syslog_enabled | bool
       become: true
@@ -55,7 +55,7 @@
         dest: /etc/logrotate.d/kumomta
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       become: true
 
     - name: Create metrics alerts configuration
@@ -64,7 +64,7 @@
         dest: "{{ kumomta_config_dir }}/metrics/kumomta-alerts.yml"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       when: kumomta_alerts_enabled | bool
 
     # - name: Export KumoMTA metrics for collection

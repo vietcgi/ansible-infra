@@ -2,17 +2,18 @@
 # Validate OS compatibility
 
 - name: Check OS distribution support
-  assert:
+  ansible.builtin.assert:
     that:
       - ansible_distribution | lower in common_supported_distributions
-    fail_msg: "Unsupported OS distribution: {{ ansible_distribution }}. Supported: {{ common_supported_distributions | join(', ') }}"
+    fail_msg: "Unsupported OS distribution: {{ ansible_distribution }}. Supported: {{ common_supported_distributions | join(',
+      ') }}"
     success_msg: "✓ OS distribution supported: {{ ansible_distribution }}"
   tags:
     - validation
     - always
 
 - name: Display system information
-  debug:
+  ansible.builtin.debug:
     msg: |
       System Information:
         Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}

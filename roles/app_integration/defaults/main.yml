@@ -11,7 +11,7 @@ auth0_audience: ""
 
 # Application configuration
 app_name: ""
-app_env: "development"  # development, staging, production
+app_env: "development" # development, staging, production
 
 # Auth0 application credentials (passed from auth0 role)
 auth0_client_id: ""

@@ -53,7 +53,8 @@
 
     - name: Collect peer public keys from all nodes (via fact gathering)
       ansible.builtin.set_fact:
-        wireguard_peer_vpn_ips: "{{ wireguard_full_mesh_nodes.values() | map(attribute='vpn_ip') | list | difference([current_node_config.vpn_ip]) }}"
+        wireguard_peer_vpn_ips: "{{ wireguard_full_mesh_nodes.values() | map(attribute='vpn_ip') | list | difference([current_node_config.vpn_ip])
+          }}"
 
     - name: Display full mesh topology configuration
       ansible.builtin.debug:

@@ -2,7 +2,7 @@
 - name: Update DMARC Policy on Cloudflare for vietcgi.nguoivietcali.com
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
 
   vars:
     email_domain: "vietcgi.nguoivietcali.com"
@@ -17,7 +17,7 @@
 
   tasks:
     - name: Validate Cloudflare API token is provided
-      assert:
+      ansible.builtin.assert:
         that:
           - cloudflare_api_token != ""
         fail_msg: "CLOUDFLARE_API_TOKEN environment variable must be set"
@@ -27,13 +27,14 @@
         zone: "{{ cloudflare_zone_name }}"
         record: "_dmarc.{{ cloudflare_record_name }}"
         type: "TXT"
-        value: "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; pct={{ dmarc_percent }}; rua=mailto:{{ dmarc_report_email }}; ruf=mailto:{{ dmarc_forensics_email }}"
+        value: "v=DMARC1; p={{ dmarc_policy }}; sp={{ dmarc_subdomain_policy }}; pct={{ dmarc_percent }}; rua=mailto:{{ dmarc_report_email
+          }}; ruf=mailto:{{ dmarc_forensics_email }}"
         ttl: 3600
         api_token: "{{ cloudflare_api_token }}"
       register: dmarc_update_result
 
     - name: Display DMARC update result
-      debug:
+      ansible.builtin.debug:
         msg: |
           ✓ DMARC record updated successfully!
           Zone: {{ cloudflare_zone_name }}

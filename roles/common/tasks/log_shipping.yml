@@ -6,8 +6,8 @@
 
 - name: Detect if Elasticsearch/Logstash available
   ansible.builtin.set_fact:
-    log_centralization_available: "{{ log_shipping_elasticsearch_host != 'localhost' or
-                                       log_shipping_logstash_host != 'localhost' }}"
+    log_centralization_available: "{{ log_shipping_elasticsearch_host != 'localhost' or log_shipping_logstash_host != 'localhost'
+      }}"
   when: log_shipping_enabled | bool
   tags:
     - log_shipping
@@ -26,6 +26,14 @@
     - always
 
 - name: Install Filebeat for log shipping (only if centralization enabled)
+  when:
+    - log_shipping_enabled | bool
+    - log_shipping_use_filebeat | default(true)
+    - log_centralization_available | default(false)
+  tags:
+    - log_shipping
+    - packages
+
   block:
     - name: Add Elasticsearch GPG key
       ansible.builtin.apt_key:
@@ -46,18 +54,10 @@
       when: ansible_os_family == 'Debian'
 
     - name: Install Filebeat package (RHEL/CentOS)
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: "filebeat-{{ log_shipping_filebeat_version }}"
         state: present
       when: ansible_os_family == 'RedHat'
-
-  when:
-    - log_shipping_enabled | bool
-    - log_shipping_use_filebeat | default(true)
-    - log_centralization_available | default(false)
-  tags:
-    - log_shipping
-    - packages
 
 - name: Create Filebeat configuration directory
   ansible.builtin.file:
@@ -65,7 +65,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)
@@ -79,8 +79,8 @@
     dest: /etc/filebeat/filebeat.yml
     owner: root
     group: root
-    mode: '0600'
-    backup: yes
+    mode: "0600"
+    backup: true
   notify: restart filebeat
   when:
     - log_shipping_enabled | bool
@@ -92,9 +92,9 @@
 - name: Enable and start Filebeat service
   ansible.builtin.systemd:
     name: filebeat
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)
@@ -110,8 +110,8 @@
     dest: /etc/rsyslog.d/99-forward.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   notify: restart rsyslog
   when:
     - log_shipping_enabled | bool
@@ -124,7 +124,7 @@
   ansible.builtin.systemd:
     name: rsyslog
     state: restarted
-    daemon_reload: yes
+    daemon_reload: true
   when:
     - log_shipping_enabled | bool
     - not (log_shipping_use_filebeat | default(true))
@@ -138,7 +138,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)
@@ -160,7 +160,7 @@
           enabled: true
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   loop:
     - system
     - auditd
@@ -173,12 +173,17 @@
     - configuration
 
 - name: Verify Elasticsearch connectivity
+  when: log_shipping_enabled | bool
+  tags:
+    - log_shipping
+    - validate
+
   block:
     - name: Check Elasticsearch endpoint
       ansible.builtin.uri:
         url: "http://{{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}"
         method: GET
-        return_content: yes
+        return_content: true
         timeout: 5
       register: elasticsearch_check
       changed_when: false
@@ -186,7 +191,8 @@
 
     - name: Report Elasticsearch status
       ansible.builtin.debug:
-        msg: "✓ Elasticsearch endpoint reachable: {{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port }}"
+        msg: "✓ Elasticsearch endpoint reachable: {{ log_shipping_elasticsearch_host }}:{{ log_shipping_elasticsearch_port
+          }}"
       when: elasticsearch_check.status | default(0) == 200
 
     - name: Warn if Elasticsearch unreachable
@@ -194,16 +200,12 @@
         msg: "⚠ Elasticsearch endpoint unreachable - logs may buffer locally"
       when: elasticsearch_check.status | default(0) != 200
 
-  when: log_shipping_enabled | bool
-  tags:
-    - log_shipping
-    - validate
-
 - name: Set up log parsing filter for security events
   ansible.builtin.lineinfile:
     path: /etc/filebeat/filebeat.yml
     insertafter: "processors:"
-    line: "  - add_fields:\n      target: event\n      fields:\n        environment: {{ log_shipping_environment | default('production') }}"
+    line: "  - add_fields:\n      target: event\n      fields:\n        environment: {{ log_shipping_environment | default('production')
+      }}"
     state: present
   when:
     - log_shipping_enabled | bool
@@ -219,7 +221,7 @@
     dest: /tmp/filebeat-index-template.json
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when:
     - log_shipping_enabled | bool
     - log_shipping_use_filebeat | default(true)

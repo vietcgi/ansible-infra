@@ -14,7 +14,7 @@
         dest: /opt/kumomta/etc/email-routing.lua
         owner: kumod
         group: kumod
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
       when: kumomta_routing_dir.stat.exists
 
@@ -30,7 +30,7 @@
         dest: /opt/kumomta/etc/domain_routes.conf
         owner: kumod
         group: kumod
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
       when: kumomta_routing_dir.stat.exists
 

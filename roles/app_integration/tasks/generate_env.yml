@@ -2,7 +2,7 @@
 # Generate environment variables file for application
 
 - name: Ensure application config directory exists
-  file:
+  ansible.builtin.file:
     path: "{{ app_config_path }}"
     state: directory
     owner: "root"
@@ -13,7 +13,7 @@
     - env_generation
 
 - name: Generate .env file with Auth0 credentials
-  copy:
+  ansible.builtin.copy:
     content: |
       # Auth0 Configuration
       # Generated: {{ ansible_date_time.iso8601 }}
@@ -40,14 +40,14 @@
     owner: "root"
     group: "root"
     mode: "0644"
-    backup: yes
+    backup: true
   register: env_file_result
   tags:
     - app_integration
     - env_generation
 
 - name: Display environment file location
-  debug:
+  ansible.builtin.debug:
     msg: |
       Environment file generated:
       Path: {{ app_env_path }}

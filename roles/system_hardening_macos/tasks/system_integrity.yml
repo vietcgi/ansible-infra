@@ -3,36 +3,36 @@
 # Checks SIP, Gatekeeper, XProtect status
 
 - name: "Debug: Verifying system integrity"
-  debug:
+  ansible.builtin.debug:
     msg: "Checking System Integrity Protection (SIP), Gatekeeper, and XProtect"
 
 - name: "Check System Integrity Protection (SIP) status"
-  shell: csrutil status
+  ansible.builtin.command: csrutil status
   register: sip_status
   changed_when: false
   check_mode: false
 
 - name: "Verify SIP is enabled"
-  assert:
+  ansible.builtin.assert:
     that:
       - '"enabled" in sip_status.stdout'
     fail_msg: "CRITICAL: System Integrity Protection (SIP) is disabled!"
 
 - name: "Check Gatekeeper status"
-  shell: spctl --status
+  ansible.builtin.command: spctl --status
   register: gatekeeper_status
   changed_when: false
   check_mode: false
 
 - name: "Verify Gatekeeper is enabled"
-  assert:
+  ansible.builtin.assert:
     that:
       - '"active" in gatekeeper_status.stdout or "enabled" in gatekeeper_status.stdout'
     fail_msg: "Warning: Gatekeeper may not be properly enabled"
   when: macos_gatekeeper_enabled
 
 - name: "Check XProtect status"
-  shell: |
+  ansible.builtin.shell: |
     if [ -f /Library/Apple/System/Library/CoreServices/XProtectFramework.framework/Versions/Current/XProtect ]; then
       echo "XProtect: Installed"
     fi
@@ -45,7 +45,7 @@
   ignore_errors: true
 
 - name: "Display system integrity status"
-  debug:
+  ansible.builtin.debug:
     msg: |
       System Integrity Status:
 

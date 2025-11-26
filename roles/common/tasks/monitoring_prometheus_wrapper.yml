@@ -15,6 +15,11 @@
 # Reference: https://github.com/prometheus-community/ansible
 
 - name: "PHASE 2.A: Prometheus Monitoring (Upstream Role Wrapper)"
+  when: monitoring_prometheus_enabled | default(true) | bool
+  tags:
+    - monitoring
+    - prometheus
+    - phase_2_a
   block:
     # ========================================================================
     # Task: Validate Prometheus is enabled
@@ -291,9 +296,3 @@
         - monitoring
         - prometheus
         - error_handling
-
-  when: monitoring_prometheus_enabled | default(true) | bool
-  tags:
-    - monitoring
-    - prometheus
-    - phase_2_a

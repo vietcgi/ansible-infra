@@ -2,13 +2,13 @@
 # SSH hardening and security configuration
 
 - name: Configure SSH daemon (Linux)
-  template:
+  ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
-    backup: yes
-    mode: '0600'
-    validate: '/usr/sbin/sshd -t -f %s'
-  become: yes
+    backup: true
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
+  become: true
   failed_when: false
   notify: restart sshd
   when: ansible_os_family != "Darwin"
@@ -19,12 +19,12 @@
     - critical
 
 - name: Configure SSH daemon (macOS)
-  template:
+  ansible.builtin.template:
     src: sshd_config.j2
     dest: /etc/ssh/sshd_config
-    backup: yes
-    mode: '0600'
-  become: yes
+    backup: true
+    mode: "0600"
+  become: true
   failed_when: false
   notify: restart sshd macos
   when: ansible_os_family == "Darwin"
@@ -35,18 +35,18 @@
     - critical
 
 - name: Ensure SSH config directory permissions
-  file:
+  ansible.builtin.file:
     path: /etc/ssh
     state: directory
-    mode: '0755'
-  become: yes
+    mode: "0755"
+  become: true
   tags:
     - ssh
     - hardening
     - security
 
 - name: Display SSH hardening summary
-  debug:
+  ansible.builtin.debug:
     msg: "SSH daemon configured with security hardening"
   tags:
     - ssh

@@ -8,19 +8,19 @@
 #   ansible-playbook playbooks/provision.yml -i inventories/staging/hosts.yml
 #   ansible-playbook playbooks/provision.yml -k  # Prompt for SSH password if needed
 
-- name: ansible-infra - Provision Servers
+- name: Ansible-infra - Provision Servers
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
   vars:
     ansible_user: "{{ remote_user | default('ubuntu') }}"
 
   pre_tasks:
     - name: Validate server connectivity
-      ping:
+      ansible.builtin.ping:
 
     - name: Display provisioning info
-      debug:
+      ansible.builtin.debug:
         msg: |
           Provisioning Server:
             Hostname: {{ inventory_hostname }}
@@ -41,7 +41,7 @@
 
   post_tasks:
     - name: Verify provisioning success
-      assert:
+      ansible.builtin.assert:
         that:
           - ansible_os_family is defined
           - ansible_distribution is defined
@@ -49,7 +49,7 @@
         success_msg: "✓ Server provisioned and configured successfully"
 
     - name: Create provisioning report
-      copy:
+      ansible.builtin.copy:
         content: |
           ansible-infra Provisioning Report
           ============================================
@@ -69,4 +69,4 @@
           3. Setup backup policies
           4. Enable automated updates
         dest: /var/log/ansible-infra/provisioning-report.txt
-      become: yes
+      become: true

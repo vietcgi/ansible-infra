@@ -23,6 +23,8 @@
         fail_msg: "Hub node requires wireguard_hub_vpn_ip and wireguard_hub_endpoint"
 
     - name: Hub node configuration
+      when: wireguard_node_role == "hub"
+
       block:
         - name: Validate all spokes have required fields
           ansible.builtin.assert:
@@ -53,9 +55,9 @@
               - {{ spoke_name }}: {{ spoke_data.vpn_ip }}{% if spoke_data.networks %} (networks: {{ spoke_data.networks | join(', ') }}){% endif %}
               {% endfor %}
 
-      when: wireguard_node_role == "hub"
-
     - name: Spoke node configuration
+      when: wireguard_node_role == "spoke"
+
       block:
         - name: Validate spoke configuration
           ansible.builtin.assert:
@@ -73,7 +75,8 @@
 
         - name: Collect other spoke IPs for AllowedIPs
           ansible.builtin.set_fact:
-            other_spoke_networks: "{% for spoke_name, spoke_data in wireguard_spoke_nodes.items() %}{% if spoke_name != inventory_hostname %}{{ spoke_data.vpn_ip }}/32{% if not loop.last %},{% endif %}{% endif %}{% endfor %}"
+            other_spoke_networks: "{% for spoke_name, spoke_data in wireguard_spoke_nodes.items() %}{% if spoke_name != inventory_hostname
+              %}{{ spoke_data.vpn_ip }}/32{% if not loop.last %},{% endif %}{% endif %}{% endfor %}"
 
         - name: Display spoke node configuration
           ansible.builtin.debug:
@@ -93,9 +96,11 @@
               - To other spokes: Via hub gateway
               {% if wireguard_ha_mode %}- Failover: Automatic to backup hubs if primary fails{% endif %}
 
-      when: wireguard_node_role == "spoke"
-
     - name: Configure hub backup peers for HA
+      when:
+        - wireguard_ha_mode | default(false) | bool
+        - wireguard_hub_peers | length > 0
+
       block:
         - name: Validate backup hub configuration
           ansible.builtin.assert:
@@ -119,10 +124,6 @@
               - Backup hubs are standby (role: backup/secondary)
               - Spokes detect hub failure via keepalive timeout
               - Automatic fallback to first available backup hub
-
-      when:
-        - wireguard_ha_mode | default(false) | bool
-        - wireguard_hub_peers | length > 0
 
   rescue:
     - name: Handle hub-spoke configuration error

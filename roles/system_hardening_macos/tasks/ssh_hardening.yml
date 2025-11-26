@@ -3,28 +3,28 @@
 # Post-quantum safe algorithms, strong ciphers, rate limiting
 
 - name: "Debug: Hardening SSH daemon"
-  debug:
+  ansible.builtin.debug:
     msg: "Applying hardened SSH daemon configuration with post-quantum algorithms"
 
 - name: "Check SSH daemon status"
-  shell: systemctl status ssh 2>/dev/null || launchctl list | grep -i ssh || echo "SSH daemon status: unknown"
+  ansible.builtin.shell: 'systemctl status ssh 2>/dev/null || launchctl list | grep -i ssh || echo "SSH daemon status unknown"'
   register: ssh_status
   changed_when: false
   check_mode: false
   ignore_errors: true
 
 - name: "Create hardened sshd_config"
-  template:
+  ansible.builtin.template:
     src: sshd_config_macos.j2
     dest: /etc/ssh/sshd_config.hardened
     owner: root
     group: wheel
     mode: "0600"
-    backup: yes
+    backup: true
   register: sshd_config_created
 
 - name: "Validate SSH daemon configuration"
-  shell: |
+  ansible.builtin.shell: |
     # Create temporary copy for testing
     cp /etc/ssh/sshd_config.hardened /tmp/sshd_config_test
     # Test syntax
@@ -38,13 +38,13 @@
   when: sshd_config_created is changed
 
 - name: "Display SSH validation result"
-  debug:
+  ansible.builtin.debug:
     msg: |
       SSH Configuration Validation:
       {% if sshd_validation.rc == 0 %}✓ Valid syntax - Configuration is correct{% else %}✗ Syntax error detected - Review configuration{% endif %}
 
 - name: "Backup current sshd_config"
-  shell: |
+  ansible.builtin.shell: |
     if [ -f /etc/ssh/sshd_config ]; then
       cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup.$(date +%Y%m%d_%H%M%S)
       echo "Backed up to: /etc/ssh/sshd_config.backup.*"
@@ -53,7 +53,7 @@
   changed_when: '"Backed up" in sshd_backup_result.stdout'
 
 - name: "Deploy hardened SSH configuration"
-  shell: |
+  ansible.builtin.shell: |
     cp /etc/ssh/sshd_config.hardened /etc/ssh/sshd_config
     chmod 0600 /etc/ssh/sshd_config
     chown root:wheel /etc/ssh/sshd_config
@@ -62,7 +62,7 @@
   changed_when: sshd_deploy_result.rc == 0
 
 - name: "Restart SSH daemon (launchd)"
-  shell: |
+  ansible.builtin.shell: |
     # macOS uses launchd, not systemd
     launchctl stop com.openssh.sshd 2>/dev/null || true
     sleep 2
@@ -72,14 +72,14 @@
   changed_when: ssh_restart_result.rc == 0
 
 - name: "Wait for SSH daemon to restart"
-  wait_for:
+  ansible.builtin.wait_for:
     port: "{{ ansible_ssh_port | default(22) }}"
     delay: 2
     timeout: 10
   when: sshd_validation.rc == 0 and not macos_hardening_dry_run
 
 - name: "Verify SSH daemon is responding"
-  shell: |
+  ansible.builtin.shell: |
     ssh-keyscan -p {{ ansible_ssh_port | default(22) }} {{ inventory_hostname }} 2>/dev/null | grep -q "ssh-rsa\|ssh-ed25519" && echo "SSH daemon responsive" || echo "SSH daemon check inconclusive"
   changed_when: false
   check_mode: false
@@ -87,7 +87,7 @@
   when: sshd_validation.rc == 0
 
 - name: "Test hardened SSH configuration"
-  shell: |
+  ansible.builtin.shell: |
     sudo sshd -T | grep -E "^(kexalgorithms|ciphers|macs|permitrootlogin|passwordauthentication|permituserenvironment)" | sort
   changed_when: false
   check_mode: false
@@ -95,7 +95,7 @@
   when: sshd_validation.rc == 0
 
 - name: "Display hardened SSH configuration"
-  debug:
+  ansible.builtin.debug:
     msg: |
       SSH Daemon Hardening Complete:
 

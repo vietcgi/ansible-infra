@@ -44,10 +44,10 @@
   vars:
     # ========== REQUIRED VARIABLES ==========
     # These MUST be provided via command line (-e) or inventory
-    email_domain: ""                    # REQUIRED: Your domain name (e.g., example.com)
-    email_server_ip: ""                 # REQUIRED: Server public IP address
-    cloudflare_api_token: ""            # REQUIRED: From vault (vault_cloudflare_api_token)
-    cloudflare_zone_id: ""              # REQUIRED: From vault (vault_cloudflare_zone_id)
+    email_domain: "" # REQUIRED: Your domain name (e.g., example.com)
+    email_server_ip: "" # REQUIRED: Server public IP address
+    cloudflare_api_token: "" # REQUIRED: From vault (vault_cloudflare_api_token)
+    cloudflare_zone_id: "" # REQUIRED: From vault (vault_cloudflare_zone_id)
 
     # ========== OPTIONAL VARIABLES WITH DEFAULTS ==========
     letsencrypt_email: "admin@{{ email_domain }}"
@@ -65,13 +65,13 @@
     dmarc_forensics_email: "dmarc-forensics@{{ email_domain }}"
 
     # SPF Configuration
-    spf_include_domains: []  # Additional domains to include in SPF
+    spf_include_domains: [] # Additional domains to include in SPF
 
     # KumoMTA Configuration
     kumomta_max_delivery_attempts: 5
     kumomta_max_retry_delay: 86400
     kumomta_max_messages_per_minute: 300
-    kumomta_max_message_size: 104857600  # 100MB
+    kumomta_max_message_size: 104857600 # 100MB
     kumomta_sender_messages_per_minute: 100
 
     # ========== DNS PROVIDER SELECTION ==========
@@ -101,13 +101,15 @@
 
   pre_tasks:
     - name: Validate required variables
-      assert:
+      ansible.builtin.assert:
         that:
           - email_domain is defined and email_domain != ""
           - email_server_ip is defined and email_server_ip != ""
           - letsencrypt_email is defined and letsencrypt_email != ""
-          - (vault_cloudflare_api_token is defined and vault_cloudflare_api_token != "") or (cloudflare_api_token is defined and cloudflare_api_token != "")
-          - (vault_cloudflare_zone_id is defined and vault_cloudflare_zone_id != "") or (cloudflare_zone_id is defined and cloudflare_zone_id != "")
+          - (vault_cloudflare_api_token is defined and vault_cloudflare_api_token != "") or (cloudflare_api_token is
+            defined and cloudflare_api_token != "")
+          - (vault_cloudflare_zone_id is defined and vault_cloudflare_zone_id != "") or (cloudflare_zone_id is defined
+            and cloudflare_zone_id != "")
         fail_msg: |
           Missing required variables. Please provide:
           - email_domain: Your domain name (e.g., example.com)
@@ -117,17 +119,17 @@
           - vault_cloudflare_zone_id or cloudflare_zone_id: Cloudflare zone ID
 
     - name: Map vault variables to cloudflare_integration role variables
-      set_fact:
+      ansible.builtin.set_fact:
         cloudflare_api_token: "{{ vault_cloudflare_api_token | default(cloudflare_api_token) }}"
         cloudflare_zone_id: "{{ vault_cloudflare_zone_id | default(cloudflare_zone_id) }}"
 
     - name: Set default DMARC report emails if not provided
-      set_fact:
+      ansible.builtin.set_fact:
         dmarc_report_email: "{{ dmarc_report_email or 'postmaster@' + email_domain }}"
         dmarc_forensics_email: "{{ dmarc_forensics_email or 'security@' + email_domain }}"
 
     - name: Set default Let's Encrypt domains if not provided
-      set_fact:
+      ansible.builtin.set_fact:
         letsencrypt_domains: "{{ letsencrypt_domains | default([email_domain, 'mail.' + email_domain]) }}"
 
     - name: Fetch actual Cloudflare zone details
@@ -143,32 +145,34 @@
       when: cloudflare_api_token != ''
 
     - name: Set actual zone name from Cloudflare
-      set_fact:
-        cloudflare_zone_name_actual: "{{ cloudflare_zone_info.json.result.name if cloudflare_zone_info is defined and cloudflare_zone_info.status == 200 else '' }}"
+      ansible.builtin.set_fact:
+        cloudflare_zone_name_actual: "{{ cloudflare_zone_info.json.result.name if cloudflare_zone_info is defined and cloudflare_zone_info.status
+          == 200 else '' }}"
 
     - name: Determine if Cloudflare zone is valid
-      set_fact:
+      ansible.builtin.set_fact:
         cloudflare_dns_enabled: false
         cloudflare_zone_name: "{{ '.'.join(email_domain.split('.')[-2:]) }}"
         cloudflare_record_name: "@"
       when: cloudflare_zone_name_actual == ''
 
     - name: Use Cloudflare zone when valid
-      set_fact:
+      ansible.builtin.set_fact:
         cloudflare_zone_name: "{{ cloudflare_zone_name_actual }}"
-        cloudflare_record_name: "{{ email_domain.replace('.' + cloudflare_zone_name_actual, '') if email_domain.endswith('.' + cloudflare_zone_name_actual) else email_domain }}"
+        cloudflare_record_name: "{{ email_domain.replace('.' + cloudflare_zone_name_actual, '') if email_domain.endswith('.'
+          + cloudflare_zone_name_actual) else email_domain }}"
         cloudflare_dns_enabled: true
       when: cloudflare_zone_name_actual != ''
 
     - name: Display zone validation result
-      debug:
+      ansible.builtin.debug:
         msg: |
           Domain: {{ email_domain }}
           Cloudflare Zone: {{ cloudflare_zone_name }}
           DNS Records: {% if cloudflare_dns_enabled %}ENABLED (domain matches zone){% else %}DISABLED (domain not in zone){% endif %}
 
     - name: Display configuration summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           ===== Email Delivery Setup Configuration =====
           Domain: {{ email_domain }}
@@ -179,19 +183,17 @@
           ============================================
 
     - name: Update system packages
-      apt:
+      ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
 
     - name: Determine Cloudflare zone from email domain
-      set_fact:
+      ansible.builtin.set_fact:
         # Extract zone by checking 2-3 level domains (handles subdomains like vietcgi.nguoivietcali.com)
         zone_parts: "{{ email_domain.split('.') }}"
 
-
-
     - name: Build Cloudflare DNS records for email delivery
-      set_fact:
+      ansible.builtin.set_fact:
         cloudflare_dns_records: |
           [
             {
@@ -242,13 +244,13 @@
     # No need to manually add it here
 
     - name: Include Cloudflare integration role
-      include_role:
+      ansible.builtin.include_role:
         name: cloudflare_integration
       when: cloudflare_dns_enabled
       tags: [cloudflare, dns]
 
     - name: Include Route53 integration role
-      include_role:
+      ansible.builtin.include_role:
         name: route53_integration
       when: dns_provider == 'route53'
       tags: [route53, dns]
@@ -261,7 +263,7 @@
     #   tags: [google_dns, dns]
 
     - name: Include email-delivery role
-      include_role:
+      ansible.builtin.include_role:
         name: email-delivery
       vars:
         cloudflare_api_token: "{{ cloudflare_api_token }}"
@@ -316,7 +318,7 @@
           ═══════════════════════════════════════════════════════════════════
 
     - name: Display next steps
-      debug:
+      ansible.builtin.debug:
         msg: |
           ===== Email Delivery Setup Complete =====
 

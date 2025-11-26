@@ -7,7 +7,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0700'
+    mode: "0700"
   loop:
     - /var/lib/ansible-baseline
     - /var/lib/ansible-baseline/configs
@@ -20,6 +20,9 @@
     - change_tracking
 
 - name: Generate system baseline information
+  tags:
+    - change_tracking
+
   block:
     - name: Capture OS information
       ansible.builtin.shell: |
@@ -122,13 +125,10 @@
       failed_when: false
       tags:
         - change_tracking
-  tags:
-    - change_tracking
-
 - name: Create change tracking playbook template
   ansible.builtin.copy:
     dest: /var/lib/ansible-baseline/check_changes.sh
-    mode: '0755'
+    mode: "0755"
     content: |
       #!/bin/bash
       # Change Detection Script - Compare current state to baseline
@@ -218,7 +218,7 @@
   ansible.builtin.copy:
     dest: "/var/lib/ansible-baseline/ansible_facts_baseline.json"
     content: "{{ ansible_facts | to_nice_json }}"
-    mode: '0644'
+    mode: "0644"
   tags:
     - change_tracking
 
@@ -226,7 +226,7 @@
   ansible.builtin.file:
     path: /var/log/ansible-changes/CHANGELOG.md
     state: touch
-    mode: '0644'
+    mode: "0644"
     modification_time: now
   tags:
     - change_tracking
@@ -271,11 +271,17 @@
 
       **Last Updated**: {{ ansible_date_time.iso8601 }}
       **Next Review**: {{ (ansible_date_time.iso8601_basic | int) + 2592000 }} (30 days)
-    force: yes
+    force: true
   tags:
     - change_tracking
 
 - name: Create systemd timer for periodic change detection
+  when:
+    - ansible_os_family != 'Darwin'
+    - common_enable_change_tracking | default(true) | bool
+  tags:
+    - change_tracking
+
   block:
     - name: Create change detection timer
       ansible.builtin.copy:
@@ -293,7 +299,7 @@
 
           [Install]
           WantedBy=timers.target
-        mode: '0644'
+        mode: "0644"
       notify: daemon reload
       tags:
         - change_tracking
@@ -314,7 +320,7 @@
 
           [Install]
           WantedBy=multi-user.target
-        mode: '0644'
+        mode: "0644"
       notify: daemon reload
       tags:
         - change_tracking
@@ -322,20 +328,14 @@
     - name: Enable and start change detection timer
       ansible.builtin.systemd:
         name: ansible-change-check.timer
-        enabled: yes
+        enabled: true
         state: started
-        daemon_reload: yes
+        daemon_reload: true
       when:
         - ansible_service_mgr == 'systemd'
         - ansible_os_family != 'Darwin'
       tags:
         - change_tracking
-  when:
-    - ansible_os_family != 'Darwin'
-    - common_enable_change_tracking | default(true) | bool
-  tags:
-    - change_tracking
-
 - name: Display change tracking configuration
   ansible.builtin.debug:
     msg: |

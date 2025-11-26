@@ -2,21 +2,21 @@
 # File descriptor and resource limits configuration
 
 - name: Create limits configuration directory
-  file:
+  ansible.builtin.file:
     path: /etc/security/limits.d
     state: directory
-    mode: '0755'
-  become: yes
+    mode: "0755"
+  become: true
   when: ansible_os_family != "Darwin"
 
 - name: Apply file descriptor limits
-  template:
+  ansible.builtin.template:
     src: limits.conf.j2
     dest: /etc/security/limits.d/99-sentinel.conf
-    backup: yes
-  become: yes
+    backup: true
+  become: true
   when: ansible_os_family != "Darwin"
 
 - name: Display limits configuration summary
-  debug:
+  ansible.builtin.debug:
     msg: "File descriptor and resource limits configured"

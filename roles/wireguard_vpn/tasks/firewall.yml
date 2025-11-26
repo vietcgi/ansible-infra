@@ -19,6 +19,8 @@
       when: ansible_os_family == "RedHat"
 
     - name: Configure additional firewall rules
+      when: wireguard_firewall_rules | length > 0
+
       block:
         - name: Add custom firewall rules
           community.general.ufw:
@@ -29,8 +31,6 @@
             state: enabled
           loop: "{{ wireguard_firewall_rules }}"
           when: ansible_os_family == "Debian"
-      when: wireguard_firewall_rules | length > 0
-
     - name: Display firewall configuration
       ansible.builtin.debug:
         msg: |

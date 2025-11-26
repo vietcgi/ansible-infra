@@ -27,7 +27,6 @@
     - role: common
       tags:
         - vm_base_config
-  when: groups['vm_cluster'] | default([]) | length > 0
 
 - name: "Stage 4: Deploy Firewall Infrastructure"
   ansible.builtin.import_playbook: deploy-firewalls.yml

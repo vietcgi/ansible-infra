@@ -4,8 +4,8 @@
 
 - name: Prepare test environment
   hosts: all
-  gather_facts: yes
-  become: yes
+  gather_facts: true
+  become: true
   tasks:
     - name: "Setup: Display environment"
       debug:
@@ -23,7 +23,7 @@
       block:
         - name: Update apt cache
           apt:
-            update_cache: yes
+            update_cache: true
             cache_valid_time: 3600
 
         - name: Install essential packages
@@ -54,7 +54,7 @@
             path: /root/.ssh/id_rsa
             type: rsa
             size: 2048
-            force: no
+            force: false
 
         - name: Add SSH key to authorized_keys
           authorized_key:
@@ -66,8 +66,8 @@
           systemd:
             name: ssh
             state: started
-            enabled: yes
-            daemon_reload: yes
+            enabled: true
+            daemon_reload: true
 
       when: ansible_os_family == 'Debian'
 
@@ -103,7 +103,7 @@
             path: /root/.ssh/id_rsa
             type: rsa
             size: 2048
-            force: no
+            force: false
 
         - name: Add SSH key to authorized_keys
           authorized_key:
@@ -115,8 +115,8 @@
           systemd:
             name: sshd
             state: started
-            enabled: yes
-            daemon_reload: yes
+            enabled: true
+            daemon_reload: true
 
       when: ansible_os_family == 'RedHat'
 

@@ -7,7 +7,7 @@
     dest: /etc/systemd/system/kumomta.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   register: service_unit_change
   become: true
 
@@ -17,7 +17,7 @@
     dest: /etc/systemd/system/kumomta-submission.socket
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   register: socket_unit_change
   become: true
 

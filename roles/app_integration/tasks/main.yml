@@ -3,14 +3,14 @@
 # Applies Auth0 configuration to applications based on framework type
 
 - name: Validate application configuration
-  import_tasks: validate.yml
+  ansible.builtin.import_tasks: validate.yml
   tags:
     - app_integration
     - validation
     - always
 
 - name: Generate environment file
-  import_tasks: generate_env.yml
+  ansible.builtin.import_tasks: generate_env.yml
   when:
     - auth0_client_id is defined
     - auth0_client_id | length > 0
@@ -19,35 +19,35 @@
     - env_generation
 
 - name: Configure Node.js application
-  import_tasks: configure_nodejs.yml
+  ansible.builtin.import_tasks: configure_nodejs.yml
   when: app_framework == "nodejs"
   tags:
     - app_integration
     - nodejs
 
 - name: Configure Python application
-  import_tasks: configure_python.yml
+  ansible.builtin.import_tasks: configure_python.yml
   when: app_framework == "python" or app_framework == "django"
   tags:
     - app_integration
     - python
 
 - name: Configure Go application
-  import_tasks: configure_go.yml
+  ansible.builtin.import_tasks: configure_go.yml
   when: app_framework == "go"
   tags:
     - app_integration
     - go
 
 - name: Configure Java application
-  import_tasks: configure_java.yml
+  ansible.builtin.import_tasks: configure_java.yml
   when: app_framework == "java"
   tags:
     - app_integration
     - java
 
 - name: Display integration summary
-  debug:
+  ansible.builtin.debug:
     msg: |
       Auth0 Integration Complete
       ================================

@@ -19,13 +19,13 @@
         dest: /etc/kumomta/kumomta.conf
         owner: kumomta
         group: kumomta
-        mode: '0640'
+        mode: "0640"
 
     - name: Restart kumomta service
       ansible.builtin.systemd:
         name: kumomta
         state: restarted
-        daemon_reload: yes
+        daemon_reload: true
 
     - name: Wait for service to stabilize
       ansible.builtin.pause:
@@ -83,7 +83,7 @@
           Queue Status: {{ queue_count.stdout }} messages
 
     - name: Show recent logs
-      ansible.builtin.shell: journalctl -u kumomta --since "2 minutes ago" -n 20 --no-pager
+      ansible.builtin.command: journalctl -u kumomta --since "2 minutes ago" -n 20 --no-pager
       register: recent_logs
       changed_when: false
 

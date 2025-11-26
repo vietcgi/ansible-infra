@@ -17,24 +17,24 @@
     state: present
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
-    validate: '/usr/sbin/visudo -cf %s'
-    backup: yes
+    validate: "/usr/sbin/visudo -cf %s"
+    backup: true
   loop:
-    - regexp: '^Defaults\s+use_pty'
-      line: 'Defaults use_pty'
-    - regexp: '^Defaults\s+logfile'
+    - regexp: "^Defaults\\s+use_pty"
+      line: "Defaults use_pty"
+    - regexp: "^Defaults\\s+logfile"
       line: 'Defaults logfile="/var/log/sudo.log"'
-    - regexp: '^Defaults\s+log_input'
-      line: 'Defaults log_input'
-    - regexp: '^Defaults\s+log_output'
-      line: 'Defaults log_output'
-    - regexp: '^Defaults\s+requiretty'
+    - regexp: "^Defaults\\s+log_input"
+      line: "Defaults log_input"
+    - regexp: "^Defaults\\s+log_output"
+      line: "Defaults log_output"
+    - regexp: "^Defaults\\s+requiretty"
       line: "{{ 'Defaults requiretty' if sudo_require_tty | default(true) else '' }}"
-    - regexp: '^Defaults\s+env_reset'
-      line: 'Defaults env_reset'
-    - regexp: '^Defaults\s+secure_path'
+    - regexp: "^Defaults\\s+env_reset"
+      line: "Defaults env_reset"
+    - regexp: "^Defaults\\s+secure_path"
       line: 'Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"'
-    - regexp: '^Defaults\s+lecture'
+    - regexp: "^Defaults\\s+lecture"
       line: 'Defaults lecture="never"'
   failed_when: false
   tags:
@@ -47,7 +47,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0700'
+    mode: "0700"
   failed_when: false
   tags:
     - sudo_hardening
@@ -57,11 +57,11 @@
   ansible.builtin.lineinfile:
     path: /etc/audit/rules.d/sudoers.rules
     state: present
-    create: yes
+    create: true
     line: "-w /etc/sudoers -p wa -k sudoers"
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   notify: restart auditd
   failed_when: false
   tags:
@@ -72,13 +72,13 @@
   ansible.builtin.lineinfile:
     path: /etc/audit/rules.d/sudo.rules
     state: present
-    create: yes
+    create: true
     line: |
       -w /var/log/sudo.log -p wa -k sudo_commands
       -a exit,always -F arch=b64 -S execve -F uid!=0 -F auid!=-1 -F auid!=4294967295 -k commands
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   notify: restart auditd
   when: common_enable_audit | default(true)
   failed_when: false
@@ -92,7 +92,7 @@
     state: touch
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   failed_when: false
   tags:
     - sudo_hardening
@@ -114,7 +114,7 @@
       }
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - sudo_hardening
     - logging

@@ -12,6 +12,8 @@
           Outbound NAT Rules: {{ pfsense_nat_outbound | length | default(0) }}
 
     - name: Configure Port Forward (DNAT) rules
+      when: pfsense_nat_port_forwards | length | default(0) > 0
+
       block:
         - name: Display port forward configuration
           ansible.builtin.debug:
@@ -45,9 +47,9 @@
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: pfsense_nat_port_forwards | length | default(0) > 0
-
     - name: Configure Outbound NAT (SNAT) rules
+      when: pfsense_nat_outbound | length | default(0) > 0
+
       block:
         - name: Display outbound NAT configuration
           ansible.builtin.debug:
@@ -77,8 +79,6 @@
               {% for result in outbound_nat_results.results %}
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
-
-      when: pfsense_nat_outbound | length | default(0) > 0
 
     - name: Display NAT configuration summary
       ansible.builtin.debug:

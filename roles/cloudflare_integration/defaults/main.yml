@@ -10,7 +10,7 @@ cloudflare_api_token: "{{ vault_cloudflare_api_token | default('') }}"
 cloudflare_account_email: "{{ vault_cloudflare_email | default('') }}"
 cloudflare_zone_id: "{{ vault_cloudflare_zone_id | default('') }}"
 cloudflare_domain: "{{ vault_cloudflare_domain | default('') }}"
-cloudflare_plan: "pro"  # free, pro, business, enterprise
+cloudflare_plan: "pro" # free, pro, business, enterprise
 
 # ============================================================================
 # DNS Management
@@ -30,11 +30,11 @@ cloudflare_dns_records: []
 cloudflare_enable_dnssec: true
 cloudflare_zone_apex_redirect: ""
 cloudflare_managed_nameservers: true
-cloudflare_cname_flattening: "flatten_at_root"  # off, flatten_at_root, flatten_all
+cloudflare_cname_flattening: "flatten_at_root" # off, flatten_at_root, flatten_all
 
 # DNS Firewall
 cloudflare_dns_firewall_enabled: false
-cloudflare_dns_firewall_block_response: "refused"  # refused, nodata
+cloudflare_dns_firewall_block_response: "refused" # refused, nodata
 cloudflare_dns_firewall_threat_level: "medium"
 
 # DNS Resolution
@@ -58,8 +58,8 @@ cloudflare_dns_check_minute: "*/30"
 cloudflare_waf_enabled: false
 
 # WAF Sensitivity
-cloudflare_waf_sensitivity_level: "medium"  # low, medium, high
-cloudflare_waf_paranoia_level: 2  # 1, 2, 3, 4 (higher = stricter)
+cloudflare_waf_sensitivity_level: "medium" # low, medium, high
+cloudflare_waf_paranoia_level: 2 # 1, 2, 3, 4 (higher = stricter)
 
 # WAF Rule Sets
 cloudflare_waf_enable_managed_rules: true
@@ -78,12 +78,11 @@ cloudflare_waf_block_ip_ranges: []
   # - "192.0.2.0/24"
 
 cloudflare_waf_allow_ip_ranges: []
-
 # WAF Rate Limiting
 cloudflare_waf_rate_limit_enabled: true
-cloudflare_waf_rate_limit_threshold: 100  # requests per 10 seconds
-cloudflare_waf_rate_limit_period: 10  # seconds
-cloudflare_waf_rate_limit_action: "challenge"  # challenge, block, log
+cloudflare_waf_rate_limit_threshold: 100 # requests per 10 seconds
+cloudflare_waf_rate_limit_period: 10 # seconds
+cloudflare_waf_rate_limit_action: "challenge" # challenge, block, log
 
 # WAF Monitoring
 cloudflare_waf_enable_monitoring: true
@@ -97,7 +96,7 @@ cloudflare_waf_log_all_requests: false
 cloudflare_ddos_protection_enabled: false
 
 # DDoS Sensitivity
-cloudflare_ddos_sensitivity: "medium"  # low, medium, high, enterprise
+cloudflare_ddos_sensitivity: "medium" # low, medium, high, enterprise
 cloudflare_ddos_advanced_ddos: true
 
 # DDoS Mitigation
@@ -108,7 +107,7 @@ cloudflare_ddos_dns_amplification_protection: true
 
 # DDoS Rate Limiting
 cloudflare_ddos_rate_limit_enabled: true
-cloudflare_ddos_rate_limit_threshold: 1000  # requests per second
+cloudflare_ddos_rate_limit_threshold: 1000 # requests per second
 cloudflare_ddos_rate_limit_action: "challenge"
 
 # DDoS Monitoring
@@ -122,9 +121,9 @@ cloudflare_ddos_check_minute: "*/5"
 cloudflare_ssl_tls_enabled: false
 
 # SSL/TLS Mode
-cloudflare_ssl_tls_mode: "full_strict"  # off, flexible, full, full_strict
-cloudflare_ssl_tls_minimum_version: "1.2"  # 1.0, 1.1, 1.2, 1.3
-cloudflare_ssl_tls_ciphers: "modern"  # modern, compatible, legacy
+cloudflare_ssl_tls_mode: "full_strict" # off, flexible, full, full_strict
+cloudflare_ssl_tls_minimum_version: "1.2" # 1.0, 1.1, 1.2, 1.3
+cloudflare_ssl_tls_ciphers: "modern" # modern, compatible, legacy
 
 # Universal SSL
 cloudflare_universal_ssl_enabled: true
@@ -137,7 +136,7 @@ cloudflare_custom_ssl_key_path: ""
 
 # HSTS Configuration
 cloudflare_hsts_enabled: true
-cloudflare_hsts_max_age: 31536000  # 1 year in seconds
+cloudflare_hsts_max_age: 31536000 # 1 year in seconds
 cloudflare_hsts_include_subdomains: true
 cloudflare_hsts_preload: true
 
@@ -153,9 +152,9 @@ cloudflare_cert_enable_monitoring: true
 cloudflare_edge_cache_enabled: false
 
 # Cache TTL
-cloudflare_cache_default_ttl: 30  # minutes
-cloudflare_cache_browser_ttl: 30  # minutes
-cloudflare_cache_on_cookie: false  # cache even with cookies
+cloudflare_cache_default_ttl: 30 # minutes
+cloudflare_cache_browser_ttl: 30 # minutes
+cloudflare_cache_on_cookie: false # cache even with cookies
 cloudflare_cache_respect_origin_headers: true
 
 # Cache Rules
@@ -180,11 +179,11 @@ cloudflare_cache_analytics_hour: "*/4"
 # Page Rules
 cloudflare_page_rules_enabled: false
 cloudflare_page_rules: []
-  # - priority: 1
-  #   targets:
-  #     - "example.com/blog/*"
-  #   actions:
-  #     - cache_level: "cache_everything"
+# - priority: 1
+#   targets:
+#     - "example.com/blog/*"
+#   actions:
+#     - cache_level: "cache_everything"
 
 # Workers
 cloudflare_workers_enabled: false
@@ -193,7 +192,6 @@ cloudflare_workers_script_path: ""
 # Email Routing
 cloudflare_email_routing_enabled: false
 cloudflare_email_routing_rules: []
-
 # ============================================================================
 # Logging and Monitoring
 # ============================================================================
@@ -203,7 +201,7 @@ cloudflare_health_check_enabled: true
 cloudflare_health_check_hour: "*/2"
 
 # Log Levels
-cloudflare_log_level: "info"  # debug, info, warning, error
+cloudflare_log_level: "info" # debug, info, warning, error
 cloudflare_api_log_requests: false
 
 # Alert Configuration

@@ -13,7 +13,8 @@
       ansible.builtin.set_fact:
         # If email_domain is "sub.example.com" and zone is "example.com", prefix is "sub"
         # If email_domain is "example.com" and zone is "example.com", prefix is "@"
-        dns_record_prefix: "{{ email_domain | regex_replace('.' + dns_zone_name + '$', '') if email_domain != dns_zone_name else '@' }}"
+        dns_record_prefix: "{{ email_domain | regex_replace('.' + dns_zone_name + '$', '') if email_domain != dns_zone_name
+          else '@' }}"
 
     - name: Configure Cloudflare DNS Records (A/MX)
       ansible.builtin.include_tasks: cloudflare-dns.yml

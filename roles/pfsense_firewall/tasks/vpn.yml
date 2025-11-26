@@ -13,6 +13,8 @@
           OpenVPN Clients: {{ pfsense_openvpn_clients | length | default(0) }}
 
     - name: Configure IPsec tunnels
+      when: pfsense_ipsec_tunnels | length | default(0) > 0
+
       block:
         - name: Display IPsec configuration
           ansible.builtin.debug:
@@ -49,9 +51,9 @@
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: pfsense_ipsec_tunnels | length | default(0) > 0
-
     - name: Configure OpenVPN Server
+      when: pfsense_openvpn_servers | length | default(0) > 0
+
       block:
         - name: Display OpenVPN Server configuration
           ansible.builtin.debug:
@@ -86,9 +88,9 @@
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: pfsense_openvpn_servers | length | default(0) > 0
-
     - name: Configure OpenVPN Client
+      when: pfsense_openvpn_clients | length | default(0) > 0
+
       block:
         - name: Display OpenVPN Client configuration
           ansible.builtin.debug:
@@ -119,8 +121,6 @@
               {% for result in openvpn_client_results.results %}
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
-
-      when: pfsense_openvpn_clients | length | default(0) > 0
 
     - name: Display VPN configuration summary
       ansible.builtin.debug:

@@ -4,57 +4,57 @@
 # Implements: CIS Benchmark 3.x, NIST SP 800-53 SI-16, DISA STIGs
 
 - name: Apply advanced kernel hardening parameters
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
     state: present
-    sysctl_set: yes
-    reload: yes
+    sysctl_set: true
+    reload: true
   loop:
     # Kernel pointer hiding (prevent KASLR bypass)
-    - { key: 'kernel.kptr_restrict', value: '2' }
+    - { key: "kernel.kptr_restrict", value: "2" }
 
     # Restrict dmesg access to privileged users
-    - { key: 'kernel.dmesg_restrict', value: '1' }
+    - { key: "kernel.dmesg_restrict", value: "1" }
 
     # Disable unprivileged eBPF (prevent container escapes)
-    - { key: 'kernel.unprivileged_bpf_disabled', value: '1' }
+    - { key: "kernel.unprivileged_bpf_disabled", value: "1" }
 
     # Restrict ptrace syscall (prevent process inspection)
-    - { key: 'kernel.yama.ptrace_scope', value: '2' }
+    - { key: "kernel.yama.ptrace_scope", value: "2" }
 
     # Disable dynamic kernel module loading
-    - { key: 'kernel.modules_disabled', value: '1' }
+    - { key: "kernel.modules_disabled", value: "1" }
 
     # Restrict magic SysRq key (prevent DoS)
-    - { key: 'kernel.magic_sysrq', value: '0' }
+    - { key: "kernel.magic_sysrq", value: "0" }
 
     # Prevent unprivileged namespace creation (container escape prevention)
-    - { key: 'kernel.unprivileged_userns_clone', value: '0' }
+    - { key: "kernel.unprivileged_userns_clone", value: "0" }
 
     # Include PID in core dumps for tracking
-    - { key: 'kernel.core_uses_pid', value: '1' }
+    - { key: "kernel.core_uses_pid", value: "1" }
 
     # Prevent setuid/setgid binaries from core dumping
-    - { key: 'fs.suid_dumpable', value: '0' }
+    - { key: "fs.suid_dumpable", value: "0" }
 
     # Restrict access to kernel logs
-    - { key: 'kernel.printk', value: '3 3 3 3' }
+    - { key: "kernel.printk", value: "3 3 3 3" }
 
     # Restrict /proc/sys access
-    - { key: 'kernel.perf_event_paranoid', value: '3' }
+    - { key: "kernel.perf_event_paranoid", value: "3" }
 
     # Hide kernel addresses in /proc/modules
-    - { key: 'kernel.modules_disabled', value: '1' }
+    - { key: "kernel.modules_disabled", value: "1" }
 
     # Restrict BPF access to root
-    - { key: 'kernel.unprivileged_userns_clone', value: '0' }
+    - { key: "kernel.unprivileged_userns_clone", value: "0" }
 
     # Conservative memory allocation (prevent OOM issues)
-    - { key: 'vm.overcommit_memory', value: '1' }
+    - { key: "vm.overcommit_memory", value: "1" }
 
     # Enable ExecShield (NX bit enforcement)
-    - { key: 'kernel.exec-shield', value: '1' }
+    - { key: "kernel.exec-shield", value: "1" }
   notify: reboot required
   tags:
     - kernel_hardening
@@ -63,7 +63,7 @@
 - name: Restrict access to /proc/sys and /proc/sysrq-trigger
   ansible.builtin.file:
     path: "{{ item }}"
-    mode: '0600'
+    mode: "0600"
   loop:
     - /proc/sysrq-trigger
     - /proc/sys/kernel
@@ -78,21 +78,21 @@
     dest: /etc/modprobe.d/blacklist-{{ item }}.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   loop:
-    - drivers  # USB3, Bluetooth, FIREWIRE
-    - filesystems  # Unnecessary filesystems
+    - drivers # USB3, Bluetooth, FIREWIRE
+    - filesystems # Unnecessary filesystems
   notify: rebuild initramfs
   tags:
     - kernel_hardening
     - security
 
 - name: Set kernel parameter for kexec (prevent unauthorized kernel replacement)
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: kernel.kexec_load_disabled
-    value: '1'
+    value: "1"
     state: present
-    sysctl_set: yes
+    sysctl_set: true
   when: ansible_kernel is version('5.8', '>=')
   notify: reboot required
   tags:
@@ -100,11 +100,11 @@
     - security
 
 - name: Restrict BPF programs to root only
-  ansible.builtin.sysctl:
+  ansible.posix.sysctl:
     name: kernel.bpf_stats_enabled
-    value: '0'
+    value: "0"
     state: present
-    sysctl_set: yes
+    sysctl_set: true
   when: ansible_kernel is version('5.8', '>=')
   tags:
     - kernel_hardening

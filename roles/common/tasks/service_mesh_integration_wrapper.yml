@@ -3,6 +3,12 @@
 # Deploys and configures service mesh (Istio or Linkerd) with traffic management, security, and observability
 
 - name: Service Mesh Integration Block
+  tags:
+    - service_mesh
+    - orchestration
+    - istio
+    - linkerd
+
   block:
     # Validate service mesh prerequisites
     - name: Validate service mesh prerequisites
@@ -25,7 +31,7 @@
             name: monitoring
             labels:
               istio-injection: "{{ 'enabled' if service_mesh_type | default('istio') == 'istio' else 'disabled' }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -48,7 +54,7 @@
           --set global.proxy.resources.requests.memory={{ service_mesh_proxy_memory | default('128Mi') }} \
           --set meshConfig.enableAutoMTLS=true \
           --set meshConfig.accessLogFile=/dev/stdout
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -71,7 +77,7 @@
           --set identity.issuer.tls.crtExpiry={{ service_mesh_cert_expiry | default('2160h') }} \
           --set proxy.resources.cpu.request={{ service_mesh_proxy_cpu | default('100m') }} \
           --set proxy.resources.memory.request={{ service_mesh_proxy_memory | default('128Mi') }}
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -95,7 +101,7 @@
           --set service.ports[1].targetPort=8443 \
           --set service.ports[1].protocol=TCP \
           --set service.ports[1].name=https
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -117,7 +123,7 @@
             name: "{{ deployment_namespace | default('default') }}"
             labels:
               istio-injection: enabled
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -159,7 +165,7 @@
                   attempts: "{{ service_mesh_retry_attempts | default(3) }}"
                   perTryTimeout: "{{ service_mesh_retry_timeout | default('10s') }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -202,7 +208,7 @@
                 labels:
                   version: "{{ item.traffic_subset | default('v1') }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -227,7 +233,7 @@
           spec:
             mtls:
               mode: "{{ service_mesh_mtls_mode | default('STRICT') }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -262,7 +268,7 @@
                       methods: ["GET", "POST"]
                       ports: ["{{ item.port | default(8080) }}"]
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -291,7 +297,7 @@
               - issuer: "{{ service_mesh_jwt_issuer | default('https://accounts.google.com') }}"
                 jwksUri: "{{ service_mesh_jwks_uri | default('https://www.googleapis.com/oauth2/v3/certs') }}"
       loop: "{{ deployment_applications | default([]) }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -317,7 +323,7 @@
               name: zipkin\n
               zipkin:\n
                 address: zipkin.istio-system:9411"}}'
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -338,7 +344,7 @@
           --set cr.create=true \
           --set cr.namespace=istio-system \
           --set auth.strategy=anonymous
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -360,7 +366,7 @@
           --set provisionDataStore.elasticsearch=false \
           --set cassandra.enabled=false \
           --set elasticsearch.enabled=false
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -383,7 +389,7 @@
     - name: Verify service mesh pods status
       ansible.builtin.shell: |
         kubectl get pods -n {{ 'istio-system' if service_mesh_type | default('istio') == 'istio' else 'linkerd' }} -o wide
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -415,12 +421,6 @@
           Service mesh integration encountered an error.
           This may occur if Helm repositories are unreachable or Kubernetes is not properly configured.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - service_mesh
-    - orchestration
-    - istio
-    - linkerd
 
 - name: Display service mesh integration summary
   ansible.builtin.debug:

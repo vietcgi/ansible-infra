@@ -24,6 +24,8 @@
           Timezone: {{ opnsense_timezone }}
 
     - name: Configure DNS servers
+      when: opnsense_dns_servers | length > 0
+
       block:
         - name: Check if DNS configuration module available
           ansible.builtin.set_fact:
@@ -52,8 +54,6 @@
             - name: Log Unbound configuration skip
               ansible.builtin.debug:
                 msg: "⚠ Unbound DNS module not available, skipping DNS resolver config"
-
-      when: opnsense_dns_servers | length > 0
 
     - name: Configure NTP settings
       block:

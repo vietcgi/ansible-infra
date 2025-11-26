@@ -77,6 +77,8 @@
           {% endif %}
 
     - name: Verify VPN connectivity (optional)
+      when: wireguard_topology in ['full_mesh', 'hub_spoke']
+
       block:
         - name: Ping VPN peers
           ansible.builtin.command: "ping -c 1 -W 2 {{ peer_vpn_ip }}"
@@ -96,8 +98,6 @@
               Peers Reachable: {{ (ping_result.results | selectattr('rc', 'equalto', 0) | list | length) | default(0) }}
               Total Peers: {{ ping_result.results | length | default(0) }}
           when: wireguard_verify_connectivity | default(false)
-
-      when: wireguard_topology in ['full_mesh', 'hub_spoke']
 
     - name: Display troubleshooting guide
       ansible.builtin.debug:

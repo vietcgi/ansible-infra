@@ -61,6 +61,8 @@
     fail_msg: "opnsense_hostname must be defined"
 
 - name: Validate HA configuration if enabled
+  when: opnsense_ha_enabled | bool
+
   block:
     - name: Check HA required fields
       ansible.builtin.assert:
@@ -87,8 +89,6 @@
           Invalid CARP advskew values:
           - Primary must be 0-254 (got: {{ opnsense_ha_advskew_primary | default('UNDEFINED') }})
           - Secondary must be > primary (secondary: {{ opnsense_ha_advskew_secondary | default('UNDEFINED') }}, primary: {{ opnsense_ha_advskew_primary | default('UNDEFINED') }})
-
-  when: opnsense_ha_enabled | bool
 
 - name: Display validation summary
   ansible.builtin.debug:

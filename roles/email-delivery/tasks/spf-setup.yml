@@ -9,29 +9,20 @@
 
     - name: Define desired SPF value
       ansible.builtin.set_fact:
-        desired_spf_value: "v=spf1 ip4:{{ email_server_ip }} {% for domain in spf_include_domains | default([]) %}include:{{ domain }} {% endfor %}~all"
+        desired_spf_value: "v=spf1 ip4:{{ email_server_ip }} {% for domain in spf_include_domains | default([]) %}include:{{
+          domain }} {% endfor %}~all"
 
     - name: Add SPF record to DNS list
       ansible.builtin.set_fact:
-        email_dns_records: "{{ email_dns_records | default([]) + [{
-          'type': 'TXT',
-          'record': dns_record_prefix,
-          'value': desired_spf_value,
-          'ttl': 3600,
-          'zone': dns_zone_name
-        }] }}"
+        email_dns_records: "{{ email_dns_records | default([]) + [{'type': 'TXT', 'record': dns_record_prefix, 'value': desired_spf_value,
+          'ttl': 3600, 'zone': dns_zone_name}] }}"
       when: not skip_spf_dns | default(false)
 
     - name: Add Parent SPF record to DNS list
       ansible.builtin.set_fact:
-        email_dns_records: "{{ email_dns_records | default([]) + [{
-          'type': 'TXT',
-          'record': '@',
-          'value': desired_spf_value,
-          'ttl': 3600,
-          'zone': dns_zone_name
-        }] }}"
-      when: 
+        email_dns_records: "{{ email_dns_records | default([]) + [{'type': 'TXT', 'record': '@', 'value': desired_spf_value,
+          'ttl': 3600, 'zone': dns_zone_name}] }}"
+      when:
         - parent_domain != email_domain
         - dns_record_prefix != '@'
         - not skip_spf_dns | default(false)

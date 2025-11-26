@@ -7,7 +7,7 @@
       ansible.builtin.file:
         path: /etc/wireguard
         state: directory
-        mode: '0700'
+        mode: "0700"
 
     - name: Set Wireguard interface configuration variables
       ansible.builtin.set_fact:
@@ -19,7 +19,7 @@
         dest: "{{ wg_config_path }}"
         owner: root
         group: root
-        mode: '0600'
+        mode: "0600"
       notify: restart wireguard
 
     - name: Configure Wireguard interface IP address

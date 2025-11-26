@@ -8,7 +8,7 @@
         path: "{{ kumomta_backup_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0750'
+        mode: "0750"
         state: directory
 
     - name: Create backup script
@@ -17,7 +17,7 @@
         dest: "{{ kumomta_backup_dir }}/backup.sh"
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Create restore script
       ansible.builtin.template:
@@ -25,7 +25,7 @@
         dest: "{{ kumomta_backup_dir }}/restore.sh"
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Check if crontab is available
       ansible.builtin.stat:
@@ -49,14 +49,14 @@
         dest: "{{ kumomta_config_dir }}/backup-retention.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
 
     - name: Set up incremental backup support
       ansible.builtin.file:
         path: "{{ kumomta_backup_dir }}/incremental"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Configure backup compression
@@ -65,7 +65,7 @@
         dest: "{{ kumomta_config_dir }}/backup-compression.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
 
     - name: Create backup verification script
       ansible.builtin.template:
@@ -73,7 +73,7 @@
         dest: "{{ kumomta_backup_dir }}/verify.sh"
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Configure remote backup target
       block:
@@ -91,7 +91,7 @@
             dest: "{{ kumomta_config_dir }}/remote-backup-config.lua"
             owner: "{{ kumomta_user }}"
             group: "{{ kumomta_group }}"
-            mode: '0640'
+            mode: "0640"
           when: kumomta_remote_backup_enabled | bool
 
       rescue:
@@ -116,7 +116,7 @@
         dest: "{{ kumomta_config_dir }}/queue-retention.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Set up archived logs directory
@@ -124,7 +124,7 @@
         path: "{{ kumomta_log_dir }}/archived"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0750'
+        mode: "0750"
         state: directory
 
   rescue:

@@ -23,6 +23,8 @@
           {% endfor %}
 
     - name: Configure VLAN interfaces
+      when: opnsense_interfaces | selectattr('type', 'equalto', 'vlan') | list | length > 0
+
       block:
         - name: Process VLAN interfaces
           ansible.builtin.set_fact:
@@ -50,9 +52,9 @@
               - {{ result.item.name }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: opnsense_interfaces | selectattr('type', 'equalto', 'vlan') | list | length > 0
-
     - name: Configure LAGG (Link Aggregation) interfaces
+      when: opnsense_interfaces | selectattr('type', 'equalto', 'lagg') | list | length > 0
+
       block:
         - name: Process LAGG interfaces
           ansible.builtin.set_fact:
@@ -80,9 +82,9 @@
               - {{ result.item.name }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: opnsense_interfaces | selectattr('type', 'equalto', 'lagg') | list | length > 0
-
     - name: Configure CARP Virtual IPs (if applicable)
+      when: opnsense_interfaces | selectattr('type', 'equalto', 'carp') | list | length > 0
+
       block:
         - name: Process CARP VIP interfaces
           ansible.builtin.set_fact:
@@ -113,8 +115,6 @@
               {% for result in carp_config_results.results %}
               - {{ result.item.description | default(result.item.ipv4_address) }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
-
-      when: opnsense_interfaces | selectattr('type', 'equalto', 'carp') | list | length > 0
 
     - name: Display interface configuration summary
       ansible.builtin.debug:

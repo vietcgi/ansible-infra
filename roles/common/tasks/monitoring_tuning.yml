@@ -8,7 +8,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - monitoring_tuning
     - alerts
@@ -19,7 +19,7 @@
     dest: /etc/monitoring/alerts/severity-levels.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - alerts
@@ -30,7 +30,7 @@
     dest: /etc/monitoring/alerts/routing-rules.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - alerts
@@ -41,7 +41,7 @@
     dest: /etc/monitoring/alerts/thresholds.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - thresholds
@@ -52,7 +52,7 @@
     dest: /etc/monitoring/alerts/runbooks.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - runbooks
@@ -63,7 +63,7 @@
     dest: /etc/monitoring/alerts/deduplication.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - deduplication
@@ -74,7 +74,7 @@
     dest: /etc/monitoring/alerts/oncall-schedule.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: monitoring_enable_oncall_scheduling | default(false)
   tags:
     - monitoring_tuning
@@ -86,7 +86,7 @@
     dest: /etc/monitoring/alerts/escalation-policy.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - monitoring_tuning
     - escalation
@@ -97,8 +97,8 @@
     dest: /etc/prometheus/rules/monitoring-health.yml
     owner: prometheus
     group: prometheus
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   when: monitoring_prometheus_enabled | default(false)
   notify: reload prometheus
   tags:
@@ -111,7 +111,7 @@
     dest: /usr/local/bin/synthetic-monitoring.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - monitoring_tuning
     - synthetic
@@ -133,7 +133,7 @@
     dest: /usr/local/bin/establish-performance-baseline.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - monitoring_tuning
     - baseline
@@ -158,7 +158,7 @@
     dest: /etc/monitoring/alerts/anomaly-detection.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: monitoring_enable_anomaly_detection | default(false)
   tags:
     - monitoring_tuning
@@ -170,7 +170,7 @@
     dest: /etc/monitoring/alerts/notification-channels.yml
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   tags:
     - monitoring_tuning
     - notifications

@@ -2,70 +2,70 @@
 # Chrony time synchronization setup (modern replacement for NTP)
 
 - name: Set timezone (all platforms)
-  timezone:
+  community.general.timezone:
     name: "{{ common_timezone }}"
-  become: yes
+  become: true
   failed_when: false
   when: ansible_os_family != "Darwin"
 
 - name: Configure Chrony (Debian-based)
+  when: ansible_os_family == "Debian" and common_chrony_enabled
+
   block:
     - name: Install Chrony (Debian-based)
-      apt:
+      ansible.builtin.apt:
         name: chrony
         state: present
-      become: yes
+      become: true
       failed_when: false
 
     - name: Configure Chrony servers (Debian-based)
-      template:
+      ansible.builtin.template:
         src: chrony.conf.j2
         dest: /etc/chrony/chrony.conf
-        backup: yes
-        mode: '0644'
-      become: yes
+        backup: true
+        mode: "0644"
+      become: true
       failed_when: false
       notify: restart chronyd
 
-  when: ansible_os_family == "Debian" and common_chrony_enabled
-
 - name: Configure Chrony (RedHat-based)
+  when: ansible_os_family == "RedHat" and common_chrony_enabled
+
   block:
     - name: Install Chrony (RedHat-based)
-      yum:
+      ansible.builtin.dnf:
         name: chrony
         state: present
-      become: yes
+      become: true
       failed_when: false
 
     - name: Configure Chrony servers (RedHat-based)
-      template:
+      ansible.builtin.template:
         src: chrony.conf.j2
         dest: /etc/chrony.conf
-        backup: yes
-        mode: '0644'
-      become: yes
+        backup: true
+        mode: "0644"
+      become: true
       failed_when: false
       notify: restart chronyd
 
-  when: ansible_os_family == "RedHat" and common_chrony_enabled
-
 - name: Enable and start Chrony service (Linux)
-  systemd:
+  ansible.builtin.systemd:
     name: chronyd
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
   failed_when: false
   when: ansible_os_family != "Darwin" and common_chrony_enabled
 
 - name: Verify Chrony synchronization
-  command: chronyc tracking
+  ansible.builtin.command: chronyc tracking
   register: chrony_tracking
   changed_when: false
   failed_when: false
   when: ansible_os_family != "Darwin" and common_chrony_enabled
 
 - name: Display Chrony status
-  debug:
+  ansible.builtin.debug:
     msg: "Chrony time synchronization configured and enabled - RTC sync enabled for improved timekeeping"

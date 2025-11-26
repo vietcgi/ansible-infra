@@ -5,7 +5,8 @@
   block:
     - name: Fetch SPF records from Cloudflare
       ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ email_domain }}"
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name={{ email_domain
+          }}"
         method: GET
         headers:
           Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -16,13 +17,15 @@
       changed_when: false
 
     - name: Filter for SPF records only
-      set_fact:
-        spf_records_list: "{{ spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') | list }}"
-        spf_record_count: "{{ (spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') | list) | length }}"
+      ansible.builtin.set_fact:
+        spf_records_list: "{{ spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') |
+          list }}"
+        spf_record_count: "{{ (spf_query_response.json.result | default([]) | selectattr('content', 'search', '^v=spf1') |
+          list) | length }}"
       when: spf_query_response is not skipped
 
     - name: Display SPF record verification status
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           SPF Record Verification
@@ -40,7 +43,7 @@
           {% endif %}
 
     - name: Display SPF record details
-      debug:
+      ansible.builtin.debug:
         msg: |
           Record {{ idx + 1 }}:
           Name: {{ item.name }}
@@ -55,7 +58,7 @@
       when: spf_records_list is defined and spf_records_list | length > 0
 
     - name: Verify SPF record format
-      assert:
+      ansible.builtin.assert:
         that:
           - spf_records_list[0].content is defined
           - "'v=spf1' in spf_records_list[0].content"
@@ -65,7 +68,7 @@
         - spf_records_list | length > 0
 
     - name: Display verification success
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           ✓ SPF Configuration Verified
@@ -84,7 +87,7 @@
 
   rescue:
     - name: Handle SPF verification error
-      debug:
+      ansible.builtin.debug:
         msg: |
           ⚠ SPF Verification Warning
 

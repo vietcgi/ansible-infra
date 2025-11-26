@@ -29,7 +29,7 @@
   ansible.builtin.copy:
     content: "{{ common_hostname }}"
     dest: /etc/hostname
-    mode: '0644'
+    mode: "0644"
   when:
     - ansible_os_family == 'Debian'
     - common_hostname is defined
@@ -43,7 +43,7 @@
     regexp: "^127\\.0\\.0\\.1\\s+"
     line: "127.0.0.1\t{{ common_hostname }} localhost"
     state: present
-    backup: yes
+    backup: true
   when:
     - common_hostname is defined
     - common_hostname | length > 0
@@ -57,7 +57,7 @@
     regexp: "^::1\\s+"
     line: "::1\t{{ common_hostname }} localhost"
     state: present
-    backup: yes
+    backup: true
   when:
     - common_hostname is defined
     - common_hostname | length > 0
@@ -66,12 +66,18 @@
     - hostname_domain
 
 - name: Configure domain name (systemd-resolved)
+  when:
+    - ansible_os_family == 'Debian'
+    - ansible_service_mgr == 'systemd'
+  tags:
+    - hostname_domain
+
   block:
     - name: Create systemd-resolved config directory
       ansible.builtin.file:
         path: /etc/systemd/resolved.conf.d
         state: directory
-        mode: '0755'
+        mode: "0755"
         owner: root
         group: root
       when:
@@ -82,27 +88,21 @@
       ansible.builtin.template:
         src: systemd_resolved_domains.j2
         dest: /etc/systemd/resolved.conf.d/domains.conf
-        mode: '0644'
-        backup: yes
+        mode: "0644"
+        backup: true
       when:
         - common_domain is defined
         - common_domain | length > 0
 
     - name: Reload systemd-resolved
       ansible.builtin.systemd:
-        daemon_reload: yes
+        daemon_reload: true
         name: systemd-resolved
         state: restarted
       when:
         - common_domain is defined
         - common_domain | length > 0
-      ignore_errors: true  # systemd-resolved may not support reload on all systems
-  when:
-    - ansible_os_family == 'Debian'
-    - ansible_service_mgr == 'systemd'
-  tags:
-    - hostname_domain
-
+      ignore_errors: true # systemd-resolved may not support reload on all systems
 - name: Verify hostname is set correctly
   ansible.builtin.command:
     cmd: "hostname"

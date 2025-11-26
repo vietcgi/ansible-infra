@@ -3,45 +3,45 @@
 # Advanced stateful firewall with rate limiting and anti-bruteforce
 
 - name: "Debug: Configuring Packet Filter (PF)"
-  debug:
+  ansible.builtin.debug:
     msg: "Configuring macOS Packet Filter with anti-bruteforce SSH rate limiting"
 
 - name: "Check if Packet Filter is enabled"
-  shell: pfctl -s info 2>&1 | head -1
+  ansible.builtin.shell: pfctl -s info 2>&1 | head -1
   register: pf_status_check
   changed_when: false
   check_mode: false
   ignore_errors: true
 
 - name: "Display current PF status"
-  debug:
+  ansible.builtin.debug:
     msg: "{{ pf_status_check.stdout }}"
 
 - name: "Create hardened PF configuration"
-  template:
+  ansible.builtin.template:
     src: pf_macos.conf.j2
     dest: /etc/pf.conf.hardened
     owner: root
     group: wheel
     mode: "0600"
-    backup: yes
+    backup: true
   register: pf_config_created
 
 - name: "Validate PF configuration syntax"
-  shell: pfctl -n -f /etc/pf.conf.hardened
+  ansible.builtin.command: pfctl -n -f /etc/pf.conf.hardened
   changed_when: false
   check_mode: false
   register: pf_validation
   when: pf_config_created is changed
 
 - name: "Display PF validation result"
-  debug:
+  ansible.builtin.debug:
     msg: |
       PF Configuration Validation:
       {% if pf_validation.rc == 0 %}✓ Valid syntax - Configuration is correct{% else %}✗ Syntax error detected{% endif %}
 
 - name: "Backup current PF configuration"
-  shell: |
+  ansible.builtin.shell: |
     if [ -f /etc/pf.conf ]; then
       cp /etc/pf.conf /etc/pf.conf.backup.$(date +%Y%m%d_%H%M%S)
       echo "Backed up to: /etc/pf.conf.backup.*"
@@ -50,7 +50,7 @@
   changed_when: '"Backed up" in pf_backup_result.stdout'
 
 - name: "Deploy hardened PF configuration"
-  shell: |
+  ansible.builtin.shell: |
     cp /etc/pf.conf.hardened /etc/pf.conf
     chmod 0600 /etc/pf.conf
   when: pf_validation.rc == 0 and not macos_hardening_dry_run
@@ -58,13 +58,13 @@
   changed_when: pf_deploy_result.rc == 0
 
 - name: "Enable Packet Filter"
-  shell: pfctl -e 2>&1 | grep -v "already enabled"
+  ansible.builtin.shell: pfctl -e 2>&1 | grep -v "already enabled"
   register: pf_enable_result
   changed_when: '"enabled" in pf_enable_result.stdout or pf_enable_result.rc == 0'
   when: pf_validation.rc == 0 and not macos_hardening_dry_run
 
 - name: "Load PF rules"
-  shell: pfctl -f /etc/pf.conf
+  ansible.builtin.command: pfctl -f /etc/pf.conf
   register: pf_load_result
   changed_when: pf_load_result.rc == 0
   when: pf_validation.rc == 0 and not macos_hardening_dry_run
@@ -72,12 +72,12 @@
 - name: "Configure PF to load on boot"
   block:
     - name: "Check PF launchd configuration"
-      stat:
+      ansible.builtin.stat:
         path: /System/Library/LaunchDaemons/com.apple.pfctl.plist
       register: pf_launchd_stat
 
     - name: "Verify PF is configured in launchd"
-      debug:
+      ansible.builtin.debug:
         msg: |
           PF is managed by launchd plist at:
           /System/Library/LaunchDaemons/com.apple.pfctl.plist
@@ -86,14 +86,14 @@
           PF rules are automatically loaded from /etc/pf.conf on boot.
 
 - name: "Verify final PF status"
-  shell: pfctl -s info 2>&1 | head -5
+  ansible.builtin.shell: pfctl -s info 2>&1 | head -5
   register: pf_final_status
   changed_when: false
   check_mode: false
   when: pf_validation.rc == 0
 
 - name: "Display final PF configuration"
-  debug:
+  ansible.builtin.debug:
     msg: |
       Packet Filter Configuration Complete:
 

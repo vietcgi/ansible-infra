@@ -1,7 +1,7 @@
 ---
 # pfSense Firewall Role - Main Task Orchestration
 
-- name: pfSense Firewall Configuration
+- name: PfSense Firewall Configuration
   block:
     - name: Include validation tasks
       ansible.builtin.include_tasks: validate.yml

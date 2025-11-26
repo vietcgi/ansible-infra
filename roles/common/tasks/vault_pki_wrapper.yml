@@ -19,10 +19,11 @@
 # Verify Vault is accessible
 - name: Verify Vault API accessibility
   ansible.builtin.uri:
-    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+      }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
     method: GET
     status_code: [200, 473, 501, 503]
-    validate_certs: no
+    validate_certs: false
   register: vault_api_check
   retries: 3
   delay: 2
@@ -36,9 +37,10 @@
   block:
     - name: Check if PKI backend is already enabled
       ansible.builtin.uri:
-        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts"
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+          }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts"
         method: GET
-        validate_certs: no
+        validate_certs: false
         headers:
           X-Vault-Token: "{{ vault_token | default('') }}"
         status_code: [200, 403]
@@ -51,9 +53,10 @@
 
     - name: Enable PKI backend
       ansible.builtin.uri:
-        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts/pki"
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+          }}:{{ security_vault_http_port | default(8200) }}/v1/sys/mounts/pki"
         method: POST
-        validate_certs: no
+        validate_certs: false
         headers:
           X-Vault-Token: "{{ vault_token | default('') }}"
         body_format: json
@@ -88,8 +91,8 @@
     dest: /etc/vault/pki.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   register: vault_pki_config
   tags:
@@ -102,15 +105,18 @@
   block:
     - name: Set PKI TTL parameters
       ansible.builtin.uri:
-        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/urls"
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+          }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/urls"
         method: POST
-        validate_certs: no
+        validate_certs: false
         headers:
           X-Vault-Token: "{{ vault_token | default('') }}"
         body_format: json
         body:
-          issuing_certificates: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/ca"
-          crl_distribution_points: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/crl"
+          issuing_certificates: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr
+            | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/ca"
+          crl_distribution_points: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr
+            | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/crl"
         status_code: [200, 204, 400]
       register: vault_pki_urls
       tags:
@@ -137,8 +143,8 @@
     dest: /etc/vault/root-ca.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_pki_root_ca_enabled | default(false) | bool
   register: vault_root_ca_config
@@ -154,8 +160,8 @@
     dest: /etc/vault/intermediate-ca.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_pki_intermediate_ca_enabled | default(false) | bool
   register: vault_intermediate_ca_config
@@ -171,8 +177,8 @@
     dest: /etc/vault/certificate-templates.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_pki_certificate_roles | default([]) | length > 0
   register: vault_cert_templates
@@ -186,9 +192,10 @@
   block:
     - name: Configure service certificate roles
       ansible.builtin.uri:
-        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/roles/{{ item.name }}"
+        url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+          }}:{{ security_vault_http_port | default(8200) }}/v1/pki/roles/{{ item.name }}"
         method: POST
-        validate_certs: no
+        validate_certs: false
         headers:
           X-Vault-Token: "{{ vault_token | default('') }}"
         body_format: json
@@ -227,8 +234,8 @@
     dest: /etc/vault/certificate-renewal.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_pki_auto_renewal_enabled | default(false) | bool
   register: vault_cert_renewal_config
@@ -244,8 +251,8 @@
     dest: /etc/vault/crl-ocsp.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_pki_crl_enabled | default(false) or security_vault_pki_ocsp_enabled | default(false)
   register: vault_crl_ocsp_config
@@ -258,9 +265,10 @@
 # Verify PKI configuration
 - name: Verify PKI backend status
   ansible.builtin.uri:
-    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/cluster"
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+      }}:{{ security_vault_http_port | default(8200) }}/v1/pki/config/cluster"
     method: GET
-    validate_certs: no
+    validate_certs: false
     status_code: [200, 404, 501]
   register: vault_pki_status
   tags:

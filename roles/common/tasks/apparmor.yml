@@ -14,6 +14,11 @@
     - always
 
 - name: Install AppArmor packages
+  when: apparmor_enabled | bool
+  tags:
+    - apparmor
+    - packages
+
   block:
     - name: Install AppArmor core packages
       ansible.builtin.package:
@@ -30,23 +35,23 @@
         state: present
       when: apparmor_dev_tools | default(false) | bool
 
-  when: apparmor_enabled | bool
-  tags:
-    - apparmor
-    - packages
-
 - name: Enable AppArmor service
   ansible.builtin.systemd:
     name: apparmor
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when: apparmor_enabled | bool
   tags:
     - apparmor
     - services
 
 - name: Configure AppArmor mode (enforce vs complain)
+  when: apparmor_enabled | bool
+  tags:
+    - apparmor
+    - configuration
+
   block:
     - name: Get list of AppArmor profiles
       ansible.builtin.command: aa-status --profiled 2>/dev/null | grep -v "^--"
@@ -68,19 +73,20 @@
       changed_when: false
       failed_when: false
 
+- name: Create custom AppArmor profiles
   when: apparmor_enabled | bool
   tags:
     - apparmor
+    - profiles
     - configuration
 
-- name: Create custom AppArmor profiles
   block:
     - name: Create custom profile directory
       ansible.builtin.file:
         path: /etc/apparmor.d/custom
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Deploy custom AppArmor profiles
@@ -89,16 +95,10 @@
         content: "{{ item.profile }}"
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
       loop: "{{ apparmor_custom_profiles | default([]) }}"
       when: apparmor_custom_profiles is defined
       notify: reload apparmor
-
-  when: apparmor_enabled | bool
-  tags:
-    - apparmor
-    - profiles
-    - configuration
 
 - name: Update AppArmor profiles from package updates
   ansible.builtin.command: systemctl reload apparmor
@@ -109,16 +109,22 @@
     - reload
 
 - name: Enable AppArmor deny audit logging
+  when: apparmor_enabled | bool
+  tags:
+    - apparmor
+    - audit
+    - logging
+
   block:
     - name: Configure auditd for AppArmor
       ansible.builtin.lineinfile:
         path: /etc/audit/rules.d/apparmor.rules
         state: present
-        create: yes
+        create: true
         line: "-w /sys/kernel/security/apparmor/ -p wa -k apparmor_changes"
         owner: root
         group: root
-        mode: '0640'
+        mode: "0640"
       notify: restart auditd
 
     - name: Enable AppArmor audit logging
@@ -129,12 +135,6 @@
         state: present
       notify: rebuild grub
       when: apparmor_enable_audit_logging | default(true) | bool
-
-  when: apparmor_enabled | bool
-  tags:
-    - apparmor
-    - audit
-    - logging
 
 - name: Configure AppArmor parser options
   ansible.builtin.copy:
@@ -163,13 +163,18 @@
       --cache=yes
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: apparmor_enabled | bool
   tags:
     - apparmor
     - configuration
 
 - name: Verify AppArmor is functioning
+  when: apparmor_enabled | bool
+  tags:
+    - apparmor
+    - validate
+
   block:
     - name: Check AppArmor status
       ansible.builtin.command: aa-status
@@ -189,11 +194,6 @@
       failed_when: false
       when: apparmor_enabled | bool
 
-  when: apparmor_enabled | bool
-  tags:
-    - apparmor
-    - validate
-
 - name: Configure AppArmor log rotation
   ansible.builtin.copy:
     dest: /etc/logrotate.d/apparmor
@@ -210,7 +210,7 @@
       }
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: apparmor_enabled | bool
   tags:
     - apparmor
@@ -245,4 +245,3 @@
   when: apparmor_enabled | bool
   tags:
     - apparmor
-

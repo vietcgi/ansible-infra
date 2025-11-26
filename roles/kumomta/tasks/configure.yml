@@ -11,7 +11,7 @@
         path: "{{ kumomta_config_dir }}/policy"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Template KumoMTA Lua policy script (main init file)
@@ -20,7 +20,7 @@
         dest: "{{ kumomta_config_dir }}/policy/init.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Template Bounce Policy script
@@ -29,7 +29,7 @@
         dest: "{{ kumomta_config_dir }}/policy/bounce_policy.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Template FBL Processor script
@@ -38,7 +38,7 @@
         dest: "{{ kumomta_config_dir }}/policy/fbl_processor.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Set proper directory permissions for config (allow kumod access)
@@ -46,7 +46,7 @@
         path: "{{ kumomta_config_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
         state: directory
 
     - name: Create dkim_config.toml with proper permissions
@@ -55,7 +55,7 @@
         dest: "{{ kumomta_config_dir }}/dkim_config.toml"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0644'
+        mode: "0644"
         force: false
 
     - name: Check which config files exist
@@ -64,11 +64,11 @@
       register: config_file_stat
       loop:
         - path: "{{ kumomta_config_dir }}/dkim_config.toml"
-          mode: '0644'
+          mode: "0644"
         - path: "{{ kumomta_config_dir }}/kumomta.conf"
-          mode: '0640'
+          mode: "0640"
         - path: "{{ kumomta_config_dir }}/metrics/prometheus.yml"
-          mode: '0640'
+          mode: "0640"
       loop_control:
         label: "{{ item.path }}"
 
@@ -95,7 +95,7 @@
       changed_when: false
       failed_when: false
       ignore_errors: true
-      when: false  # Skip validation - kumod doesn't support --validate-config flag
+      when: false # Skip validation - kumod doesn't support --validate-config flag
 
     - name: Display configuration validation status
       ansible.builtin.debug:

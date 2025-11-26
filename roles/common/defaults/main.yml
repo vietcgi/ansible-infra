@@ -76,12 +76,12 @@ common_sysctl_config:
   net.ipv4.neigh.default.gc_thresh3: 100000
 
   # TCP buffer optimization (throughput for gigabit+ networks)
-  net.ipv4.tcp_mem: '1535106 2046809 10000000'
-  net.ipv4.tcp_rmem: '4096 131072 6291456'
-  net.ipv4.tcp_wmem: '4096 16384 4194304'
+  net.ipv4.tcp_mem: "1535106 2046809 10000000"
+  net.ipv4.tcp_rmem: "4096 131072 6291456"
+  net.ipv4.tcp_wmem: "4096 16384 4194304"
 
   # Port range for high-connection scenarios
-  net.ipv4.ip_local_port_range: '1024 65535'
+  net.ipv4.ip_local_port_range: "1024 65535"
   net.ipv4.tcp_moderate_rcvbuf: 1
 
   # File system optimizations
@@ -129,19 +129,19 @@ common_disable_swap: false
 
 ## Logging Configuration (Rsyslog with TLS/Encryption)
 logging_enabled: true
-logging_enable_tls: true                     # Enable TLS certificates
-logging_enable_remote_syslog: false          # Enable remote syslog forwarding
-logging_enable_encryption: true              # Enable log file encryption
-logging_enable_aggregation: false            # Enable centralized log aggregation
-logging_enable_integrity_check: true         # Enable log integrity monitoring
+logging_enable_tls: true # Enable TLS certificates
+logging_enable_remote_syslog: false # Enable remote syslog forwarding
+logging_enable_encryption: true # Enable log file encryption
+logging_enable_aggregation: false # Enable centralized log aggregation
+logging_enable_integrity_check: true # Enable log integrity monitoring
 logging_remote_syslog_server: "logs.example.com"
 logging_remote_syslog_port: 6514
-logging_aggregation_servers: []              # List of aggregation servers
-logging_aggregation_protocol: "tcp"          # tcp or tls
+logging_aggregation_servers: [] # List of aggregation servers
+logging_aggregation_protocol: "tcp" # tcp or tls
 logging_aggregation_port: 514
-logging_keep_local_copy: true                # Keep local logs if aggregating
-logging_integrity_alert_email: ""            # Email for integrity violation alerts
-logging_monitored_logs: []                   # Additional logs to monitor
+logging_keep_local_copy: true # Keep local logs if aggregating
+logging_integrity_alert_email: "" # Email for integrity violation alerts
+logging_monitored_logs: [] # Additional logs to monitor
 
 ## Firewall Configuration (UFW/firewalld)
 firewall_enabled: true
@@ -154,12 +154,12 @@ firewall_enable_egress_filtering: true
 firewall_enable_stateful_tracking: true
 firewall_enable_ipv6_hardening: true
 firewall_enable_packet_logging: true
-firewall_zone: "public"                     # Default firewalld zone
-firewall_enable_masquerading: false         # NAT masquerading
+firewall_zone: "public" # Default firewalld zone
+firewall_enable_masquerading: false # NAT masquerading
 firewall_custom_rules: []
-firewall_custom_services: []                # For firewalld service-based rules
-firewall_custom_ports: []                   # For firewalld port-based rules
-firewall_rich_rules: []                     # For firewalld rich rules
+firewall_custom_services: [] # For firewalld service-based rules
+firewall_custom_ports: [] # For firewalld port-based rules
+firewall_rich_rules: [] # For firewalld rich rules
 # Example custom rules:
 #  - rule: "allow"
 #    port: "8080"
@@ -175,54 +175,53 @@ firewall_rich_rules: []                     # For firewalld rich rules
 #  - "rule family='ipv4' source address='192.168.1.0/24' service name='ssh' accept"
 
 ## Docker Security (Trivy + Falco)
-docker_trivy_enabled: true                      # Enable Trivy image scanning
-docker_trivy_version: "0.48.0"                  # Trivy version
-docker_trivy_severity_threshold: "MEDIUM"       # Vulnerability severity threshold
-docker_trivy_alert_on_vuln: false               # Email alerts on vulnerabilities
-docker_scan_schedule_hour: "2"                  # Daily scan time (2 AM)
+docker_trivy_enabled: true # Enable Trivy image scanning
+docker_trivy_version: "0.48.0" # Trivy version
+docker_trivy_severity_threshold: "MEDIUM" # Vulnerability severity threshold
+docker_trivy_alert_on_vuln: false # Email alerts on vulnerabilities
+docker_scan_schedule_hour: "2" # Daily scan time (2 AM)
 docker_scan_schedule_minute: "0"
 
-docker_falco_enabled: true                      # Enable Falco runtime monitoring
-docker_falco_version: "latest"                  # Falco version
-docker_falco_grpc_enabled: false                # Enable gRPC API
-docker_falco_webserver_port: 8765               # Falco webserver port
+docker_falco_enabled: true # Enable Falco runtime monitoring
+docker_falco_version: "latest" # Falco version
+docker_falco_grpc_enabled: false # Enable gRPC API
+docker_falco_webserver_port: 8765 # Falco webserver port
 
 ## fail2ban: Intrusion Prevention System
 fail2ban_enabled: true
 
 # Global fail2ban settings
-fail2ban_bantime: 3600                    # Ban duration in seconds (1 hour)
-fail2ban_findtime: 600                    # Time window for counting failures (10 minutes)
-fail2ban_maxretry: 5                      # Max failures before banning
-fail2ban_destemail: "root"                # Email for notifications
-fail2ban_sendername: "Fail2Ban"           # Sender name in emails
+fail2ban_bantime: 3600 # Ban duration in seconds (1 hour)
+fail2ban_findtime: 600 # Time window for counting failures (10 minutes)
+fail2ban_maxretry: 5 # Max failures before banning
+fail2ban_destemail: "root" # Email for notifications
+fail2ban_sendername: "Fail2Ban" # Sender name in emails
 fail2ban_enable_email_notifications: true # Send emails on ban
-fail2ban_dbpurgeage: 86400                # Database purge age (1 day)
-fail2ban_loglevel: "INFO"                 # Log level (DEBUG, INFO, WARN, ERROR, CRIT)
-fail2ban_syslog_facility: "daemon"        # Syslog facility
-fail2ban_usedns: "warn"                   # DNS usage (yes, no, warn)
-fail2ban_ignoreself: true                 # Never ban localhost
-fail2ban_ignoreips: []                    # Additional IPs to whitelist
+fail2ban_dbpurgeage: 86400 # Database purge age (1 day)
+fail2ban_loglevel: "INFO" # Log level (DEBUG, INFO, WARN, ERROR, CRIT)
+fail2ban_syslog_facility: "daemon" # Syslog facility
+fail2ban_usedns: "warn" # DNS usage (yes, no, warn)
+fail2ban_ignoreself: true # Never ban localhost
+fail2ban_ignoreips: [] # Additional IPs to whitelist
 # Example:
 #  - 192.168.1.100
 #  - 203.0.113.0/24
 
 # SSH jail settings
-fail2ban_bantime_ssh: 3600                # SSH ban duration
-fail2ban_findtime_ssh: 600                # SSH detection window
-fail2ban_maxretry_ssh: 5                  # SSH max retries
-fail2ban_ssh_port: "ssh"                  # SSH port
-fail2ban_ssh_whitelist_ips: []            # SSH-specific whitelist
+fail2ban_bantime_ssh: 3600 # SSH ban duration
+fail2ban_findtime_ssh: 600 # SSH detection window
+fail2ban_maxretry_ssh: 5 # SSH max retries
+fail2ban_ssh_port: "ssh" # SSH port
+fail2ban_ssh_whitelist_ips: [] # SSH-specific whitelist
 
 # Postfix jail settings (mail server)
-fail2ban_enable_postfix: false            # Postfix jail enabled
+fail2ban_enable_postfix: false # Postfix jail enabled
 fail2ban_bantime_postfix: 3600
 fail2ban_findtime_postfix: 600
 fail2ban_maxretry_postfix: 5
 fail2ban_postfix_whitelist_ips: []
-
 # Nginx jail settings (web server)
-fail2ban_enable_nginx: false              # Nginx jail enabled
+fail2ban_enable_nginx: false # Nginx jail enabled
 fail2ban_bantime_nginx: 3600
 fail2ban_findtime_nginx: 600
 fail2ban_maxretry_nginx: 5
@@ -230,9 +229,8 @@ fail2ban_enable_nginx_limit: false
 fail2ban_enable_nginx_noscript: false
 fail2ban_enable_nginx_badbots: false
 fail2ban_nginx_whitelist_ips: []
-
 # Apache jail settings (web server)
-fail2ban_enable_apache: false             # Apache jail enabled
+fail2ban_enable_apache: false # Apache jail enabled
 fail2ban_bantime_apache: 3600
 fail2ban_findtime_apache: 600
 fail2ban_maxretry_apache: 5
@@ -242,23 +240,22 @@ fail2ban_enable_apache_badbots: false
 fail2ban_enable_apache_overflows: false
 fail2ban_enable_apache_modsecurity: false
 fail2ban_apache_whitelist_ips: []
-
 # Recidivism (repeat offender) settings
 fail2ban_enable_recidivism: true
-fail2ban_recidivism_maxretry_1: 1         # First offense threshold
-fail2ban_recidivism_bantime_1: 86400      # 1 day
-fail2ban_recidivism_maxretry_2: 2         # Second offense threshold
-fail2ban_recidivism_bantime_2: 604800     # 7 days
-fail2ban_recidivism_maxretry_3: 3         # Third offense threshold
-fail2ban_recidivism_bantime_3: 2592000    # 30 days
-fail2ban_recidivism_maxretry_4plus: 4     # Fourth+ offense threshold
-fail2ban_recidivism_bantime_4plus: 31536000  # 365 days (permanent)
+fail2ban_recidivism_maxretry_1: 1 # First offense threshold
+fail2ban_recidivism_bantime_1: 86400 # 1 day
+fail2ban_recidivism_maxretry_2: 2 # Second offense threshold
+fail2ban_recidivism_bantime_2: 604800 # 7 days
+fail2ban_recidivism_maxretry_3: 3 # Third offense threshold
+fail2ban_recidivism_bantime_3: 2592000 # 30 days
+fail2ban_recidivism_maxretry_4plus: 4 # Fourth+ offense threshold
+fail2ban_recidivism_bantime_4plus: 31536000 # 365 days (permanent)
 
 # Log rotation settings
 fail2ban_log_rotate_frequency: "daily"
-fail2ban_log_rotate_count: 30             # Keep 30 days of logs
-fail2ban_log_rotate_size: "100M"          # Rotate if exceeds 100MB
-fail2ban_log_rotate_postrotate: true      # Flush logs after rotation
+fail2ban_log_rotate_count: 30 # Keep 30 days of logs
+fail2ban_log_rotate_size: "100M" # Rotate if exceeds 100MB
+fail2ban_log_rotate_postrotate: true # Flush logs after rotation
 fail2ban_jail_log_rotate_frequency: "weekly"
 fail2ban_jail_log_rotate_count: 20
 fail2ban_audit_log_rotate_frequency: "monthly"
@@ -266,34 +263,34 @@ fail2ban_audit_log_rotate_count: 12
 fail2ban_backup_db_before_rotation: false # Backup database before rotation
 
 # Whitelisting
-fail2ban_internal_network_ips: []         # Internal network ranges
+fail2ban_internal_network_ips: [] # Internal network ranges
 # Examples:
 #  - 10.0.0.0/8
 #  - 172.16.0.0/12
 #  - 192.168.0.0/16
-fail2ban_monitoring_ips: []               # Monitoring/automation IPs
-fail2ban_custom_ignoreips: []             # Custom whitelist entries
+fail2ban_monitoring_ips: [] # Monitoring/automation IPs
+fail2ban_custom_ignoreips: [] # Custom whitelist entries
 
 ## Prometheus Metrics Collection
 metrics_enabled: true
-metrics_listen_port: 9100                 # node_exporter listen port
-metrics_telemetry_path: "/metrics"        # Metrics endpoint path
-metrics_enable_lifecycle: false           # Allow runtime reload
-metrics_max_requests: 40                  # Max concurrent requests
+metrics_listen_port: 9100 # node_exporter listen port
+metrics_telemetry_path: "/metrics" # Metrics endpoint path
+metrics_enable_lifecycle: false # Allow runtime reload
+metrics_max_requests: 40 # Max concurrent requests
 
 # node_exporter installation
-metrics_node_exporter_version: "1.8.2"    # node_exporter version
-metrics_node_exporter_checksum: "8bf9c1dcadf7e8b45bd0f0db6fb6275e9af1fb2e1a9c34da85b8a9f8b1af5c67"  # SHA256 checksum
+metrics_node_exporter_version: "1.8.2" # node_exporter version
+metrics_node_exporter_checksum: "8bf9c1dcadf7e8b45bd0f0db6fb6275e9af1fb2e1a9c34da85b8a9f8b1af5c67" # SHA256 checksum
 metrics_client_path: "/usr/bin/fail2ban-client"
 
 # Prometheus integration
-metrics_scrape_interval: "15s"            # Scrape interval
-metrics_scrape_timeout: "10s"             # Scrape timeout
-metrics_evaluation_interval: "15s"        # Evaluation interval
-metrics_retention_period: "15d"           # Metrics retention
-metrics_scheme: "http"                    # http or https
-metrics_environment: "production"         # Environment label
-metrics_datacenter: "unknown"             # Datacenter label
+metrics_scrape_interval: "15s" # Scrape interval
+metrics_scrape_timeout: "10s" # Scrape timeout
+metrics_evaluation_interval: "15s" # Evaluation interval
+metrics_retention_period: "15d" # Metrics retention
+metrics_scheme: "http" # http or https
+metrics_environment: "production" # Environment label
+metrics_datacenter: "unknown" # Datacenter label
 
 # Alertmanager (optional)
 metrics_alertmanager_enabled: false
@@ -312,24 +309,24 @@ metrics_remote_read_enabled: false
 metrics_remote_read_url: "http://localhost:9009/api/v1/read"
 
 # Custom metrics collection
-metrics_critical_services:                # Services to monitor
+metrics_critical_services: # Services to monitor
   - ssh
-metrics_custom_apps: []                   # Custom applications to monitor
-metrics_drop_high_cardinality: false      # Drop high-cardinality metrics
-metrics_cpu_quota: "100%"                 # CPU quota for node_exporter
-metrics_memory_limit: "256M"              # Memory limit for node_exporter
+metrics_custom_apps: [] # Custom applications to monitor
+metrics_drop_high_cardinality: false # Drop high-cardinality metrics
+metrics_cpu_quota: "100%" # CPU quota for node_exporter
+metrics_memory_limit: "256M" # Memory limit for node_exporter
 
 ## Log Shipping & Centralization
-log_shipping_enabled: true                   # ENABLED BY DEFAULT - collects local logs + ships if ES available
-log_shipping_use_filebeat: true              # Use Filebeat (modern) vs rsyslog (fallback)
+log_shipping_enabled: true # ENABLED BY DEFAULT - collects local logs + ships if ES available
+log_shipping_use_filebeat: true # Use Filebeat (modern) vs rsyslog (fallback)
 log_shipping_elasticsearch_host: "localhost" # Set to external ES server to enable centralization
 log_shipping_elasticsearch_port: 9200
-log_shipping_logstash_host: "localhost"      # Set to external Logstash server for alternative
+log_shipping_logstash_host: "localhost" # Set to external Logstash server for alternative
 log_shipping_logstash_port: 5000
 log_shipping_filebeat_version: "8.12.0"
 log_shipping_buffer_size: "4096"
 log_shipping_environment: "{{ common_hostname_environment | default('production') }}"
-log_shipping_retention_days: 30              # Local log retention
+log_shipping_retention_days: 30 # Local log retention
 
 # Log Collection (what gets shipped)
 log_shipping_collect_syslog: true
@@ -339,22 +336,21 @@ log_shipping_collect_kern: true
 log_shipping_collect_systemd: true
 
 # Index Configuration
-log_shipping_index_prefix: "logs"            # Index name prefix: logs-YYYY.MM.DD
-log_shipping_index_lifecycle_enabled: true   # Enable ILM (index lifecycle management)
-log_shipping_index_lifecycle_policy: "logs"  # ILM policy name
+log_shipping_index_prefix: "logs" # Index name prefix: logs-YYYY.MM.DD
+log_shipping_index_lifecycle_enabled: true # Enable ILM (index lifecycle management)
+log_shipping_index_lifecycle_policy: "logs" # ILM policy name
 
 ## HashiCorp Vault Integration (Placeholder for PHASE 1.B)
 vault_enabled: false
 vault_address: "https://vault.example.com:8200"
 vault_token: ""
 vault_skip_verify: false
-vault_auth_method: "token"                # token, approle, jwt, etc.
+vault_auth_method: "token" # token, approle, jwt, etc.
 vault_unseal_keys: []
-
 ## Backup Configuration (Placeholder for PHASE 1.B)
 backup_enabled: false
-backup_client: "bacula"                   # bacula, veeam, restic, etc.
-backup_schedule: "0 2 * * *"              # 2 AM daily
+backup_client: "bacula" # bacula, veeam, restic, etc.
+backup_schedule: "0 2 * * *" # 2 AM daily
 backup_retention_days: 30
 backup_verify_after_backup: true
 
@@ -368,13 +364,13 @@ sudo_log_file: "/var/log/sudo.log"
 sudo_max_env_lines: 100
 
 ## AppArmor/SELinux Hardening (Placeholder for PHASE 1.B)
-apparmor_enabled: false                   # Ubuntu/Debian
-apparmor_enforce_mode: true               # enforce vs complain
+apparmor_enabled: false # Ubuntu/Debian
+apparmor_enforce_mode: true # enforce vs complain
 apparmor_update_profiles: true
 
-selinux_enabled: false                    # RHEL/CentOS
-selinux_policy: "targeted"                # targeted, mls, strict
-selinux_mode: "enforcing"                 # enforcing, permissive, disabled
+selinux_enabled: false # RHEL/CentOS
+selinux_policy: "targeted" # targeted, mls, strict
+selinux_mode: "enforcing" # enforcing, permissive, disabled
 
 ################################################################################
 # PHASE 2.A: ADVANCED MONITORING STACK
@@ -399,13 +395,10 @@ monitoring_prometheus_retention_size: "50GB"
 
 # Custom scrape configurations (optional)
 monitoring_prometheus_custom_scrapes: []
-
 # Custom alert rules (optional)
 monitoring_prometheus_custom_rules: []
-
 # TLS/SSL configuration (optional)
 monitoring_prometheus_tls_config: {}
-
 ## Grafana Configuration
 monitoring_grafana_enabled: false
 monitoring_grafana_version: "10.2.2"
@@ -418,9 +411,8 @@ monitoring_grafana_secret_key: "{{ vault_monitoring_grafana_secret_key | default
 
 # Custom dashboards (list of template files to deploy)
 monitoring_grafana_custom_dashboards: []
-
 # Grafana authentication type
-monitoring_grafana_auth_type: "basic"  # Options: basic, oauth2, ldap
+monitoring_grafana_auth_type: "basic" # Options: basic, oauth2, ldap
 
 ## AlertManager Configuration
 monitoring_alertmanager_enabled: false
@@ -440,10 +432,8 @@ monitoring_alertmanager_receivers:
 
 # Custom alert routing rules (optional)
 monitoring_alertmanager_custom_routes: []
-
 # Custom notification templates (optional)
 monitoring_alertmanager_custom_templates: []
-
 # Slack notifications (optional)
 monitoring_alertmanager_slack_webhook: ""
 monitoring_alertmanager_slack_channel: "#alerts"
@@ -507,7 +497,6 @@ container_docker_ip6tables: false
 container_docker_userland_proxy: true
 container_docker_userland_proxy_path: "/usr/libexec/docker/docker-proxy"
 container_docker_network_config: {}
-
 ## Docker Registry
 container_docker_registry_mirrors: []
 container_docker_insecure_registries: []
@@ -539,7 +528,6 @@ container_docker_sudo_access: false
 
 ## Docker Custom Networks
 container_docker_custom_networks: []
-
 ## Docker Prune Configuration
 container_docker_prune_enabled: false
 container_docker_prune_hour: "2"
@@ -553,7 +541,6 @@ container_docker_capabilities_add: []
 container_docker_capabilities_drop: ["ALL"]
 container_docker_read_only_fs: false
 container_docker_tmpfs: {}
-
 ## Docker Daemon Configuration
 container_docker_daemon_options: {}
 container_docker_daemon_config: {}
@@ -564,7 +551,6 @@ container_docker_configure_logging: true
 ## Docker DNS Configuration
 container_docker_dns: []
 container_docker_dns_search: []
-
 ## Docker Compose Configuration
 container_docker_compose_project_name: "compose"
 container_docker_compose_file: "docker-compose.yml"
@@ -589,7 +575,6 @@ container_docker_compose_networks: []
 container_docker_compose_volumes: []
 container_docker_compose_defaults: {}
 container_docker_compose_resource_limits: {}
-
 # ============================================================================
 # PHASE 2.C - Service Discovery & Load Balancing
 # ============================================================================
@@ -625,12 +610,10 @@ service_discovery_consul_datacenter: "dc1"
 service_discovery_consul_domain: "consul"
 service_discovery_consul_server_count: 3
 service_discovery_consul_servers: []
-
 ## Consul Services & Health Checks
 service_discovery_consul_services: []
 service_discovery_consul_healthchecks: []
 service_discovery_consul_custom_config: {}
-
 ## Consul Watch & Template Configuration
 service_discovery_consul_watch_enabled: false
 service_discovery_consul_template_enabled: false
@@ -677,7 +660,6 @@ loadbalancing_haproxy_backends: []
 loadbalancing_haproxy_defaults_enabled: false
 loadbalancing_haproxy_global_options: {}
 loadbalancing_haproxy_default_options: {}
-
 ################################################################################
 ## PHASE 2.D: Vault - Secrets Management and PKI Infrastructure
 ################################################################################
@@ -1152,8 +1134,8 @@ monitoring_slo_latency_p99_ms: 1000
 ## ===== PHASE 1.A: Kernel Hardening =====
 kernel_hardening_enabled: true
 kernel_aslr_enabled: true
-kernel_ptrace_scope: 2  # Restrict ptrace to parent/child
-kernel_modules_disabled: false  # Keep enabled for most systems
+kernel_ptrace_scope: 2 # Restrict ptrace to parent/child
+kernel_modules_disabled: false # Keep enabled for most systems
 kernel_bpf_disabled: false
 kernel_core_dump_enabled: false
 kernel_magic_sysrq_enabled: false
@@ -1173,7 +1155,7 @@ password_max_age_days: 90
 password_min_age_days: 1
 password_warn_days: 7
 password_deny_attempts: 5
-password_lockout_time: 900  # 15 minutes
+password_lockout_time: 900 # 15 minutes
 password_reuse_history: 5
 sudo_log_enabled: true
 
@@ -1181,8 +1163,8 @@ sudo_log_enabled: true
 storage_hardening_enabled: true
 storage_tmp_size: "2G"
 storage_enable_quotas: true
-quota_user_soft_limit: 5242880  # 5GB
-quota_user_hard_limit: 10485760  # 10GB
+quota_user_soft_limit: 5242880 # 5GB
+quota_user_hard_limit: 10485760 # 10GB
 storage_disk_warning_percent: 85
 storage_disk_high_percent: 90
 storage_disk_critical_percent: 95
@@ -1276,8 +1258,8 @@ monitoring_manager_phone: ""
 compliance_scanning_enabled: true
 compliance_tools_enabled: true
 compliance_aide_enabled: true
-compliance_aide_scan_time: "03:00"  # Daily at 3 AM
-compliance_weekly_scan_time: "01:00"  # Weekly Sunday at 1 AM
+compliance_aide_scan_time: "03:00" # Daily at 3 AM
+compliance_weekly_scan_time: "01:00" # Weekly Sunday at 1 AM
 compliance_cis_enabled: true
 compliance_nist_enabled: true
 compliance_openscap_enabled: true
@@ -1302,7 +1284,7 @@ compliance_log_rotation_days: 30
 
 ## ===== PHASE 1.B: Backup Recovery Testing =====
 backup_recovery_testing_enabled: true
-backup_test_schedule: "02:00"  # Weekly Sunday at 2 AM
+backup_test_schedule: "02:00" # Weekly Sunday at 2 AM
 backup_test_retention_days: 7
 backup_integrity_check_enabled: true
 backup_failure_alert_enabled: true
@@ -1315,48 +1297,48 @@ monitoring_slo_error_rate_target: 0.01
 # NEW: Hostname and Domain Configuration
 # ============================================================================
 common_hostname: "{{ inventory_hostname }}"
-common_domain: ""  # Optional: domain name for FQDN
+common_domain: "" # Optional: domain name for FQDN
 common_configure_hosts_file: true
 
 # ============================================================================
 # NEW: Swap Management
 # ============================================================================
-common_swap_size: 4  # Size in GB (0 = disabled)
-common_swap_swappiness: 30  # 0-100: lower = prefer RAM, higher = prefer swap
-common_swap_vfs_cache_pressure: 50  # 0-100: memory pressure on cache
-common_swap_device: ""  # Device for encrypted swap (e.g., /dev/sdb1)
+common_swap_size: 4 # Size in GB (0 = disabled)
+common_swap_swappiness: 30 # 0-100: lower = prefer RAM, higher = prefer swap
+common_swap_vfs_cache_pressure: 50 # 0-100: memory pressure on cache
+common_swap_device: "" # Device for encrypted swap (e.g., /dev/sdb1)
 
 # ============================================================================
 # NEW: Encryption at Rest
 # ============================================================================
-common_encryption_enabled: false  # Master switch for encryption
-common_encrypt_home: false  # Encrypt /home directory
-common_encrypt_logs: false  # Encrypt /var/log
-common_encryption_home_size: 20  # Size in GB for /home
-common_encryption_log_size: 5   # Size in GB for /var/log
-common_encryption_log_retention: 90  # Days to keep encrypted logs
-common_encryption_key_storage: "/etc/crypt_keys"  # Secure key storage location
+common_encryption_enabled: false # Master switch for encryption
+common_encrypt_home: false # Encrypt /home directory
+common_encrypt_logs: false # Encrypt /var/log
+common_encryption_home_size: 20 # Size in GB for /home
+common_encryption_log_size: 5 # Size in GB for /var/log
+common_encryption_log_retention: 90 # Days to keep encrypted logs
+common_encryption_key_storage: "/etc/crypt_keys" # Secure key storage location
 
 # ============================================================================
 # NEW: Change Tracking and Configuration Baseline
 # ============================================================================
-common_enable_change_tracking: true  # Enable baseline snapshots and change detection
-common_change_tracking_schedule: "daily"  # Frequency: daily, weekly, monthly
+common_enable_change_tracking: true # Enable baseline snapshots and change detection
+common_change_tracking_schedule: "daily" # Frequency: daily, weekly, monthly
 common_baseline_location: "/var/lib/ansible-baseline"
 common_change_log_location: "/var/log/ansible-changes"
-common_change_detection_interval_hours: 24  # Hours between change scans
+common_change_detection_interval_hours: 24 # Hours between change scans
 common_track_package_changes: true
 common_track_configuration_changes: true
 common_track_security_changes: true
 common_track_service_changes: true
-common_change_tracking_retention_days: 90  # Keep change reports for N days
+common_change_tracking_retention_days: 90 # Keep change reports for N days
 
 # ============================================================================
 # NEW: Network Management (Static IPs, Bonding, HA Virtual IP with keepalived)
 # ============================================================================
 
 ## Static IP Configuration
-network_static_ips: []  # List of static IP configurations
+network_static_ips: [] # List of static IP configurations
 # Example:
 #  - interface: eth0
 #    address: 192.168.1.10
@@ -1367,8 +1349,8 @@ network_static_ips: []  # List of static IP configurations
 #      - 8.8.4.4
 
 ## Network Bonding Configuration
-network_bonding_enabled: false  # Master switch for network bonding
-network_bonds: []  # List of bond configurations
+network_bonding_enabled: false # Master switch for network bonding
+network_bonds: [] # List of bond configurations
 # Example:
 #  - name: bond0
 #    interfaces:
@@ -1383,7 +1365,7 @@ network_bonds: []  # List of bond configurations
 #    down_delay: 200  # (optional)
 
 ## VLAN Configuration (optional, used with bonding or static IPs)
-network_vlans: []  # List of VLAN configurations
+network_vlans: [] # List of VLAN configurations
 # Example:
 #  - name: vlan100
 #    id: 100
@@ -1392,16 +1374,16 @@ network_vlans: []  # List of VLAN configurations
 #    netmask: 24
 
 ## keepalived for Virtual IP (HA Failover)
-network_keepalived_enabled: false  # Master switch for keepalived
-network_vip: ""  # Virtual IP address (e.g., 192.168.1.5)
-network_vip_interface: "eth0"  # Interface to bind virtual IP
-network_vip_netmask: 24  # Netmask for virtual IP
-network_keepalived_priority: 100  # Priority (100 = MASTER if > 50, else BACKUP)
-network_keepalived_vrid: 51  # Virtual Router ID (1-255, must be same on MASTER and BACKUP)
-network_keepalived_auth_pass: ""  # (optional) Authentication password for VRRP
+network_keepalived_enabled: false # Master switch for keepalived
+network_vip: "" # Virtual IP address (e.g., 192.168.1.5)
+network_vip_interface: "eth0" # Interface to bind virtual IP
+network_vip_netmask: 24 # Netmask for virtual IP
+network_keepalived_priority: 100 # Priority (100 = MASTER if > 50, else BACKUP)
+network_keepalived_vrid: 51 # Virtual Router ID (1-255, must be same on MASTER and BACKUP)
+network_keepalived_auth_pass: "" # (optional) Authentication password for VRRP
 
 ## keepalived Health Checks
-network_keepalived_checks: []  # Health check configurations
+network_keepalived_checks: [] # Health check configurations
 # Example for HTTP check:
 #  - name: http_check
 #    check_type: http  # Options: http, tcp, script
@@ -1432,18 +1414,18 @@ network_keepalived_checks: []  # Health check configurations
 #    rise_count: 2
 
 ## keepalived Track Interfaces
-network_keepalived_track_services: []  # Interfaces to monitor (track_interface)
+network_keepalived_track_services: [] # Interfaces to monitor (track_interface)
 # Example:
 #  - eth0
 #  - eth1
 
 ## keepalived Notification Scripts
-network_keepalived_notify_master: false  # Execute script when becoming MASTER
-network_keepalived_notify_backup: false  # Execute script when becoming BACKUP
-network_keepalived_notify_fault: false   # Execute script when fault occurs
+network_keepalived_notify_master: false # Execute script when becoming MASTER
+network_keepalived_notify_backup: false # Execute script when becoming BACKUP
+network_keepalived_notify_fault: false # Execute script when fault occurs
 
 ## keepalived Virtual Server Configuration (optional - for load balancing)
-network_keepalived_virtual_servers: []  # Virtual server definitions for load balancing
+network_keepalived_virtual_servers: [] # Virtual server definitions for load balancing
 # Example:
 #  - vip: 192.168.1.5
 #    port: 80
@@ -1466,15 +1448,15 @@ network_keepalived_virtual_servers: []  # Virtual server definitions for load ba
 ## Access Systems Configuration - Controls SSH user management
 access_systems_enabled:
   ssh:
-    enabled: false  # SSH user management enabled/disabled
+    enabled: false # SSH user management enabled/disabled
     config_loaded: true
 
 ## Managed Users - Dictionary of SSH users to create and manage
-managed_users: {}  # Empty by default, can be populated from inventory
+managed_users: {} # Empty by default, can be populated from inventory
 
 ## SSH Access Configuration
 ssh_config:
-  enabled: false  # SSH user management is disabled by default
+  enabled: false # SSH user management is disabled by default
   config_loaded: true
 
 ## SSH Key Management

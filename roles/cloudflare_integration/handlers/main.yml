@@ -1,22 +1,22 @@
 ---
 # Cloudflare Integration Handlers
 
-- name: reload cloudflare dns
+- name: Reload cloudflare dns
   ansible.builtin.debug:
     msg: "DNS configuration updated and applied"
 
-- name: reload cloudflare waf
+- name: Reload cloudflare waf
   ansible.builtin.debug:
     msg: "WAF rules updated and applied"
 
-- name: reload cloudflare ddos
+- name: Reload cloudflare ddos
   ansible.builtin.debug:
     msg: "DDoS protection configuration updated and applied"
 
-- name: reload cloudflare ssl
+- name: Reload cloudflare ssl
   ansible.builtin.debug:
     msg: "SSL/TLS configuration updated and applied"
 
-- name: reload cloudflare cache
+- name: Reload cloudflare cache
   ansible.builtin.debug:
     msg: "Edge cache configuration updated and applied"

@@ -25,6 +25,13 @@
     - packages
 
 - name: Fallback to manual node_exporter installation if package unavailable
+  when:
+    - metrics_enabled | bool
+    - node_exporter_repo_install.failed | default(false)
+  tags:
+    - metrics
+    - packages
+
   block:
     - name: Check node_exporter version
       ansible.builtin.command: node_exporter --version
@@ -33,19 +40,22 @@
       failed_when: false
 
     - name: Download node_exporter if not installed
+      when: node_exporter_version.rc != 0
+
       block:
         - name: Create node_exporter download directory
           ansible.builtin.file:
             path: /tmp/node_exporter
             state: directory
-            mode: '0755'
+            mode: "0755"
 
         - name: Download node_exporter binary
           ansible.builtin.get_url:
-            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ metrics_node_exporter_version }}/node_exporter-{{ metrics_node_exporter_version }}.linux-{{ ansible_architecture }}.tar.gz"
+            url: "https://github.com/prometheus/node_exporter/releases/download/v{{ metrics_node_exporter_version }}/node_exporter-{{
+              metrics_node_exporter_version }}.linux-{{ ansible_architecture }}.tar.gz"
             dest: "/tmp/node_exporter/node_exporter-{{ metrics_node_exporter_version }}.tar.gz"
             checksum: "sha256:{{ metrics_node_exporter_checksum }}"
-            mode: '0644'
+            mode: "0644"
           register: node_exporter_download
           retries: 3
           delay: 5
@@ -54,7 +64,7 @@
           ansible.builtin.unarchive:
             src: "/tmp/node_exporter/node_exporter-{{ metrics_node_exporter_version }}.tar.gz"
             dest: /tmp/node_exporter
-            remote_src: yes
+            remote_src: true
 
         - name: Install node_exporter binary
           ansible.builtin.copy:
@@ -62,32 +72,23 @@
             dest: /usr/local/bin/node_exporter
             owner: root
             group: root
-            mode: '0755'
-            backup: yes
-            remote_src: yes
+            mode: "0755"
+            backup: true
+            remote_src: true
 
-        - name: Clean up download directory
-          ansible.builtin.file:
+        - ansible.builtin.file:
             path: /tmp/node_exporter
             state: absent
 
-      when: node_exporter_version.rc != 0
-
-  when:
-    - metrics_enabled | bool
-    - node_exporter_repo_install.failed | default(false)
-  tags:
-    - metrics
-    - packages
-
+          name: Clean up download directory
 - name: Create node_exporter systemd service
   ansible.builtin.template:
     src: node_exporter_systemd.j2
     dest: /etc/systemd/system/node_exporter.service
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   notify: restart node_exporter
   when: metrics_enabled | bool
   tags:
@@ -99,7 +100,7 @@
     name: node_exporter
     shell: /sbin/nologin
     state: present
-    system: yes
+    system: true
     home: /var/lib/node_exporter
   when: metrics_enabled | bool
   tags:
@@ -112,7 +113,7 @@
     state: directory
     owner: node_exporter
     group: node_exporter
-    mode: '0755'
+    mode: "0755"
   loop:
     - /var/lib/node_exporter
     - /var/lib/node_exporter/textfile_collector
@@ -124,9 +125,9 @@
 - name: Enable and start node_exporter service
   ansible.builtin.systemd:
     name: node_exporter
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when: metrics_enabled | bool
   tags:
     - metrics
@@ -138,7 +139,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   when:
     - metrics_enabled | bool
     - metrics_prometheus_enabled | default(true)
@@ -152,8 +153,8 @@
     dest: /etc/prometheus/scrape_configs/node_exporter.yml
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   when:
     - metrics_enabled | bool
     - metrics_prometheus_enabled | default(true)
@@ -169,8 +170,8 @@
     dest: /usr/local/bin/collect-custom-metrics
     owner: root
     group: root
-    mode: '0755'
-    backup: yes
+    mode: "0755"
+    backup: true
   when: metrics_enabled | bool
   tags:
     - metrics
@@ -193,7 +194,7 @@
       ansible.builtin.uri:
         url: "http://127.0.0.1:{{ metrics_listen_port }}/metrics"
         method: GET
-        return_content: yes
+        return_content: true
         timeout: 5
       register: metrics_endpoint
       changed_when: false

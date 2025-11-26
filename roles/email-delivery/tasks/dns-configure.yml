@@ -1,5 +1,7 @@
 ---
 - name: Configure DNS via Cloudflare Integration
+  when: cloudflare_dns_enabled | default(false)
+
   block:
     - name: Set Cloudflare DNS records variable
       ansible.builtin.set_fact:
@@ -11,9 +13,9 @@
     - name: Include Cloudflare Integration Role
       ansible.builtin.include_role:
         name: cloudflare_integration
-  when: cloudflare_dns_enabled | default(false)
-
 - name: Configure DNS via Route53 Integration
+  when: route53_dns_enabled | default(false)
+
   block:
     - name: Set Route53 DNS records variable
       ansible.builtin.set_fact:
@@ -24,9 +26,10 @@
     - name: Include Route53 Integration Role
       ansible.builtin.include_role:
         name: route53_integration
-  when: route53_dns_enabled | default(false)
-
 - name: Display Manual DNS Instructions
+  when:
+    - not (cloudflare_dns_enabled | default(false))
+    - not (route53_dns_enabled | default(false))
   block:
     - name: Display DNS Records for Manual Entry
       ansible.builtin.debug:
@@ -44,6 +47,3 @@
           Zone:  {{ record.zone }}
           ------------------------------------------------------------------
           {% endfor %}
-  when: 
-    - not (cloudflare_dns_enabled | default(false))
-    - not (route53_dns_enabled | default(false))

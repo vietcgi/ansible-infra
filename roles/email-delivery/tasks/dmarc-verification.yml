@@ -5,7 +5,8 @@
   block:
     - name: Fetch all DNS records from Cloudflare to verify DMARC configuration
       ansible.builtin.uri:
-        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name=_dmarc.{{ email_domain }}"
+        url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_zone_id }}/dns_records?type=TXT&name=_dmarc.{{ email_domain
+          }}"
         method: GET
         headers:
           Authorization: "Bearer {{ cloudflare_api_token }}"
@@ -17,13 +18,15 @@
       ignore_errors: true
 
     - name: Extract DMARC records from API response
-      set_fact:
-        dmarc_records_list: "{{ dmarc_records_response.json.result | default([]) if dmarc_records_response.status | default(200) == 200 else [] }}"
-        dmarc_record_count: "{{ (dmarc_records_response.json.result | default([])) | length if dmarc_records_response.status | default(200) == 200 else 0 }}"
+      ansible.builtin.set_fact:
+        dmarc_records_list: "{{ dmarc_records_response.json.result | default([]) if dmarc_records_response.status | default(200)
+          == 200 else [] }}"
+        dmarc_record_count: "{{ (dmarc_records_response.json.result | default([])) | length if dmarc_records_response.status
+          | default(200) == 200 else 0 }}"
       when: dmarc_records_response is not skipped
 
     - name: Display DMARC record verification status
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           DMARC Record Verification
@@ -40,7 +43,7 @@
           {% endif %}
 
     - name: Display individual DMARC records
-      debug:
+      ansible.builtin.debug:
         msg: |
           Record {{ idx + 1 }}:
           Name: {{ item.name }}
@@ -57,7 +60,7 @@
     - name: Verify DMARC record format
       block:
         - name: Assert exactly one DMARC record exists (if any found)
-          assert:
+          ansible.builtin.assert:
             that:
               - dmarc_record_count | int != 0
               - dmarc_record_count | int <= 1
@@ -75,7 +78,7 @@
           when: dmarc_record_count | int > 1
 
         - name: Warn if DMARC record not found
-          debug:
+          ansible.builtin.debug:
             msg: |
               ⚠ DMARC Record Not Found
 
@@ -91,7 +94,7 @@
           when: dmarc_record_count | int == 0
 
     - name: Validate DMARC record format
-      assert:
+      ansible.builtin.assert:
         that:
           - dmarc_records_list[0].content is defined
           - "'v=DMARC1' in dmarc_records_list[0].content"
@@ -101,7 +104,7 @@
         - dmarc_records_list | length > 0
 
     - name: Display verification success
-      debug:
+      ansible.builtin.debug:
         msg: |
           ════════════════════════════════════════════════════════
           ✓ DMARC Configuration Verified
@@ -126,7 +129,7 @@
 
   rescue:
     - name: Handle DMARC verification error
-      debug:
+      ansible.builtin.debug:
         msg: |
           ⚠ DMARC Verification Warning
 

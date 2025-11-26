@@ -2,31 +2,31 @@
 # System package updates and upgrades
 
 - name: Update package cache (Debian-based)
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
   tags:
     - packages
     - system-update
     - critical
 
 - name: Update package cache (RedHat-based)
-  yum:
+  ansible.builtin.dnf:
     name: "*"
     state: latest
-    update_cache: yes
+    update_cache: true
   when: ansible_os_family == "RedHat"
-  become: yes
+  become: true
   tags:
     - packages
     - system-update
     - critical
 
 - name: Update package cache (macOS)
-  homebrew:
-    update_homebrew: yes
+  community.general.homebrew:
+    update_homebrew: true
   when: ansible_os_family == "Darwin"
   failed_when: false
   tags:
@@ -34,8 +34,8 @@
     - system-update
 
 - name: Update package cache (Alpine)
-  apk:
-    update_cache: yes
+  community.general.apk:
+    update_cache: true
   when: ansible_os_family == "Alpine"
   tags:
     - packages
@@ -43,14 +43,14 @@
     - critical
 
 - name: Upgrade packages (Debian-based)
-  apt:
+  ansible.builtin.apt:
     upgrade: dist
-    autoremove: yes
-    autoclean: yes
+    autoremove: true
+    autoclean: true
   when:
     - ansible_os_family == "Debian"
     - common_upgrade_packages | bool
-  become: yes
+  become: true
   failed_when: false
   tags:
     - packages
@@ -58,32 +58,32 @@
     - critical
 
 - name: Upgrade packages (RedHat-based)
-  yum:
+  ansible.builtin.dnf:
     name: "*"
     state: latest
   when:
     - ansible_os_family == "RedHat"
     - common_upgrade_packages | bool
-  become: yes
+  become: true
   tags:
     - packages
     - system-update
     - critical
 
 - name: Upgrade packages (Alpine)
-  apk:
-    upgrade: yes
+  community.general.apk:
+    upgrade: true
   when:
     - ansible_os_family == "Alpine"
     - common_upgrade_packages | bool
-  become: yes
+  become: true
   tags:
     - packages
     - system-update
     - critical
 
 - name: Display upgrade summary
-  debug:
+  ansible.builtin.debug:
     msg: "System packages updated and upgraded successfully"
   tags:
     - packages

@@ -11,11 +11,11 @@ collections:
     source: https://galaxy.ansible.com
 
   # Prometheus - Prometheus Community Collection
-  # Collection: prometheus-community.prometheus
+  # Collection: prometheus.prometheus
   # Provides: prometheus, alertmanager, node_exporter, and 25+ other roles
   # Roles used: prometheus, alertmanager, node_exporter
-  - name: prometheus_community.prometheus
-    version: ">=1.0.0"
+  - name: prometheus.prometheus
+    version: ">=0.20.0"
     source: https://galaxy.ansible.com
 
   # Community Collections
@@ -32,9 +32,18 @@ collections:
     version: ">=3.0.0"
     source: https://galaxy.ansible.com
 
-  # System Management
-  - name: community.systemd
-    version: ">=1.2.0"
+  # Database collections
+  - name: community.mysql
+    version: ">=3.0.0"
+    source: https://galaxy.ansible.com
+
+  - name: community.postgresql
+    version: ">=3.0.0"
+    source: https://galaxy.ansible.com
+
+  # AWS
+  - name: amazon.aws
+    version: ">=7.0.0"
     source: https://galaxy.ansible.com
 
   # Kubernetes (optional)

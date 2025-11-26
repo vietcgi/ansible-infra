@@ -3,11 +3,11 @@
 # Automatic security updates and OS updates
 
 - name: "Debug: Configuring system updates"
-  debug:
+  ansible.builtin.debug:
     msg: "Setting up automatic security updates and software updates"
 
 - name: "Enable automatic security updates"
-  shell: |
+  ansible.builtin.shell: |
     defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
     defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
   register: auto_security_updates_result
@@ -15,7 +15,7 @@
   when: macos_auto_security_updates
 
 - name: "Enable automatic OS updates"
-  shell: |
+  ansible.builtin.shell: |
     defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
     defaults write /Library/Preferences/com.apple.SoftwareUpdate InstallAssistantSuppressionMetric -bool true
   register: auto_os_updates_result
@@ -23,7 +23,7 @@
   when: macos_auto_os_updates
 
 - name: "Enable automatic update check"
-  shell: |
+  ansible.builtin.shell: |
     softwareupdate -l -r -d -s /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled
     defaults write /Library/Preferences/com.apple.SoftwareUpdate ScheduleFrequency -int {{ macos_auto_update_check_frequency_days }}
   register: auto_check_result
@@ -32,7 +32,7 @@
   ignore_errors: true
 
 - name: "Configure update preferences"
-  shell: |
+  ansible.builtin.shell: |
     # Enable installing security updates automatically
     defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallSecurityUpdates -bool true
 
@@ -42,13 +42,13 @@
   changed_when: update_prefs_result.rc == 0
 
 - name: "Enable automatic macOS malware definition updates"
-  shell: |
+  ansible.builtin.shell: |
     defaults write /Library/Preferences/com.apple.security.xprotect.plist AutomaticUpdates -bool true
   register: malware_updates_result
   changed_when: malware_updates_result.rc == 0
 
 - name: "Schedule launchd job for updates (optional)"
-  copy:
+  ansible.builtin.copy:
     content: |
       <?xml version="1.0" encoding="UTF-8"?>
       <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -75,7 +75,7 @@
   changed_when: update_launchd_result.changed
 
 - name: "Verify update configuration"
-  shell: |
+  ansible.builtin.shell: |
     echo "Software Update Settings:"
     defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled 2>/dev/null || echo "AutomaticCheck: Not configured"
     defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload 2>/dev/null || echo "AutomaticDownload: Not configured"
@@ -93,7 +93,7 @@
   changed_when: false
 
 - name: "Display update configuration summary"
-  debug:
+  ansible.builtin.debug:
     msg: |
       System Update Configuration Complete:
 

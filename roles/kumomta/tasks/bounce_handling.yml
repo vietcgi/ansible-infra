@@ -8,7 +8,7 @@
         path: "{{ kumomta_bounce_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0750'
+        mode: "0750"
         state: directory
 
     - name: Template bounce policy configuration
@@ -17,7 +17,7 @@
         dest: "{{ kumomta_config_dir }}/bounce-policy.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Create bounce handler script
@@ -26,7 +26,7 @@
         dest: "{{ kumomta_bounce_dir }}/handler.sh"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0755'
+        mode: "0755"
 
     - name: Configure permanent failure (5xx) handling
       ansible.builtin.template:
@@ -34,7 +34,7 @@
         dest: "{{ kumomta_config_dir }}/permanent-failure-policy.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
     - name: Configure transient failure (4xx) handling
@@ -43,7 +43,7 @@
         dest: "{{ kumomta_config_dir }}/transient-failure-policy.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
 
   rescue:
@@ -58,7 +58,7 @@
         path: "{{ kumomta_fbl_dir }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0750'
+        mode: "0750"
         state: directory
       when: kumomta_fbl_enabled | bool
 
@@ -68,7 +68,7 @@
         dest: "{{ kumomta_config_dir }}/fbl-processor.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
       when: kumomta_fbl_enabled | bool
 
@@ -77,7 +77,7 @@
         path: "{{ kumomta_fbl_suppression_list }}"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
         state: touch
       changed_when: false
 
@@ -87,7 +87,7 @@
         dest: "{{ kumomta_config_dir }}/fbl-reporting.lua"
         owner: "{{ kumomta_user }}"
         group: "{{ kumomta_group }}"
-        mode: '0640'
+        mode: "0640"
       notify: restart kumomta
       when: kumomta_fbl_reporting_enabled | bool
 

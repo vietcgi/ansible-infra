@@ -3,7 +3,7 @@
 - name: Deploy KumoMTA on Single Node
   hosts: wg-node1
   become: true
-  gather_facts: yes
+  gather_facts: true
   vars:
     kumomta_enabled: true
     kumomta_hostname: "{{ inventory_hostname }}"
@@ -18,7 +18,7 @@
       ansible.builtin.file:
         path: "{{ test_results_dir }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Verify Multipass VM is accessible
       ansible.builtin.command: hostname

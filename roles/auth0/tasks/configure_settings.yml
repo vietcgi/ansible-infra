@@ -2,7 +2,7 @@
 # Configure Auth0 tenant settings
 
 - name: Configure Auth0 settings
-  debug:
+  ansible.builtin.debug:
     msg: |
       Configuring Auth0 settings:
       - MFA: {% if auth0_mfa_enabled %}enabled{% else %}disabled{% endif %}

@@ -136,9 +136,10 @@
           5. Configure Grafana dashboards for cluster monitoring
 
 - name: Verify Cluster Health
-  hosts: "{{ groups['kumomta_cluster'][0] }}"
+  hosts: kumomta_cluster
   become: true
   gather_facts: false
+  run_once: true
 
   tasks:
     - name: Get cluster status
@@ -152,5 +153,3 @@
         msg: |
           Cluster Status:
           {{ cluster_status.stdout }}
-
-  run_once: true

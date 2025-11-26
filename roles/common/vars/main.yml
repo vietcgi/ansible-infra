@@ -21,7 +21,7 @@ common_services_map:
   ntp:
     Debian: ntp
     RedHat: ntpd
-    Darwin: null  # macOS uses timed
+    Darwin: # macOS uses timed
   ssh:
     Debian: ssh
     RedHat: sshd

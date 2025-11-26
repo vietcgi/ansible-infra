@@ -2,7 +2,7 @@
 # Python installation and configuration
 
 - name: Verify Python 3 is available
-  command: which python3
+  ansible.builtin.command: which python3
   register: python3_check
   changed_when: false
   failed_when: false
@@ -11,31 +11,31 @@
     - runtime
 
 - name: Install Python 3 (Debian-based)
-  apt:
+  ansible.builtin.apt:
     name: "{{ common_python_packages }}"
     state: present
   when:
     - ansible_os_family == "Debian"
     - python3_check.rc != 0
-  become: yes
+  become: true
   tags:
     - python
     - runtime
 
 - name: Install Python 3 (RedHat-based)
-  yum:
+  ansible.builtin.dnf:
     name: "{{ common_python_packages }}"
     state: present
   when:
     - ansible_os_family == "RedHat"
     - python3_check.rc != 0
-  become: yes
+  become: true
   tags:
     - python
     - runtime
 
 - name: Verify Python 3 installation
-  command: python3 --version
+  ansible.builtin.command: python3 --version
   register: python3_version
   changed_when: false
   tags:
@@ -43,7 +43,7 @@
     - runtime
 
 - name: Display Python version
-  debug:
+  ansible.builtin.debug:
     msg: "Python version: {{ python3_version.stdout }}"
   tags:
     - python

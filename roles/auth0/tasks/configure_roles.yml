@@ -2,7 +2,7 @@
 # Configure Auth0 roles and permissions (RBAC)
 
 - name: Display roles to be configured
-  debug:
+  ansible.builtin.debug:
     msg: |
       Configuring {{ auth0_roles | length }} roles in Auth0:
       {% for role in auth0_roles %}

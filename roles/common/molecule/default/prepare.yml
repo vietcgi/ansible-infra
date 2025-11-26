@@ -3,13 +3,13 @@
 
 - name: Prepare - Set up test instances
   hosts: all
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
 
   tasks:
     - name: Update apt cache (Debian-based)
       apt:
-        update_cache: yes
+        update_cache: true
         cache_valid_time: 3600
       when: ansible_os_family == "Debian"
       changed_when: false

@@ -1,19 +1,19 @@
 ---
 # Wireguard VPN Handlers
 
-- name: restart wireguard
+- name: Restart wireguard
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
     state: restarted
     daemon_reload: true
 
-- name: reload wireguard
+- name: Reload wireguard
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
     state: reloaded
     daemon_reload: true
 
-- name: restart networking
+- name: Restart networking
   ansible.builtin.systemd:
     name: networking
     state: restarted

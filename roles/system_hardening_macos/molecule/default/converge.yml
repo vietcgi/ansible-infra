@@ -4,7 +4,7 @@
 
 - name: Converge
   hosts: all
-  gather_facts: yes
+  gather_facts: true
   pre_tasks:
     - name: Display platform information
       debug:
@@ -26,8 +26,8 @@
       block:
         - name: Update package cache
           apt:
-            update_cache: yes
-          become: yes
+            update_cache: true
+          become: true
           when: ansible_os_family == 'Debian'
 
         - name: Install required packages
@@ -40,14 +40,14 @@
               - openssh-client
               - openssh-server
             state: present
-          become: yes
+          become: true
 
         - name: Start SSH service
           service:
             name: ssh
             state: started
-            enabled: yes
-          become: yes
+            enabled: true
+          become: true
           when: ansible_os_family == 'Debian'
 
       when: ansible_os_family != 'Darwin'

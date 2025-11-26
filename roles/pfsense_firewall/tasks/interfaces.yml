@@ -26,6 +26,8 @@
         vlan_interfaces: "{{ pfsense_interfaces | selectattr('type', 'equalto', 'vlan') | list }}"
 
     - name: Configure VLAN interfaces
+      when: vlan_interfaces | length > 0
+
       block:
         - name: Create VLAN interfaces
           pfsensible.core.pfsense_vlan:
@@ -45,13 +47,13 @@
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
 
-      when: vlan_interfaces | length > 0
-
     - name: Identify standard interfaces to configure
       ansible.builtin.set_fact:
         standard_interfaces: "{{ pfsense_interfaces | rejectattr('type', 'equalto', 'vlan') | list }}"
 
     - name: Configure standard network interfaces
+      when: standard_interfaces | length > 0
+
       block:
         - name: Create/update interfaces
           pfsensible.core.pfsense_interface:
@@ -76,8 +78,6 @@
               {% for result in iface_config_results.results %}
               - {{ result.item.descr }}: {{ result.changed | ternary('Created/Updated', 'Unchanged') }}
               {% endfor %}
-
-      when: standard_interfaces | length > 0
 
     - name: Display interface configuration summary
       ansible.builtin.debug:

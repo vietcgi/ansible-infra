@@ -36,7 +36,7 @@
     state: directory
     owner: vault
     group: vault
-    mode: '0750'
+    mode: "0750"
   become: true
   loop:
     - /etc/vault
@@ -50,7 +50,8 @@
 # Detect system architecture for Vault installation
 - name: Set Vault architecture facts
   ansible.builtin.set_fact:
-    vault_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine }}"
+    vault_arch: "{{ 'arm64' if ansible_machine == 'aarch64' else 'amd64' if ansible_machine == 'x86_64' else ansible_machine
+      }}"
   tags:
     - vault
     - installation
@@ -59,10 +60,11 @@
 # Download and install Vault binary
 - name: Download Vault binary
   ansible.builtin.get_url:
-    url: "{{ security_vault_download_url | default('https://releases.hashicorp.com/vault/' + security_vault_version + '/vault_' + security_vault_version + '_' + ansible_system | lower + '_' + vault_arch + '.zip') }}"
+    url: "{{ security_vault_download_url | default('https://releases.hashicorp.com/vault/' + security_vault_version + '/vault_'
+      + security_vault_version + '_' + ansible_system | lower + '_' + vault_arch + '.zip') }}"
     dest: /tmp/vault.zip
     checksum: "{{ security_vault_checksum | default(omit) }}"
-    mode: '0644'
+    mode: "0644"
   become: true
   register: vault_download
   tags:
@@ -75,10 +77,10 @@
   ansible.builtin.unarchive:
     src: /tmp/vault.zip
     dest: /usr/local/bin/
-    remote_src: yes
+    remote_src: true
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   become: true
   when: vault_download.changed
   notify: restart vault
@@ -105,8 +107,8 @@
     dest: /etc/vault/server.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   register: vault_server_config
   notify: reload vault
@@ -122,8 +124,8 @@
     dest: /etc/vault/tls.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_tls_enabled | default(false) | bool
   register: vault_tls_config
@@ -140,8 +142,8 @@
     dest: /etc/vault/audit.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_audit_enabled | default(true) | bool
   register: vault_audit_config
@@ -158,8 +160,8 @@
     dest: /etc/vault/auth.hcl
     owner: vault
     group: vault
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
   become: true
   when: security_vault_auth_methods | default([]) | length > 0
   register: vault_auth_config
@@ -176,8 +178,8 @@
     dest: /etc/systemd/system/vault.service
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   register: vault_systemd
   notify: reload systemd
@@ -214,10 +216,11 @@
 # Verify Vault is running and responding
 - name: Verify Vault health
   ansible.builtin.uri:
-    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1') }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
+    url: "http{{ 's' if security_vault_tls_enabled | default(false) else '' }}://{{ security_vault_bind_addr | default('127.0.0.1')
+      }}:{{ security_vault_http_port | default(8200) }}/v1/sys/health"
     method: GET
     status_code: [200, 473, 501, 503]
-    validate_certs: no
+    validate_certs: false
   register: vault_health_check
   retries: 5
   delay: 2
@@ -233,8 +236,8 @@
     dest: /etc/logrotate.d/vault
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   become: true
   tags:
     - vault

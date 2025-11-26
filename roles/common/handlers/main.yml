@@ -1,39 +1,40 @@
 ---
 # Common Role - Handlers
 
-- name: restart sshd
-  systemd:
+- name: Restart sshd
+  ansible.builtin.systemd:
     name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   failed_when: false
   listen: restart sshd
 
-- name: restart sshd macos
-  command: sudo launchctl unload /System/Library/LaunchDaemons/ssh.plist && sudo launchctl load /System/Library/LaunchDaemons/ssh.plist
+- name: Restart sshd macos
+  ansible.builtin.command: sudo launchctl unload /System/Library/LaunchDaemons/ssh.plist && sudo launchctl load
+    /System/Library/LaunchDaemons/ssh.plist
   changed_when: false
   listen: restart sshd macos
 
-- name: restart ntp
-  systemd:
+- name: Restart ntp
+  ansible.builtin.systemd:
     name: ntp
     state: restarted
-  become: yes
+  become: true
   listen: restart ntp
 
-- name: restart ntpd
-  systemd:
+- name: Restart ntpd
+  ansible.builtin.systemd:
     name: ntpd
     state: restarted
-  become: yes
+  become: true
   listen: restart ntpd
 
-- name: restart auditd
-  systemd:
+- name: Restart auditd
+  ansible.builtin.systemd:
     name: auditd
     state: restarted
-  become: yes
+  become: true
   failed_when: false
   listen: restart auditd
 
@@ -45,128 +46,128 @@
   listen: restart chronyd
 
 - name: Restart chronyd if service is loaded
-  systemd:
+  ansible.builtin.systemd:
     name: chronyd
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   when: chronyd_load_state.rc | default(0) == 0 and chronyd_load_state.stdout | default('not-found') != 'not-found'
   failed_when: false
   listen: restart chronyd
 
-- name: apply netplan
-  command: netplan apply
-  become: yes
+- name: Apply netplan
+  ansible.builtin.command: netplan apply
+  become: true
   changed_when: false
   listen: apply netplan
 
-- name: restart networking
-  systemd:
+- name: Restart networking
+  ansible.builtin.systemd:
     name: networking
     state: restarted
-  become: yes
+  become: true
   listen: restart networking
 
-- name: restart network service
-  systemd:
+- name: Restart network service
+  ansible.builtin.systemd:
     name: network
     state: restarted
-  become: yes
+  become: true
   listen: restart network service
 
-- name: restart keepalived
-  systemd:
+- name: Restart keepalived
+  ansible.builtin.systemd:
     name: keepalived
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   listen: restart keepalived
 
-- name: restart rsyslog
-  systemd:
+- name: Restart rsyslog
+  ansible.builtin.systemd:
     name: rsyslog
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   failed_when: false
   listen: restart rsyslog
 
-- name: daemon reload
-  systemd:
-    daemon_reload: yes
-  become: yes
+- name: Daemon reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
   failed_when: false
   listen: daemon reload
 
-- name: restart ufw
-  systemd:
+- name: Restart ufw
+  ansible.builtin.systemd:
     name: ufw
     state: restarted
-  become: yes
+  become: true
   listen: restart ufw
   ignore_errors: true
 
-- name: restart firewalld
-  systemd:
+- name: Restart firewalld
+  ansible.builtin.systemd:
     name: firewalld
     state: restarted
-  become: yes
+  become: true
   listen: restart firewalld
   ignore_errors: true
 
-- name: restart fail2ban
-  systemd:
+- name: Restart fail2ban
+  ansible.builtin.systemd:
     name: fail2ban
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   listen: restart fail2ban
   ignore_errors: true
 
-- name: reload systemd
-  systemd:
-    daemon_reload: yes
-  become: yes
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
   listen: reload systemd
 
-- name: reload systemd settings
-  systemd:
-    daemon_reload: yes
-  become: yes
+- name: Reload systemd settings
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
   listen: reload systemd settings
 
-- name: reload sysctl
-  command: sysctl -p
-  become: yes
+- name: Reload sysctl
+  ansible.builtin.command: sysctl -p
+  become: true
   changed_when: false
   listen: reload sysctl
   ignore_errors: true
 
-- name: reload apparmor
-  command: systemctl reload apparmor
-  become: yes
+- name: Reload apparmor
+  ansible.builtin.command: systemctl reload apparmor
+  become: true
   changed_when: false
   listen: reload apparmor
   ignore_errors: true
 
-- name: restart systemd-resolved
-  systemd:
+- name: Restart systemd-resolved
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-  become: yes
+  become: true
   listen: restart systemd-resolved
   ignore_errors: true
 
-- name: reload vault
-  command: systemctl reload vault
-  become: yes
+- name: Reload vault
+  ansible.builtin.command: systemctl reload vault
+  become: true
   changed_when: false
   listen: reload vault
   ignore_errors: true
 
-- name: reload prometheus
-  command: systemctl reload prometheus
-  become: yes
+- name: Reload prometheus
+  ansible.builtin.command: systemctl reload prometheus
+  become: true
   changed_when: false
   listen: "reload prometheus"
   ignore_errors: true
@@ -179,18 +180,19 @@
   listen: restart prometheus
 
 - name: Restart prometheus if service is loaded
-  systemd:
+  ansible.builtin.systemd:
     name: prometheus
     state: restarted
-    daemon_reload: yes
-  become: yes
-  when: prometheus_load_state.rc | default(0) == 0 and prometheus_load_state.stdout | default('not-found') != 'not-found'
+    daemon_reload: true
+  become: true
+  when: prometheus_load_state.rc | default(0) == 0 and prometheus_load_state.stdout | default('not-found') !=
+    'not-found'
   failed_when: false
   listen: restart prometheus
 
-- name: reload alertmanager
-  command: systemctl reload alertmanager
-  become: yes
+- name: Reload alertmanager
+  ansible.builtin.command: systemctl reload alertmanager
+  become: true
   changed_when: false
   listen: "reload alertmanager"
   ignore_errors: true
@@ -203,12 +205,13 @@
   listen: restart node_exporter
 
 - name: Restart node_exporter if service is loaded
-  systemd:
+  ansible.builtin.systemd:
     name: node_exporter
     state: restarted
-    daemon_reload: yes
-  become: yes
-  when: node_exporter_load_state.rc | default(0) == 0 and node_exporter_load_state.stdout | default('not-found') != 'not-found'
+    daemon_reload: true
+  become: true
+  when: node_exporter_load_state.rc | default(0) == 0 and node_exporter_load_state.stdout | default('not-found') !=
+    'not-found'
   failed_when: false
   listen: restart node_exporter
 
@@ -220,19 +223,19 @@
   listen: restart filebeat
 
 - name: Restart filebeat if service is loaded
-  systemd:
+  ansible.builtin.systemd:
     name: filebeat
     state: restarted
-    daemon_reload: yes
-  become: yes
+    daemon_reload: true
+  become: true
   when: filebeat_load_state.stdout != 'not-found'
   failed_when: false
   listen: restart filebeat
 
-- name: restart grafana
-  systemd:
+- name: Restart grafana
+  ansible.builtin.systemd:
     name: grafana-server
     state: restarted
-  become: yes
+  become: true
   listen: "restart grafana"
   ignore_errors: true

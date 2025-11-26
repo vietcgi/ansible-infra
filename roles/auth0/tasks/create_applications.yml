@@ -2,7 +2,7 @@
 # Create Auth0 applications (OIDC/OAuth apps)
 
 - name: Create temporary Python script for app management
-  copy:
+  ansible.builtin.copy:
     content: |
       #!/usr/bin/env python3
       import sys
@@ -98,13 +98,13 @@
           print(f"ERROR: {str(e)}")
           sys.exit(1)
     dest: /tmp/auth0_create_apps.py
-    mode: '0755'
+    mode: "0755"
   tags:
     - auth0
     - applications
 
 - name: Execute app creation script
-  shell: python3 /tmp/auth0_create_apps.py
+  ansible.builtin.command: python3 /tmp/auth0_create_apps.py
   register: auth0_app_creation
   failed_when: auth0_app_creation.rc != 0
   changed_when: "'created' in auth0_app_creation.stdout.lower()"
@@ -113,7 +113,7 @@
     - applications
 
 - name: Extract JSON from script output
-  shell: |
+  ansible.builtin.shell: |
     echo '{{ auth0_app_creation.stdout }}' | sed -n '/=== CREATED_APPS_JSON_START ===/,/=== CREATED_APPS_JSON_END ===/p' | sed '1d;$d'
   register: extracted_json
   changed_when: false
@@ -122,14 +122,14 @@
     - applications
 
 - name: Parse extracted JSON into apps list
-  set_fact:
+  ansible.builtin.set_fact:
     created_auth0_apps: "{{ extracted_json.stdout | from_json }}"
   tags:
     - auth0
     - applications
 
 - name: Display created applications
-  debug:
+  ansible.builtin.debug:
     msg: |
       ========================================
       Auth0 Applications Created/Verified
@@ -151,7 +151,7 @@
     - applications
 
 - name: Save application credentials to file
-  copy:
+  ansible.builtin.copy:
     content: |
       # Auth0 Application Credentials
       # Generated: {{ ansible_date_time.iso8601 }}
@@ -166,15 +166,15 @@
 
       {% endfor %}
     dest: "{{ playbook_dir }}/{{ client_name }}_auth0_credentials.txt"
-    mode: '0600'
+    mode: "0600"
   delegate_to: localhost
-  become: no
+  become: false
   tags:
     - auth0
     - applications
 
 - name: Clean up script
-  file:
+  ansible.builtin.file:
     path: /tmp/auth0_create_apps.py
     state: absent
   tags:
@@ -182,7 +182,7 @@
     - applications
 
 - name: Display credential file location
-  debug:
+  ansible.builtin.debug:
     msg: "Auth0 application credentials saved to: {{ playbook_dir }}/{{ client_name }}_auth0_credentials.txt"
   tags:
     - auth0

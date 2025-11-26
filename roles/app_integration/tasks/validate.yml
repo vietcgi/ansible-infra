@@ -2,7 +2,7 @@
 # Validate application integration requirements
 
 - name: Validate required variables
-  assert:
+  ansible.builtin.assert:
     that:
       - app_framework is defined
       - app_framework | length > 0
@@ -17,7 +17,7 @@
     - validation
 
 - name: Validate Auth0 configuration
-  assert:
+  ansible.builtin.assert:
     that:
       - auth0_domain is defined
       - auth0_domain | length > 0
@@ -32,7 +32,7 @@
     - validation
 
 - name: Validate application paths
-  assert:
+  ansible.builtin.assert:
     that:
       - app_root_path is defined
       - app_root_path | length > 0
@@ -42,7 +42,7 @@
     - validation
 
 - name: Check application framework is supported
-  assert:
+  ansible.builtin.assert:
     that:
       - app_framework in ['nodejs', 'python', 'django', 'go', 'java', 'generic']
     fail_msg: |
@@ -53,7 +53,7 @@
     - validation
 
 - name: Display validation result
-  debug:
+  ansible.builtin.debug:
     msg: |
       Application Integration Validation: ✓
       Framework: {{ app_framework }}

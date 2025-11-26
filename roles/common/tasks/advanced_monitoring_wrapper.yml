@@ -3,13 +3,19 @@
 # Implements comprehensive observability with distributed tracing, log aggregation, and advanced alerting
 
 - name: Advanced Monitoring & Observability Block
+  tags:
+    - monitoring
+    - observability
+    - tracing
+    - logging
+
   block:
     # Validate monitoring prerequisites
     - name: Validate advanced monitoring prerequisites
       ansible.builtin.assert:
         that:
-          - orchestration_distributed_tracing_enabled | default(false) | bool or
-            orchestration_log_aggregation_enabled | default(true) | bool
+          - orchestration_distributed_tracing_enabled | default(false) | bool or orchestration_log_aggregation_enabled |
+            default(true) | bool
         fail_msg: "Advanced monitoring requires at least one observability component enabled"
       when: monitoring_observability_enabled | default(true) | bool
 
@@ -24,7 +30,7 @@
             name: observability
             labels:
               monitoring: enabled
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -42,7 +48,7 @@
           --set mode=daemonset \
           --set presets.kubeEventsCollection.enabled=true \
           --set presets.kubernetesAttributes.enabled=true
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -63,7 +69,7 @@
           --set collector.enabled=true \
           --set query.enabled=true \
           --set agent.enabled=true
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -84,7 +90,7 @@
           --set nodeGroup=master \
           --set resources.requests.memory="{{ monitoring_elasticsearch_memory | default('1Gi') }}" \
           --set resources.requests.cpu="{{ monitoring_elasticsearch_cpu | default('500m') }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -106,7 +112,7 @@
           --set config.outputs.es.port=9200 \
           --set resources.requests.memory="{{ monitoring_fluent_bit_memory | default('256Mi') }}" \
           --set resources.requests.cpu="{{ monitoring_fluent_bit_cpu | default('200m') }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -127,7 +133,7 @@
           --set service.type=LoadBalancer \
           --set resources.requests.memory="{{ monitoring_kibana_memory | default('512Mi') }}" \
           --set resources.requests.cpu="{{ monitoring_kibana_cpu | default('250m') }}"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -177,7 +183,7 @@
                     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                       action: keep
                       regex: 'true'
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -234,7 +240,7 @@
                       labels:
                         severity: warning
                       annotations:
-                        summary: "High error rate detected in {{ $labels.service }}"
+                        summary: "High error rate detected in {{ '{{' }} $labels.service {{ '}}' }}"
 
                     - alert: HighLatency
                       expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > {{ monitoring_latency_threshold | default('1') }}
@@ -243,7 +249,7 @@
                         severity: warning
                       annotations:
                         summary: "High latency detected"
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -290,7 +296,7 @@
                     - to: '{{ monitoring_critical_alert_email | default("on-call@example.com") }}'
                       from: 'alertmanager@example.com'
                       smarthost: '{{ monitoring_smtp_host | default("smtp.example.com:587") }}'
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -342,7 +348,7 @@
                   ]
                 }
               }
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -363,7 +369,7 @@
     - name: Verify observability stack deployment
       ansible.builtin.shell: |
         kubectl get pods -n observability -o wide
-      become: yes
+      become: true
       become_user: root
       environment:
         KUBECONFIG: /root/.kube/config
@@ -395,12 +401,6 @@
           Advanced monitoring and observability configuration encountered an error.
           This may occur if Helm charts are unavailable or Kubernetes is not properly configured.
           Error: {{ ansible_failed_result.msg | default('Unknown error') }}
-
-  tags:
-    - monitoring
-    - observability
-    - tracing
-    - logging
 
 - name: Display advanced monitoring summary
   ansible.builtin.debug:

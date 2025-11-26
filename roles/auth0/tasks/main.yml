@@ -3,61 +3,61 @@
 # Manages Auth0 tenant configuration via API
 
 - name: Validate Auth0 credentials
-  import_tasks: validate_credentials.yml
+  ansible.builtin.import_tasks: validate_credentials.yml
   tags:
     - auth0
     - validation
     - always
 
 - name: Create Auth0 applications
-  import_tasks: create_applications.yml
+  ansible.builtin.import_tasks: create_applications.yml
   when: auth0_applications | length > 0
   tags:
     - auth0
     - applications
 
 - name: Configure Auth0 API
-  import_tasks: configure_api.yml
+  ansible.builtin.import_tasks: configure_api.yml
   when: auth0_api.name is defined
   tags:
     - auth0
     - api
 
 - name: Create Auth0 roles and permissions
-  import_tasks: configure_roles.yml
+  ansible.builtin.import_tasks: configure_roles.yml
   when: auth0_roles | length > 0
   tags:
     - auth0
     - rbac
 
 - name: Manage Auth0 users
-  import_tasks: manage_users.yml
+  ansible.builtin.import_tasks: manage_users.yml
   when: auth0_users | length > 0
   tags:
     - auth0
     - users
 
 - name: Configure Auth0 connections
-  import_tasks: configure_connections.yml
+  ansible.builtin.import_tasks: configure_connections.yml
   when: auth0_connections is defined
   tags:
     - auth0
     - connections
 
 - name: Configure Auth0 settings
-  import_tasks: configure_settings.yml
+  ansible.builtin.import_tasks: configure_settings.yml
   tags:
     - auth0
     - settings
 
 - name: Generate client configuration files
-  import_tasks: generate_configs.yml
+  ansible.builtin.import_tasks: generate_configs.yml
   tags:
     - auth0
     - configuration
 
 - name: Display Auth0 setup summary
-  debug:
+  ansible.builtin.debug:
     msg: |
       ========================================
       Auth0 Configuration Complete

@@ -26,7 +26,7 @@
         dest: /opt/kumomta/etc/metrics/prometheus-config.txt
         owner: kumod
         group: kumod
-        mode: '0640'
+        mode: "0640"
 
     - name: Create health check script
       ansible.builtin.copy:
@@ -69,7 +69,7 @@
         dest: /usr/local/bin/kumomta-health-check.sh
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Create monitoring alerts configuration
       ansible.builtin.copy:
@@ -124,7 +124,7 @@
         dest: /opt/kumomta/etc/metrics/prometheus-alerts.yml
         owner: kumod
         group: kumod
-        mode: '0640'
+        mode: "0640"
 
     # - name: Setup logrotate for KumoMTA logs
     #   ansible.builtin.copy:
@@ -173,7 +173,7 @@
         dest: /usr/local/bin/kumomta-monitoring-status.sh
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Display Monitoring Status
       ansible.builtin.debug:

@@ -17,7 +17,7 @@
         dest: /etc/kumomta/cloudflare.ini
         owner: root
         group: root
-        mode: '0600'
+        mode: "0600"
       become: true
 
     - name: Check if certificates exist
@@ -61,7 +61,8 @@
         minute: "0"
         hour: "2"
         day: "1"
-        job: "certbot renew --quiet --dns-cloudflare --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini && systemctl restart kumomta"
+        job: "certbot renew --quiet --dns-cloudflare --dns-cloudflare-credentials /etc/kumomta/cloudflare.ini && systemctl
+          restart kumomta"
       become: true
       when: crontab_available.stat.exists
 

@@ -4,7 +4,7 @@
 - name: Display DNS Verification Summary
   block:
     - name: Create DNS verification summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           ═══════════════════════════════════════════════════════════════════════════
           📋 EMAIL AUTHENTICATION DNS RECORDS VERIFICATION SUMMARY
@@ -68,7 +68,7 @@
 
   rescue:
     - name: Handle summary display error
-      debug:
+      ansible.builtin.debug:
         msg: |
           ⚠ Could not generate DNS verification summary
 

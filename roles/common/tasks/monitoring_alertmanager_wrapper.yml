@@ -15,6 +15,11 @@
 # Reference: https://github.com/prometheus-community/ansible
 
 - name: "PHASE 2.A: AlertManager (Upstream Role Wrapper)"
+  when: monitoring_alertmanager_enabled | default(true) | bool
+  tags:
+    - monitoring
+    - alertmanager
+    - phase_2_a
   block:
     # ========================================================================
     # Task: Validate AlertManager is enabled
@@ -224,7 +229,7 @@
                 auth_username: "{{ monitoring_alertmanager_email_auth_username | default('') }}"
                 auth_password: "{{ monitoring_alertmanager_email_auth_password | default('') }}"
                 headers:
-                  Subject: "Alert: {{ .GroupLabels.alertname }}"
+                  Subject: "Alert: {{ '{{' }} .GroupLabels.alertname {{ '}}' }}"
                 html: true
         marker: "# {mark} ANSIBLE EMAIL RECEIVER CONFIGURATION"
         state: present
@@ -319,9 +324,3 @@
         - monitoring
         - alertmanager
         - error_handling
-
-  when: monitoring_alertmanager_enabled | default(true) | bool
-  tags:
-    - monitoring
-    - alertmanager
-    - phase_2_a

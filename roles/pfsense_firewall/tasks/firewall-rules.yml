@@ -23,7 +23,8 @@
       block:
         - name: Identify unique aliases needed
           ansible.builtin.set_fact:
-            rule_aliases: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias') | unique | list }}"
+            rule_aliases: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias')
+              | unique | list }}"
 
         - name: Create aliases for firewall rules
           pfsensible.core.pfsense_alias:
@@ -32,7 +33,8 @@
             address: "{{ item.address }}"
             descr: "{{ item.descr | default('') }}"
             state: present
-          loop: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias') | unique | list }}"
+          loop: "{{ pfsense_firewall_rules | selectattr('source_alias', 'defined') | map(attribute='source_alias') | unique
+            | list }}"
           when: pfsense_firewall_rules | selectattr('source_alias', 'defined') | list | length > 0
 
       rescue:

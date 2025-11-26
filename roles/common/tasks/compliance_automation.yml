@@ -19,7 +19,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
 
@@ -29,7 +29,7 @@
     dest: /opt/compliance-frameworks/fedramp-check.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - fedramp
@@ -40,7 +40,7 @@
     dest: /opt/compliance-frameworks/hipaa-check.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - hipaa
@@ -51,7 +51,7 @@
     dest: /opt/compliance-frameworks/pci-check.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - pci
@@ -62,7 +62,7 @@
     dest: /opt/compliance-frameworks/soc2-check.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - soc2
@@ -73,7 +73,7 @@
     dest: /opt/compliance-frameworks/nist-check.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - nist
@@ -84,7 +84,7 @@
     dest: /usr/local/bin/check-audit-tampering.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - audit
@@ -106,7 +106,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0750'
+    mode: "0750"
   tags:
     - compliance_automation
 
@@ -116,7 +116,7 @@
     dest: /var/lib/compliance/exceptions/template.yml
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   tags:
     - compliance_automation
 
@@ -126,7 +126,7 @@
     dest: /usr/local/bin/correlate-audit-trails.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - audit
@@ -149,7 +149,7 @@
     dest: /opt/compliance-frameworks/auto-remediation.yml
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   tags:
     - compliance_automation
     - remediation
@@ -160,7 +160,7 @@
     dest: /usr/local/bin/generate-compliance-report.sh
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
   tags:
     - compliance_automation
     - reporting
@@ -184,7 +184,7 @@
     dest: /etc/monitoring/dashboards/compliance.json
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: monitoring_grafana_enabled | default(false)
   tags:
     - compliance_automation
@@ -196,7 +196,7 @@
     dest: /etc/logrotate.d/compliance-automation
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   tags:
     - compliance_automation
     - logging

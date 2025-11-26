@@ -2,7 +2,7 @@
 # Configure Auth0 connections (social/enterprise login)
 
 - name: Display connections to be configured
-  debug:
+  ansible.builtin.debug:
     msg: |
       Configuring {{ auth0_connections | length }} connections:
       {% for conn in auth0_connections %}

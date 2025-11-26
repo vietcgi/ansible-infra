@@ -5,13 +5,10 @@
   block:
     - name: Add DMARC record to DNS list
       ansible.builtin.set_fact:
-        email_dns_records: "{{ email_dns_records | default([]) + [{
-          'type': 'TXT',
-          'record': '_dmarc' + ('.' + dns_record_prefix if dns_record_prefix != '@' else ''),
-          'value': 'v=DMARC1; p=' + dmarc_policy + '; sp=' + dmarc_subdomain_policy + '; rua=mailto:' + dmarc_report_email + '; ruf=mailto:' + dmarc_forensics_email + '; pct=' + (dmarc_percent | string) + ';',
-          'ttl': 3600,
-          'zone': dns_zone_name
-        }] }}"
+        email_dns_records: "{{ email_dns_records | default([]) + [{'type': 'TXT', 'record': '_dmarc' + ('.' + dns_record_prefix
+          if dns_record_prefix != '@' else ''), 'value': 'v=DMARC1; p=' + dmarc_policy + '; sp=' + dmarc_subdomain_policy
+          + '; rua=mailto:' + dmarc_report_email + '; ruf=mailto:' + dmarc_forensics_email + '; pct=' + (dmarc_percent | string)
+          + ';', 'ttl': 3600, 'zone': dns_zone_name}] }}"
 
     - name: Display DMARC Status
       ansible.builtin.debug:
