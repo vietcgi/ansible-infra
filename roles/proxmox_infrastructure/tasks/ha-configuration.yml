@@ -8,7 +8,7 @@
 
       block:
         - name: "Create HA Group: {{ ha_group.group_name }}"
-          community.proxmox.proxmox_ha_group:
+          community.proxmox.proxmox_cluster_ha_groups:
             api_host: "{{ proxmox_api_host }}"
             api_user: "{{ proxmox_api_user }}"
             api_password: "{{ proxmox_api_password }}"
@@ -39,7 +39,7 @@
 
       block:
         - name: "Register VM in HA: {{ ha_resource.vmid }}"
-          community.proxmox.proxmox_ha_resource:
+          community.proxmox.proxmox_cluster_ha_resources:
             api_host: "{{ proxmox_api_host }}"
             api_user: "{{ proxmox_api_user }}"
             api_password: "{{ proxmox_api_password }}"
@@ -67,30 +67,19 @@
               - VM {{ resource.vmid }}: Group={{ resource.group }}, MaxRestart={{ resource.max_restart | default(3) }}
               {% endfor %}
 
-    - name: Configure HA Resource Manager
-      block:
-        - name: Set HA Resource Manager configuration
-          community.proxmox.proxmox_ha_rm_config:
-            api_host: "{{ proxmox_api_host }}"
-            api_user: "{{ proxmox_api_user }}"
-            api_password: "{{ proxmox_api_password }}"
-            api_token_id: "{{ proxmox_api_token_id | default(omit) }}"
-            api_token_secret: "{{ proxmox_api_token_secret | default(omit) }}"
-            validate_certs: "{{ proxmox_api_verify_ssl }}"
-            shutdown_policy: "{{ proxmox_ha_rm_shutdown_policy }}"
-            max_worker: "{{ proxmox_ha_rm_max_worker }}"
-            ha_interval: "{{ proxmox_ha_rm_ha_interval }}"
-          register: ha_rm_config_result
-          no_log: true
+    # NOTE: HA Resource Manager configuration module not yet available in community.proxmox
+    # Configure via Proxmox web UI: Datacenter -> HA -> Settings
+    - name: Display HA Resource Manager settings reminder
+      ansible.builtin.debug:
+        msg: |
+          HA Resource Manager Configuration (Manual)
+          ==========================================
+          Configure these settings in Proxmox web UI:
+          - Shutdown Policy: {{ proxmox_ha_rm_shutdown_policy }}
+          - Max Workers: {{ proxmox_ha_rm_max_worker }}
+          - HA Interval: {{ proxmox_ha_rm_ha_interval }}s
 
-        - name: Display HA Resource Manager configuration
-          ansible.builtin.debug:
-            msg: |
-              HA Resource Manager Configuration
-              ==================================
-              Shutdown Policy: {{ proxmox_ha_rm_shutdown_policy }}
-              Max Workers: {{ proxmox_ha_rm_max_worker }}
-              HA Interval: {{ proxmox_ha_rm_ha_interval }}s
+          Path: Datacenter -> HA -> Settings
 
     - name: Display HA Summary
       ansible.builtin.debug:
