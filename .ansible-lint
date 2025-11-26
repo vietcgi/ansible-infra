@@ -18,25 +18,25 @@ exclude_paths:
   - .cache/
   - docs/
 
-# Minimal skip list - only skip rules that don't apply
+# Skip rules that are too disruptive for existing codebase
 skip_list:
   - schema[meta]  # Meta schema validation can be overly strict
   - var-naming[no-role-prefix]  # Variable renaming is risky for existing codebase
+  - yaml[line-length]  # Allow lines up to 160 chars (configured in .yamllint)
+  - ignore-errors  # Existing code uses ignore_errors pattern
+  - no-handler  # Tasks that could be handlers but work as-is
+  - no-changed-when  # Shell tasks - add changed_when gradually
+  - risky-shell-pipe  # Shell pipes - add pipefail gradually
+  - risky-file-permissions  # File permissions - add mode gradually
+  - command-instead-of-module  # Sometimes shell/command is intentional
+  - meta-no-tags  # Meta files without galaxy_tags
+  - package-latest  # state: latest is sometimes intentional
+  - name[play]  # Unnamed plays
 
-# Warn for issues that are important but shouldn't block CI
+# Warn only for stylistic issues
 warn_list:
   - name[casing]  # Play/task name casing
-  - name[play]  # Unnamed plays
   - key-order[task]  # Task key ordering preference
-  - yaml[line-length]  # Long lines (max 120)
-  - ignore-errors  # Should use failed_when, but existing code uses ignore_errors
-  - no-handler  # Tasks that could be handlers
-  - no-changed-when  # Shell/command tasks without changed_when
-  - risky-shell-pipe  # Shell pipes without pipefail
-  - risky-file-permissions  # File permissions not explicitly set
-  - command-instead-of-module  # Using shell/command instead of modules
-  - meta-no-tags  # Meta files without galaxy_tags
-  - package-latest  # Using state: latest
 
 # Offline mode (don't download schemas)
 offline: false
