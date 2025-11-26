@@ -92,7 +92,7 @@ _meta:
     minor: 0
     patch: 0
     status: production
-    released: 2025-11-15
+    released: "2025-11-15"
 
   # Role capabilities
   capabilities:
