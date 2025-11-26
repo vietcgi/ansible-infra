@@ -20,6 +20,7 @@ exclude_paths:
 
 # Skip rules that are too disruptive for existing codebase
 skip_list:
+  - jinja[invalid]  # False positives from pass-through vars to external collection roles
   - schema[meta]  # Meta schema validation can be overly strict
   - var-naming[no-role-prefix]  # Variable renaming is risky for existing codebase
   - yaml[line-length]  # Allow lines up to 160 chars (configured in .yamllint)
