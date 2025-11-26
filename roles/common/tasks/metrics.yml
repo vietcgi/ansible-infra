@@ -76,11 +76,10 @@
             backup: true
             remote_src: true
 
-        - ansible.builtin.file:
+        - name: Clean up download directory
+          ansible.builtin.file:
             path: /tmp/node_exporter
             state: absent
-
-          name: Clean up download directory
 - name: Create node_exporter systemd service
   ansible.builtin.template:
     src: node_exporter_systemd.j2
@@ -189,6 +188,10 @@
     - scheduling
 
 - name: Verify node_exporter accessibility
+  when: metrics_enabled | bool
+  tags:
+    - metrics
+    - validate
   block:
     - name: Check node_exporter HTTP endpoint
       ansible.builtin.uri:
@@ -207,11 +210,6 @@
       tags:
         - metrics
         - validate
-
-  when: metrics_enabled | bool
-  tags:
-    - metrics
-    - validate
 
 - name: Display metrics configuration summary
   ansible.builtin.debug:
