@@ -56,6 +56,9 @@ jobs:
                       yamllint>=1.35.0 \
                       jinja2>=3.0.3
 
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+
       - name: Run ansible-lint
         run: ansible-lint --version && ansible-lint roles/ playbooks/
         continue-on-error: false
