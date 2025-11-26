@@ -41,6 +41,12 @@ warn_list:
 # Offline mode (don't download schemas)
 offline: false
 
+# Mock modules with incomplete upstream metadata (ansible-lint bug)
+mock_modules:
+  - amazon.aws.aws_caller_info
+  - amazon.aws.route53
+  - amazon.aws.route53_zone
+
 # Enable opt-in security rules
 enable_list:
   - no-log-password
