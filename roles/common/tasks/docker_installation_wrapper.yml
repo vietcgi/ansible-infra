@@ -4,16 +4,25 @@
 # Upstream Role: community.docker.docker
 # Purpose: Install Docker daemon with security hardening and custom configuration
 
-# Pre-flight checks
-- name: Validate Docker installation is enabled
-  ansible.builtin.assert:
-    that:
-      - container_docker_enabled | bool
-    fail_msg: "Docker installation is disabled (container_docker_enabled=false)"
-    quiet: true
+# Skip if Docker is disabled
+- name: Skip Docker installation if disabled
+  ansible.builtin.debug:
+    msg: "Docker installation disabled. Set container_docker_enabled: true to enable."
+  when: not (container_docker_enabled | default(false))
   tags:
     - docker
     - containers
+
+# Pre-flight validation when Docker is enabled
+- name: Validate Docker installation prerequisites
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in ['Debian', 'RedHat']
+    fail_msg: "Docker installation only supported on Debian/RedHat based systems"
+    quiet: true
+  when: container_docker_enabled | default(false)
+  tags:
+    - docker
     - validation
 
 # Map our variables to upstream role expectations
@@ -22,6 +31,7 @@
     docker_install_compose: "{{ container_docker_compose_enabled | default(true) }}"
     docker_version: "{{ container_docker_version | default('latest') }}"
     docker_daemon_options: "{{ container_docker_daemon_options | default({}) }}"
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - config
@@ -33,6 +43,7 @@
     state: present
     system: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - users
@@ -50,6 +61,7 @@
     - /etc/docker
     - /var/lib/docker
     - "{{ container_docker_storage_driver_path | default('/var/lib/docker') }}"
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - directories
@@ -77,6 +89,7 @@
     backup: true
   become: true
   register: docker_daemon_config_result
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - config
@@ -98,7 +111,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_configure_logging | default(true)
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_configure_logging | default(true)
   tags:
     - docker
     - logging
@@ -114,7 +129,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_registry_credentials | default([]) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_registry_credentials | default([]) | length > 0
   tags:
     - docker
     - registry
@@ -134,7 +151,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_storage_driver | default(false)
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_storage_driver | default(false)
   tags:
     - docker
     - storage
@@ -150,7 +169,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_network_config | default({}) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_network_config | default({}) | length > 0
   tags:
     - docker
     - network
@@ -164,7 +185,10 @@
     enabled: true
     daemon_reload: true
   become: true
-  when: docker_daemon_config_result.changed or (container_docker_configure_logging | default(true) | bool)
+  when:
+    - container_docker_enabled | default(false)
+    - docker_daemon_config_result is defined
+    - docker_daemon_config_result.changed | default(false)
   register: docker_daemon_restart
   tags:
     - docker
@@ -177,7 +201,10 @@
     state: present
     timeout: 30
   become: true
-  when: docker_daemon_restart.changed
+  when:
+    - container_docker_enabled | default(false)
+    - docker_daemon_restart is defined
+    - docker_daemon_restart.changed | default(false)
   tags:
     - docker
     - health
@@ -187,6 +214,7 @@
   community.docker.docker_host_info:
   register: docker_info_result
   ignore_errors: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - validation
@@ -201,7 +229,9 @@
     state: present
   become: true
   loop: "{{ container_docker_users | default([]) }}"
-  when: container_docker_users | default([]) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_users | default([]) | length > 0
   tags:
     - docker
     - users
@@ -218,7 +248,9 @@
     backup: true
     validate: "/usr/sbin/visudo -cf %s"
   become: true
-  when: container_docker_sudo_access | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_sudo_access | default(false) | bool
   tags:
     - docker
     - sudo
@@ -232,7 +264,9 @@
     driver_options: "{{ item.options | default({}) }}"
     state: present
   loop: "{{ container_docker_custom_networks | default([]) }}"
-  when: container_docker_custom_networks | default([]) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_custom_networks | default([]) | length > 0
   tags:
     - docker
     - network
@@ -247,6 +281,7 @@
     job: "/usr/bin/docker system prune -f --filter 'until={{ container_docker_prune_days | default('30') }}d'"
     state: "{{ 'present' if container_docker_prune_enabled | default(false) else 'absent' }}"
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - maintenance
@@ -262,7 +297,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_syslog_enabled | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_syslog_enabled | default(false) | bool
   tags:
     - docker
     - logging
@@ -276,6 +313,7 @@
     enabled: true
   become: true
   register: docker_service_status
+  when: container_docker_enabled | default(false)
   tags:
     - docker
     - service
@@ -315,7 +353,9 @@
 - name: Docker installation task completion
   ansible.builtin.debug:
     msg: "Docker installation wrapper task completed successfully"
-  when: not ansible_check_mode
+  when:
+    - container_docker_enabled | default(false)
+    - not ansible_check_mode
   tags:
     - docker
     - summary

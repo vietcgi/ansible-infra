@@ -1,0 +1,91 @@
+# Vultr Dynamic Inventory
+# ========================
+# Automatically discovers instances from Vultr Cloud
+#
+# Requirements:
+#   pip install requests
+#   ansible-galaxy collection install vultr.cloud (or ngine_io.vultr)
+#
+# Authentication:
+#   Set VULTR_API_KEY environment variable
+#   Get API key from: https://my.vultr.com/settings/#settingsapi
+#
+# Usage:
+#   export VULTR_API_KEY="your-api-key"
+#   ansible-inventory -i inventories/dynamic/vultr.yml --list
+#   ansible-playbook -i inventories/dynamic/vultr.yml playbooks/provision.yml
+---
+plugin: vultr.cloud.vultr
+
+# API Key (prefer environment variable for security)
+# api_key: "{{ lookup('env', 'VULTR_API_KEY') }}"
+
+# Compose variables from instance attributes
+compose:
+  # Set ansible_host to main IP
+  ansible_host: main_ip | default(v6_main_ip, true)
+  # Default user for Vultr instances
+  ansible_user: "'root'"
+  # Instance metadata
+  vultr_id: id
+  vultr_label: label
+  vultr_region: region
+  vultr_plan: plan
+  vultr_status: status | default(power_status)
+  vultr_os: os
+  vultr_ipv4: main_ip
+  vultr_ipv6: v6_main_ip | default(None)
+  vultr_internal_ip: internal_ip | default(None)
+  vultr_vcpu_count: vcpu_count
+  vultr_ram: ram
+  vultr_disk: disk
+  # Extract from tags
+  environment: tags | select('match', 'env:.*') | map('regex_replace', 'env:', '') | first | default('unknown')
+  role: tags | select('match', 'role:.*') | map('regex_replace', 'role:', '') | first | default('server')
+
+# Create groups based on instance attributes
+keyed_groups:
+  # Group by region
+  - key: region
+    prefix: vultr_region
+    separator: "_"
+
+  # Group by plan
+  - key: plan
+    prefix: vultr_plan
+    separator: "_"
+
+  # Group by OS
+  - key: os | default('unknown') | lower | regex_replace('[^a-z0-9]', '_')
+    prefix: os
+    separator: "_"
+
+  # Group by status
+  - key: status | default(power_status) | default('unknown')
+    prefix: status
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All Vultr instances
+  vultr: true
+  # Running instances
+  running: status == 'active' or power_status == 'running'
+  # Group by tags
+  production: "'env:production' in (tags | default([]))"
+  staging: "'env:staging' in (tags | default([]))"
+  development: "'env:development' in (tags | default([]) ) or 'env:dev' in (tags | default([]))"
+  # Role-based
+  webservers: "'role:web' in (tags | default([])) or 'role:webserver' in (tags | default([]))"
+  databases: "'role:db' in (tags | default([])) or 'role:database' in (tags | default([]))"
+  # Has private network
+  private_network: internal_ip is defined and internal_ip | length > 0
+
+# Cache settings
+cache: true
+cache_plugin: jsonfile
+cache_connection: /tmp/ansible_vultr_cache
+cache_timeout: 300
+
+# Strict mode
+strict: false

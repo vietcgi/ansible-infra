@@ -1,0 +1,82 @@
+---
+# pfSense WireGuard - Kill Switch Configuration
+# Blocks traffic if VPN tunnel is down
+
+- name: Get WireGuard gateway name
+  ansible.builtin.set_fact:
+    wg_gateway: "{{ pfsense_wireguard_gateway_name }}"
+
+- name: Create kill switch alias for protected networks
+  pfsensible.core.pfsense_alias:
+    name: "KILLSWITCH_NETS"
+    type: network
+    descr: "Networks protected by VPN kill switch"
+    detail: "{{ pfsense_wireguard_kill_switch_interfaces | join(' ') }}"
+    state: present
+  register: killswitch_alias
+
+- name: Create floating rule - Block non-VPN traffic
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      // Create floating rule to block traffic when VPN is down
+      // This rule rejects traffic that doesn't use the WireGuard gateway
+
+      init_config_arr(array('filter', 'rule'));
+
+      $kill_rule = array(
+        'type' => 'block',
+        'interface' => '{{ pfsense_wireguard_kill_switch_interfaces | join(",") }}',
+        'ipprotocol' => 'inet',
+        'protocol' => 'any',
+        'source' => array('any' => ''),
+        'destination' => array('any' => ''),
+        'gateway' => '{{ pfsense_wireguard_gateway_name }}',
+        'descr' => 'Kill Switch - Block if VPN down',
+        'floating' => 'yes',
+        'quick' => 'yes',
+        'tracker' => time(),
+        'disabled' => ''
+      );
+
+      // Check if rule already exists
+      $found = false;
+      foreach ($config['filter']['rule'] as $idx => $rule) {
+        if (isset($rule['descr']) && strpos($rule['descr'], 'Kill Switch') !== false) {
+          $found = true;
+          break;
+        }
+      }
+
+      if (!$found) {
+        // Add to beginning of rules
+        array_unshift($config['filter']['rule'], $kill_rule);
+        write_config("Kill switch rule added via Ansible");
+        echo "rule_created";
+      } else {
+        echo "rule_exists";
+      }
+  register: killswitch_rule
+
+- name: Reload filter rules
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      require_once("filter.inc");
+      filter_configure();
+      echo "reloaded";
+  when: killswitch_rule.stdout | trim == "rule_created"
+
+- name: Display kill switch status
+  ansible.builtin.debug:
+    msg: |
+      ✓ Kill Switch Configured
+
+      Protected Interfaces: {{ pfsense_wireguard_kill_switch_interfaces | join(', ') }}
+      Gateway: {{ pfsense_wireguard_gateway_name }}
+      Rule Status: {{ killswitch_rule.stdout | trim }}
+
+      How it works:
+      - Traffic from protected interfaces is blocked if it can't route through VPN gateway
+      - When VPN is up, traffic flows normally through WireGuard
+      - When VPN is down, traffic is blocked (no leak to regular internet)
+
+      WARNING: Kill switch will block ALL internet if VPN disconnects!

@@ -1,0 +1,229 @@
+---
+# Vast.ai Host Daemon Installation
+# Installs and registers machine with Vast.ai marketplace
+# Follows ansible-infra patterns with validation and idempotency
+
+- name: Skip Vast.ai installation if disabled
+  ansible.builtin.debug:
+    msg: "Vast.ai host installation disabled. Set vastai_enabled: true to enable."
+  when: not (vastai_enabled | default(false))
+  tags:
+    - vastai
+    - installation
+
+# Pre-flight validation
+- name: Validate Vast.ai prerequisites
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - validation
+  block:
+    - name: Verify API key is provided
+      ansible.builtin.assert:
+        that:
+          - vastai_api_key is defined
+          - vastai_api_key | length > 0
+        fail_msg: "Vast.ai API key is required. Set vastai_api_key variable."
+        quiet: true
+      no_log: true
+
+    - name: Verify NVIDIA driver is installed
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_check
+      changed_when: false
+      failed_when: nvidia_check.rc != 0
+
+    - name: Verify Docker with GPU support
+      ansible.builtin.command: >
+        docker run --rm --gpus all
+        nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi -L
+      register: docker_gpu_check
+      changed_when: false
+      failed_when: docker_gpu_check.rc != 0
+      become: true
+
+# Check existing installation
+- name: Check existing Vast.ai installation
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - validation
+  block:
+    - name: Check if Vast.ai is already installed
+      ansible.builtin.stat:
+        path: /var/lib/vastai_kaalia/machine_id
+      register: vastai_installed
+
+    - name: Get existing machine ID if installed
+      ansible.builtin.command: cat /var/lib/vastai_kaalia/machine_id
+      register: existing_machine_id
+      changed_when: false
+      when: vastai_installed.stat.exists
+      become: true
+
+    - name: Store installation status
+      ansible.builtin.set_fact:
+        vastai_already_installed: "{{ vastai_installed.stat.exists }}"
+        vastai_machine_id: "{{ existing_machine_id.stdout | default('') | trim }}"
+
+# Install Vast.ai dependencies
+- name: Install Vast.ai dependencies
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - dependencies
+  block:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - wget
+          - curl
+          - netcat-openbsd
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Install Vast.ai CLI via pip
+      ansible.builtin.pip:
+        name: vastai
+        state: present
+      become: true
+
+# Install Vast.ai daemon
+- name: Install Vast.ai host daemon
+  when:
+    - vastai_enabled | default(false)
+    - not vastai_already_installed | default(false)
+  tags:
+    - vastai
+    - daemon
+  block:
+    - name: Download Vast.ai installer
+      ansible.builtin.get_url:
+        url: https://console.vast.ai/install
+        dest: /tmp/vastai_install.py
+        mode: "0755"
+      become: true
+
+    - name: Install Vast.ai daemon
+      ansible.builtin.command: "python3 /tmp/vastai_install.py {{ vastai_api_key }}"
+      become: true
+      register: vastai_install_result
+      changed_when: true
+      no_log: true
+
+    - name: Clean up installer
+      ansible.builtin.file:
+        path: /tmp/vastai_install.py
+        state: absent
+      become: true
+
+    - name: Get new machine ID
+      ansible.builtin.command: cat /var/lib/vastai_kaalia/machine_id
+      register: new_machine_id
+      changed_when: false
+      become: true
+
+    - name: Store new machine ID
+      ansible.builtin.set_fact:
+        vastai_machine_id: "{{ new_machine_id.stdout | trim }}"
+
+# Configure port range
+- name: Configure Vast.ai port range
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - ports
+  block:
+    - name: Set Vast.ai host port range
+      ansible.builtin.copy:
+        content: "{{ vastai_port_range_start }}-{{ vastai_port_range_end }}"
+        dest: /var/lib/vastai_kaalia/host_port_range
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      register: port_range_config
+
+# Configure firewall for Vast.ai
+- name: Configure firewall for Vast.ai
+  when:
+    - vastai_enabled | default(false)
+    - vastai_firewall_ports_enabled | default(true)
+    - firewall_enabled | default(true)
+  tags:
+    - vastai
+    - firewall
+  block:
+    - name: Check if UFW is available
+      ansible.builtin.command: which ufw
+      register: ufw_available
+      changed_when: false
+      failed_when: false
+
+    - name: Open Vast.ai port range in UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ vastai_port_range_start }}:{{ vastai_port_range_end }}"
+        proto: tcp
+        comment: "Vast.ai host ports"
+      become: true
+      when: ufw_available.rc == 0
+
+# Start and enable Vast.ai service
+- name: Enable Vast.ai service
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - service
+  block:
+    - name: Start Vast.ai daemon
+      ansible.builtin.systemd:
+        name: vastai
+        state: started
+        enabled: true
+        daemon_reload: true
+      become: true
+      register: vastai_service
+
+    - name: Wait for Vast.ai daemon to initialize
+      ansible.builtin.wait_for:
+        timeout: 10
+      when: vastai_service.changed
+
+# Verify installation
+- name: Verify Vast.ai installation
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - health
+  block:
+    - name: Check Vast.ai service status
+      ansible.builtin.systemd:
+        name: vastai
+      register: vastai_status
+      become: true
+
+    - name: Get GPU count for verification
+      ansible.builtin.shell: |
+        set -o pipefail
+        nvidia-smi --query-gpu=count --format=csv,noheader | head -1
+      args:
+        executable: /bin/bash
+      register: gpu_count_verify
+      changed_when: false
+
+- name: Vast.ai installation complete
+  ansible.builtin.debug:
+    msg: |
+      Vast.ai Host Installation:
+          - Machine ID: {{ vastai_machine_id | default('N/A') }}
+          - Service Status: {{ vastai_status.status.ActiveState | default('unknown') }}
+          - Port Range: {{ vastai_port_range_start }}-{{ vastai_port_range_end }}
+          - GPUs Available: {{ gpu_count_verify.stdout | default('N/A') | trim }}
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - summary

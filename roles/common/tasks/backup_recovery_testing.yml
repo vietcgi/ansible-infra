@@ -3,6 +3,13 @@
 # Automated restore testing to ensure backups are usable
 # Compliance: NIST CP-4, ISO 27001 A.12.3.1
 
+- name: Skip backup recovery testing if disabled
+  ansible.builtin.debug:
+    msg: "Backup recovery testing disabled. Set backup_recovery_testing_enabled: true to enable."
+  when: not (backup_recovery_testing_enabled | default(false))
+  tags:
+    - backup_testing
+
 - name: Install backup testing dependencies
   ansible.builtin.package:
     name: "{{ item }}"
@@ -12,6 +19,7 @@
     - gzip
     - bzip2
     - xz-utils
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -22,6 +30,7 @@
     owner: root
     group: root
     mode: "0700"
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -32,6 +41,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -44,6 +54,7 @@
     job: "/usr/local/bin/backup-verify.sh >> /var/log/backup-test.log 2>&1"
     state: present
     user: root
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -54,6 +65,7 @@
     owner: root
     group: root
     mode: "0640"
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -70,7 +82,9 @@
 
       # Alert on backup failures
       :programname, contains, "backup" /var/log/backup-errors.log
-  when: backup_enabled | default(false)
+  when:
+    - backup_recovery_testing_enabled | default(false)
+    - backup_failure_alert_enabled | default(false)
   tags:
     - backup_testing
 
@@ -81,6 +95,7 @@
     owner: root
     group: root
     mode: "0644"
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
 
@@ -100,6 +115,7 @@
       - Restore functionality test
       - File count validation
       - Data consistency checks
+  when: backup_recovery_testing_enabled | default(false)
   tags:
     - backup_testing
     - report

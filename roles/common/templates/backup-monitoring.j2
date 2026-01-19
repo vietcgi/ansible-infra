@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+# Backup Monitoring Configuration
+
+[backup]
+enabled = true
+backup_dir = {{ backup_source_dir | default('/var/backup') }}
+test_dir = /var/backup/test
+log_file = /var/log/backup-test.log
+
+[thresholds]
+max_age_hours = {{ backup_max_age_hours | default(25) }}
+min_size_bytes = {{ backup_min_size_bytes | default(1024) }}
+warn_age_hours = {{ backup_warn_age_hours | default(12) }}
+
+[alerts]
+enabled = {{ backup_failure_alert_enabled | default('true') }}
+email = {{ alerting_email_to | default('') }}
+slack_webhook = {{ alerting_slack_webhook_url | default('') }}
+
+[retention]
+keep_days = {{ backup_test_retention_days | default(7) }}

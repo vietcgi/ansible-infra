@@ -1,0 +1,60 @@
+---
+# Headscale Server Example Configuration
+# Copy this file and customize for your environment
+#
+# Usage:
+#   1. Copy to your inventory: cp headscale-example.yml my-headscale.yml
+#   2. Update the values below
+#   3. Run: uv run ansible-playbook playbooks/deploy-headscale.yml -l headscale_servers
+
+all:
+  children:
+    headscale_servers:
+      hosts:
+        # Replace with your actual hostname
+        headscale.example.com:
+          ansible_host: 10.0.0.10
+          ansible_user: ubuntu
+
+          # ===========================================
+          # REQUIRED: Update these values
+          # ===========================================
+          headscale_domain: "headscale.example.com"
+          headscale_server_url: "https://headscale.example.com"
+
+          # Generate with: openssl rand -hex 16
+          headplane_cookie_secret: "CHANGE_ME_32_CHARACTERS_MINIMUM"
+
+          # ===========================================
+          # OPTIONAL: Customize as needed
+          # ===========================================
+
+          # Pre-create users
+          headscale_users:
+            - "admin"
+            - "developers"
+            - "servers"
+
+          # Enable TLS with Let's Encrypt
+          # headscale_tls_enabled: true
+          # headscale_tls_mode: "letsencrypt"
+          # headscale_acme_email: "admin@example.com"
+
+          # OIDC/SSO Configuration
+          # headscale_oidc_enabled: true
+          # headscale_oidc_issuer: "https://accounts.google.com"
+          # headscale_oidc_client_id: "your-client-id"
+          # headscale_oidc_client_secret: "{{ vault_headscale_oidc_secret }}"
+          # headscale_oidc_allowed_domains:
+          #   - "example.com"
+
+          # Custom DNS
+          # headscale_dns_base_domain: "vpn.example.com"
+          # headscale_dns_nameservers_global:
+          #   - "10.0.0.1"
+          #   - "1.1.1.1"
+
+          # PostgreSQL instead of SQLite
+          # headscale_database_type: "postgres"
+          # headscale_postgres_host: "db.internal"
+          # headscale_postgres_password: "{{ vault_headscale_db_password }}"

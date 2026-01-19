@@ -1,0 +1,85 @@
+---
+# pfSense WireGuard - Interface Assignment
+
+- name: Get available interfaces
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      $interfaces = get_configured_interface_list();
+      echo json_encode($interfaces);
+  register: current_interfaces
+  changed_when: false
+
+- name: Check if WireGuard interface already assigned
+  ansible.builtin.set_fact:
+    wg_interface_exists: "{{ pfsense_wireguard_interface_name in (current_interfaces.stdout | from_json).values() | list }}"
+
+- name: Assign WireGuard interface
+  when: not wg_interface_exists
+  block:
+    - name: Find next available OPT interface
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          // Find next available OPT interface slot
+          $interfaces = $config['interfaces'];
+          $optnum = 1;
+          while (isset($interfaces['opt' . $optnum])) {
+            $optnum++;
+          }
+          echo 'opt' . $optnum;
+      register: next_opt_interface
+
+    - name: Assign WireGuard tunnel to interface
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          $ifname = '{{ next_opt_interface.stdout | trim }}';
+
+          // Get WireGuard tunnel interface name
+          $wg_if = 'tun_wg0';
+
+          $config['interfaces'][$ifname] = array(
+            'enable' => '',
+            'if' => $wg_if,
+            'descr' => '{{ pfsense_wireguard_interface_name }}',
+            'spoofmac' => '',
+            'ipaddr' => '',
+            'subnet' => '',
+            'gateway' => '',
+            'blockbogons' => ''
+          );
+
+          write_config("WireGuard interface assigned via Ansible");
+
+          // Reload interface configuration
+          interface_configure($ifname);
+
+          echo "interface_assigned:" . $ifname;
+      register: interface_assign_result
+
+    - name: Display interface assignment
+      ansible.builtin.debug:
+        msg: "Interface assigned: {{ interface_assign_result.stdout }}"
+
+- name: Enable WireGuard interface
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      // Find the interface by description
+      foreach ($config['interfaces'] as $ifname => $ifconf) {
+        if (isset($ifconf['descr']) && $ifconf['descr'] == '{{ pfsense_wireguard_interface_name }}') {
+          $config['interfaces'][$ifname]['enable'] = '';
+
+          write_config("WireGuard interface enabled via Ansible");
+          interface_configure($ifname);
+
+          echo "enabled:" . $ifname;
+          exit;
+        }
+      }
+      echo "not_found";
+  register: interface_enable_result
+
+- name: Display interface status
+  ansible.builtin.debug:
+    msg: |
+      ✓ WireGuard Interface
+      Name: {{ pfsense_wireguard_interface_name }}
+      Status: {{ 'Configured and enabled' if 'enabled:' in interface_enable_result.stdout else 'Already configured' }}

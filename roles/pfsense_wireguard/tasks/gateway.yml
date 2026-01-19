@@ -1,0 +1,41 @@
+---
+# pfSense WireGuard - Gateway Configuration
+
+- name: Get WireGuard interface internal name
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      foreach ($config['interfaces'] as $ifname => $ifconf) {
+        if (isset($ifconf['descr']) && $ifconf['descr'] == '{{ pfsense_wireguard_interface_name }}') {
+          echo $ifname;
+          exit;
+        }
+      }
+      echo "not_found";
+  register: wg_ifname
+  changed_when: false
+
+- name: Validate interface found
+  ansible.builtin.assert:
+    that:
+      - wg_ifname.stdout | trim != "not_found"
+    fail_msg: "WireGuard interface {{ pfsense_wireguard_interface_name }} not found"
+
+- name: Configure WireGuard gateway
+  pfsensible.core.pfsense_gateway:
+    name: "{{ pfsense_wireguard_gateway_name }}"
+    interface: "{{ wg_ifname.stdout | trim }}"
+    gateway: "dynamic"
+    descr: "{{ pfsense_wireguard_gateway_descr }}"
+    monitor_disable: "{{ pfsense_wireguard_gateway_monitor | length == 0 }}"
+    monitor: "{{ pfsense_wireguard_gateway_monitor | default(omit) }}"
+    state: present
+  register: gateway_result
+
+- name: Display gateway configuration
+  ansible.builtin.debug:
+    msg: |
+      ✓ WireGuard Gateway
+      Name: {{ pfsense_wireguard_gateway_name }}
+      Interface: {{ wg_ifname.stdout | trim }} ({{ pfsense_wireguard_interface_name }})
+      Type: Dynamic
+      Status: {{ gateway_result.changed | ternary('Created/Updated', 'Unchanged') }}

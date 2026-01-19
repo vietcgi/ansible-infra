@@ -1,0 +1,59 @@
+---
+# Headscale - Installation Tasks
+
+- name: Create Headscale directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0755') }}"
+  loop:
+    - { path: "{{ headscale_base_dir }}" }
+    - { path: "{{ headscale_config_dir }}" }
+    - { path: "{{ headscale_data_dir }}", mode: "0750" }
+    - { path: "{{ headscale_run_dir }}", mode: "0755" }
+    - { path: "{{ headplane_data_dir }}", mode: "0750" }
+  loop_control:
+    label: "{{ item.path }}"
+  when: headscale_state == 'present'
+
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ headscale_backup_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when:
+    - headscale_state == 'present'
+    - headscale_backup_enabled | bool
+
+- name: Pull Headscale Docker image
+  community.docker.docker_image:
+    name: "{{ headscale_image }}"
+    tag: "{{ headscale_image_tag }}"
+    source: pull
+    force_source: "{{ headscale_image_force_pull | default(false) }}"
+  when: headscale_state == 'present'
+
+- name: Pull Headplane Docker image
+  community.docker.docker_image:
+    name: "{{ headplane_image }}"
+    tag: "{{ headplane_image_tag }}"
+    source: pull
+    force_source: "{{ headplane_image_force_pull | default(false) }}"
+  when:
+    - headscale_state == 'present'
+    - headplane_enabled | bool
+
+- name: Check if Headscale config exists
+  ansible.builtin.stat:
+    path: "{{ headscale_config_dir }}/config.yaml"
+  register: headscale_config_stat
+
+- name: Check if Headscale database exists
+  ansible.builtin.stat:
+    path: "{{ headscale_data_dir }}/db.sqlite"
+  register: headscale_db_stat
+  when: headscale_database_type == 'sqlite'

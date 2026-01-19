@@ -1,0 +1,59 @@
+---
+# pfSense WireGuard Configuration
+# Copy this file and customize for your VPN provider
+
+# Enable WireGuard configuration
+pfsense_wireguard_enabled: true
+pfsense_wireguard_mode: "provider"
+
+# VPN Provider Configuration
+# Get these values from your VPN provider's WireGuard config
+pfsense_wireguard_provider:
+  name: "SafeShark"
+
+  # Peer (Server) Configuration
+  endpoint: "us-west.safeshark.net"  # VPN server hostname
+  endpoint_port: 51820               # WireGuard port
+  public_key: ""                     # Provider's public key (from .conf file)
+
+  # Interface (Client) Configuration
+  private_key: "{{ vault_wireguard_private_key }}"  # Your private key (use vault!)
+  address: "10.66.66.2/32"           # Your assigned tunnel IP
+  dns:
+    - "10.66.66.1"                   # Provider's DNS server
+
+  # Tunnel Settings
+  allowed_ips: "0.0.0.0/0, ::/0"     # Route all traffic through VPN
+  persistent_keepalive: 25           # Keep NAT mappings alive
+  mtu: 1420                          # Adjust if needed (try 1380 for issues)
+
+# pfSense Interface Configuration
+pfsense_wireguard_interface_name: "WG_VPN"
+pfsense_wireguard_interface_descr: "WireGuard VPN"
+
+# Gateway Configuration
+pfsense_wireguard_create_gateway: true
+pfsense_wireguard_gateway_name: "WG_VPN_GW"
+pfsense_wireguard_gateway_descr: "WireGuard VPN Gateway"
+
+# Outbound NAT - Route LAN through VPN
+pfsense_wireguard_configure_nat: true
+pfsense_wireguard_nat_mode: "hybrid"
+pfsense_wireguard_nat_sources:
+  - "lan"
+
+# Firewall Rules
+pfsense_wireguard_configure_firewall: true
+
+# Kill Switch (blocks internet if VPN is down)
+# WARNING: Enable only after testing - can lock you out!
+pfsense_wireguard_kill_switch: false
+pfsense_wireguard_kill_switch_interfaces:
+  - "lan"
+
+# Verification
+pfsense_wireguard_verify: true
+pfsense_wireguard_verify_endpoint: "1.1.1.1"
+
+# Debug mode (verbose output)
+pfsense_wireguard_debug: false

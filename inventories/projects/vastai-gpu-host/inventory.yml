@@ -1,0 +1,76 @@
+---
+# Vast.ai GPU Host Inventory
+# Configure your GPU hosting server here
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-vastai-host.yml -i inventories/projects/vastai-gpu-host
+#
+# Or use bootstrap.sh for one-command deployment:
+#   ./bootstrap.sh <target-ip> [username]
+
+all:
+  hosts:
+    gpu_host:
+      # Connection settings - CUSTOMIZE THESE
+      ansible_host: "{{ lookup('env', 'TARGET_HOST') | default('192.168.1.100') }}"
+      ansible_user: "{{ lookup('env', 'TARGET_USER') | default('ubuntu') }}"
+      ansible_python_interpreter: /usr/bin/python3
+
+  vars:
+    # =========================================================================
+    # GPU CONFIGURATION
+    # =========================================================================
+    gpu_nvidia_enabled: true
+    gpu_nvidia_driver_version: "550"
+    gpu_nvidia_driver_type: "server"
+    gpu_nvidia_driver_hold: true
+    gpu_nvidia_persistence_mode: true
+
+    gpu_container_toolkit_enabled: true
+    gpu_container_toolkit_default_runtime: false
+
+    gpu_monitoring_enabled: true
+    gpu_monitoring_dcgm_port: 9400
+
+    # =========================================================================
+    # VAST.AI CONFIGURATION
+    # =========================================================================
+    vastai_enabled: true
+    vastai_api_key: "{{ lookup('env', 'VASTAI_API_KEY') }}"
+    vastai_min_gpu: 1                    # Allow per-GPU rentals
+    vastai_port_range_start: 40000
+    vastai_port_range_end: 40019
+
+    # Pricing (adjust based on market rates)
+    # Check https://500.farm for competitive pricing
+    vastai_price_gpu: 0.50               # $/hour per GPU
+    vastai_price_disk: 0.15              # $/GB/month
+    vastai_price_inet_up: 0.00
+    vastai_price_inet_down: 0.00
+    vastai_discount_rate: 0.4
+    vastai_auto_list: true
+
+    # =========================================================================
+    # DOCKER CONFIGURATION (Required for Vast.ai)
+    # =========================================================================
+    container_docker_enabled: true
+    container_docker_compose_enabled: true
+    container_docker_prune_enabled: true
+    container_docker_prune_days: 30
+
+    # =========================================================================
+    # SECURITY CONFIGURATION
+    # =========================================================================
+    fail2ban_enabled: true
+    fail2ban_maxretry_ssh: 5
+    fail2ban_bantime_ssh: 14400          # 4 hours
+
+    firewall_enabled: true
+    firewall_allow_ssh: true
+
+    # =========================================================================
+    # COMMON ROLE OVERRIDES
+    # =========================================================================
+    common_update_packages: true
+    common_upgrade_packages: true
+    common_timezone: "UTC"

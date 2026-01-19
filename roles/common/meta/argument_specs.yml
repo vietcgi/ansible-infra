@@ -1,0 +1,1589 @@
+---
+# Ansible Role Argument Specifications
+# Validates role inputs at runtime (Ansible 2.11+)
+# Reference: https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html#role-argument-validation
+
+argument_specs:
+  main:
+    short_description: OS-agnostic foundation for Linux and macOS servers
+    description:
+      - Configures base server with security hardening, monitoring, and operational tooling
+      - Supports Ubuntu, Debian, RHEL/CentOS, Rocky, AlmaLinux, Alpine, and macOS
+      - Implements CIS Benchmark, NIST SP 800-53, and PCI DSS controls
+    author: Kevin (ansible-infra)
+    version_added: "1.0.0"
+
+    options:
+      # ========================================================================
+      # SYSTEM UPDATES & CORE PACKAGES
+      # ========================================================================
+      common_update_packages:
+        type: bool
+        default: true
+        description: Update package cache before installing packages
+
+      common_upgrade_packages:
+        type: bool
+        default: true
+        description: Upgrade all installed packages to latest versions
+
+      common_core_packages:
+        type: list
+        elements: str
+        default:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - tree
+          - jq
+          - tmux
+          - unzip
+          - net-tools
+          - rsync
+        description: List of core utility packages to install
+
+      common_python_packages:
+        type: list
+        elements: str
+        default:
+          - python3-pip
+          - python3-dev
+          - python3-venv
+        description: Python packages required for Ansible modules
+
+      # ========================================================================
+      # TIME MANAGEMENT (CHRONY)
+      # ========================================================================
+      common_timezone:
+        type: str
+        default: "UTC"
+        description: System timezone (e.g., UTC, America/New_York)
+
+      common_chrony_enabled:
+        type: bool
+        default: true
+        description: Enable Chrony NTP time synchronization
+
+      common_chrony_servers:
+        type: list
+        elements: str
+        default:
+          - 0.pool.ntp.org iburst
+          - 1.pool.ntp.org iburst
+          - 2.pool.ntp.org iburst
+          - 3.pool.ntp.org iburst
+        description: List of NTP servers with options
+
+      common_chrony_pool_enabled:
+        type: bool
+        default: true
+        description: Use NTP pool instead of individual servers
+
+      common_chrony_ntp_domain:
+        type: str
+        default: pool.ntp.org
+        description: NTP pool domain
+
+      common_chrony_synchronize_on_boot:
+        type: bool
+        default: true
+        description: Force time sync on system boot
+
+      common_chrony_rtc_sync:
+        type: bool
+        default: true
+        description: Sync hardware RTC with system time
+
+      # ========================================================================
+      # SSH HARDENING
+      # ========================================================================
+      common_ssh_port:
+        type: int
+        default: 22
+        description: SSH listening port
+
+      common_ssh_permit_root_login:
+        type: str
+        default: "no"
+        choices:
+          - "yes"
+          - "no"
+          - "prohibit-password"
+          - "forced-commands-only"
+        description: SSH root login policy
+
+      common_ssh_password_authentication:
+        type: str
+        default: "no"
+        choices:
+          - "yes"
+          - "no"
+        description: Allow password authentication (recommend no)
+
+      common_ssh_key_bits:
+        type: int
+        default: 4096
+        description: Minimum RSA key bits for SSH keys
+
+      # ========================================================================
+      # SYSCTL KERNEL PARAMETERS
+      # ========================================================================
+      common_sysctl_config:
+        type: dict
+        default: {}
+        description: >
+          Dictionary of sysctl parameters to apply.
+          Keys are parameter names, values are settings.
+          Example: {"net.ipv4.ip_forward": 1}
+
+      # ========================================================================
+      # FILE & PROCESS LIMITS
+      # ========================================================================
+      common_file_limits:
+        type: dict
+        default:
+          soft: 1039999
+          hard: 1039999
+        description: File descriptor limits (soft/hard)
+
+      common_process_limits:
+        type: dict
+        default:
+          soft: 9999999
+          hard: 9999999
+        description: Process limits for high-concurrency (soft/hard)
+
+      # ========================================================================
+      # LOGGING & AUDIT
+      # ========================================================================
+      common_enable_audit:
+        type: bool
+        default: true
+        description: Enable auditd for security logging
+
+      common_log_retention_days:
+        type: int
+        default: 30
+        description: Days to retain log files
+
+      logging_enabled:
+        type: bool
+        default: true
+        description: Enable logging subsystem
+
+      logging_enable_tls:
+        type: bool
+        default: true
+        description: Enable TLS for log transport
+
+      logging_enable_remote_syslog:
+        type: bool
+        default: false
+        description: Forward logs to remote syslog server
+
+      logging_enable_encryption:
+        type: bool
+        default: true
+        description: Encrypt log files at rest
+
+      logging_remote_syslog_server:
+        type: str
+        default: "logs.example.com"
+        description: Remote syslog server hostname
+
+      logging_remote_syslog_port:
+        type: int
+        default: 6514
+        description: Remote syslog port (6514 for TLS)
+
+      # ========================================================================
+      # DNS CONFIGURATION
+      # ========================================================================
+      common_dns_servers:
+        type: list
+        elements: str
+        default:
+          - 8.8.8.8
+          - 1.1.1.1
+        description: DNS resolver servers
+
+      # ========================================================================
+      # HOSTNAME & DOMAIN
+      # ========================================================================
+      common_hostname:
+        type: str
+        default: "{{ inventory_hostname }}"
+        description: System hostname
+
+      common_domain:
+        type: str
+        default: ""
+        description: Domain name for FQDN (optional)
+
+      common_hostname_environment:
+        type: str
+        default: "production"
+        choices:
+          - production
+          - staging
+          - development
+          - testing
+        description: Environment designation
+
+      common_configure_hosts_file:
+        type: bool
+        default: true
+        description: Manage /etc/hosts file
+
+      # ========================================================================
+      # SWAP MANAGEMENT
+      # ========================================================================
+      common_disable_swap:
+        type: bool
+        default: false
+        description: Disable swap entirely (for Kubernetes)
+
+      common_swap_size:
+        type: int
+        default: 4
+        description: Swap size in GB (0 to disable)
+
+      common_swap_swappiness:
+        type: int
+        default: 30
+        description: Swappiness value (0-100, lower prefers RAM)
+
+      common_swap_vfs_cache_pressure:
+        type: int
+        default: 50
+        description: VFS cache pressure (0-100)
+
+      common_swap_device:
+        type: str
+        default: ""
+        description: Device for encrypted swap
+
+      # ========================================================================
+      # ENCRYPTION AT REST
+      # ========================================================================
+      common_encryption_enabled:
+        type: bool
+        default: false
+        description: Master switch for encryption at rest
+
+      common_encrypt_home:
+        type: bool
+        default: false
+        description: Encrypt /home directory
+
+      common_encrypt_logs:
+        type: bool
+        default: false
+        description: Encrypt /var/log directory
+
+      common_encryption_home_size:
+        type: int
+        default: 20
+        description: Size in GB for encrypted /home
+
+      common_encryption_log_size:
+        type: int
+        default: 5
+        description: Size in GB for encrypted /var/log
+
+      # ========================================================================
+      # CHANGE TRACKING
+      # ========================================================================
+      common_enable_change_tracking:
+        type: bool
+        default: true
+        description: Enable configuration baseline and change detection
+
+      common_change_tracking_schedule:
+        type: str
+        default: "daily"
+        choices:
+          - daily
+          - weekly
+          - monthly
+        description: Frequency of baseline snapshots
+
+      common_baseline_location:
+        type: str
+        default: "/var/lib/ansible-baseline"
+        description: Directory for baseline snapshots
+
+      common_change_log_location:
+        type: str
+        default: "/var/log/ansible-changes"
+        description: Directory for change logs
+
+      # ========================================================================
+      # FIREWALL CONFIGURATION
+      # ========================================================================
+      firewall_enabled:
+        type: bool
+        default: true
+        description: Enable firewall (UFW or firewalld)
+
+      firewall_allow_ssh:
+        type: bool
+        default: true
+        description: Allow SSH through firewall
+
+      firewall_ssh_port:
+        type: int
+        default: 22
+        description: SSH port to allow
+
+      firewall_allow_icmp:
+        type: bool
+        default: true
+        description: Allow ICMP (ping)
+
+      firewall_allow_icmp_rate:
+        type: str
+        default: "10/minute"
+        description: ICMP rate limit
+
+      firewall_enable_ddos_protection:
+        type: bool
+        default: true
+        description: Enable DDoS mitigation rules
+
+      firewall_enable_egress_filtering:
+        type: bool
+        default: true
+        description: Enable outbound traffic filtering
+
+      firewall_enable_stateful_tracking:
+        type: bool
+        default: true
+        description: Enable connection state tracking
+
+      firewall_enable_ipv6_hardening:
+        type: bool
+        default: true
+        description: Apply IPv6 security rules
+
+      firewall_zone:
+        type: str
+        default: "public"
+        description: Default firewalld zone
+
+      firewall_custom_rules:
+        type: list
+        elements: dict
+        default: []
+        description: Custom firewall rules
+
+      firewall_custom_services:
+        type: list
+        elements: dict
+        default: []
+        description: Custom firewalld services
+
+      firewall_custom_ports:
+        type: list
+        elements: dict
+        default: []
+        description: Custom firewalld ports
+
+      firewall_rich_rules:
+        type: list
+        elements: str
+        default: []
+        description: Firewalld rich rules
+
+      # ========================================================================
+      # FAIL2BAN INTRUSION PREVENTION
+      # ========================================================================
+      fail2ban_enabled:
+        type: bool
+        default: true
+        description: Enable fail2ban IPS
+
+      fail2ban_bantime:
+        type: int
+        default: 3600
+        description: Default ban duration in seconds
+
+      fail2ban_findtime:
+        type: int
+        default: 600
+        description: Time window for counting failures (seconds)
+
+      fail2ban_maxretry:
+        type: int
+        default: 5
+        description: Max failures before banning
+
+      fail2ban_destemail:
+        type: str
+        default: "root"
+        description: Email for ban notifications
+
+      fail2ban_enable_email_notifications:
+        type: bool
+        default: true
+        description: Send email on ban events
+
+      fail2ban_ignoreself:
+        type: bool
+        default: true
+        description: Never ban localhost
+
+      fail2ban_ignoreips:
+        type: list
+        elements: str
+        default: []
+        description: IP addresses to whitelist
+
+      fail2ban_bantime_ssh:
+        type: int
+        default: 3600
+        description: SSH-specific ban duration
+
+      fail2ban_maxretry_ssh:
+        type: int
+        default: 5
+        description: SSH max retries before ban
+
+      fail2ban_enable_postfix:
+        type: bool
+        default: false
+        description: Enable Postfix mail jail
+
+      fail2ban_enable_nginx:
+        type: bool
+        default: false
+        description: Enable Nginx web jail
+
+      fail2ban_enable_apache:
+        type: bool
+        default: false
+        description: Enable Apache web jail
+
+      fail2ban_enable_recidivism:
+        type: bool
+        default: true
+        description: Enable repeat offender escalation
+
+      # ========================================================================
+      # DOCKER SECURITY (TRIVY + FALCO)
+      # ========================================================================
+      docker_trivy_enabled:
+        type: bool
+        default: true
+        description: Enable Trivy image vulnerability scanning
+
+      docker_trivy_version:
+        type: str
+        default: "0.48.0"
+        description: Trivy version to install
+
+      docker_trivy_severity_threshold:
+        type: str
+        default: "MEDIUM"
+        choices:
+          - LOW
+          - MEDIUM
+          - HIGH
+          - CRITICAL
+        description: Minimum severity to report
+
+      docker_falco_enabled:
+        type: bool
+        default: true
+        description: Enable Falco runtime security
+
+      docker_falco_version:
+        type: str
+        default: "latest"
+        description: Falco version to install
+
+      # ========================================================================
+      # METRICS COLLECTION (NODE EXPORTER)
+      # ========================================================================
+      metrics_enabled:
+        type: bool
+        default: true
+        description: Enable metrics collection
+
+      metrics_listen_port:
+        type: int
+        default: 9100
+        description: Node exporter listen port
+
+      metrics_telemetry_path:
+        type: str
+        default: "/metrics"
+        description: Metrics endpoint path
+
+      metrics_node_exporter_version:
+        type: str
+        default: "1.8.2"
+        description: Node exporter version
+
+      metrics_scrape_interval:
+        type: str
+        default: "15s"
+        description: Prometheus scrape interval
+
+      metrics_retention_period:
+        type: str
+        default: "15d"
+        description: Metrics retention period
+
+      # ========================================================================
+      # LOG SHIPPING (FILEBEAT)
+      # ========================================================================
+      log_shipping_enabled:
+        type: bool
+        default: true
+        description: Enable log shipping
+
+      log_shipping_use_filebeat:
+        type: bool
+        default: true
+        description: Use Filebeat (vs rsyslog fallback)
+
+      log_shipping_elasticsearch_host:
+        type: str
+        default: "localhost"
+        description: Elasticsearch host
+
+      log_shipping_elasticsearch_port:
+        type: int
+        default: 9200
+        description: Elasticsearch port
+
+      log_shipping_filebeat_version:
+        type: str
+        default: "8.12.0"
+        description: Filebeat version
+
+      log_shipping_collect_syslog:
+        type: bool
+        default: true
+        description: Ship syslog messages
+
+      log_shipping_collect_auth:
+        type: bool
+        default: true
+        description: Ship auth logs
+
+      log_shipping_collect_audit:
+        type: bool
+        default: true
+        description: Ship audit logs
+
+      # ========================================================================
+      # HASHICORP VAULT (PHASE 1 PLACEHOLDER)
+      # ========================================================================
+      vault_enabled:
+        type: bool
+        default: false
+        description: Enable Vault integration
+
+      vault_address:
+        type: str
+        default: "https://vault.example.com:8200"
+        description: Vault server URL
+
+      vault_auth_method:
+        type: str
+        default: "token"
+        choices:
+          - token
+          - approle
+          - jwt
+          - kubernetes
+        description: Vault authentication method
+
+      # ========================================================================
+      # BACKUP CONFIGURATION
+      # ========================================================================
+      backup_enabled:
+        type: bool
+        default: false
+        description: Enable backup client
+
+      backup_client:
+        type: str
+        default: "bacula"
+        choices:
+          - bacula
+          - veeam
+          - restic
+          - borg
+        description: Backup client to use
+
+      backup_schedule:
+        type: str
+        default: "0 2 * * *"
+        description: Backup cron schedule
+
+      backup_retention_days:
+        type: int
+        default: 30
+        description: Backup retention period (days)
+
+      # ========================================================================
+      # SUDO HARDENING
+      # ========================================================================
+      sudo_hardening_enabled:
+        type: bool
+        default: true
+        description: Enable sudo security hardening
+
+      sudo_require_tty:
+        type: bool
+        default: false
+        description: Require TTY for sudo (breaks Ansible if true)
+
+      sudo_use_pty:
+        type: bool
+        default: true
+        description: Allocate PTY for sudo commands
+
+      sudo_log_input:
+        type: bool
+        default: true
+        description: Log sudo command input
+
+      sudo_log_output:
+        type: bool
+        default: true
+        description: Log sudo command output
+
+      sudo_log_file:
+        type: str
+        default: "/var/log/sudo.log"
+        description: Sudo log file path
+
+      # ========================================================================
+      # APPARMOR / SELINUX
+      # ========================================================================
+      apparmor_enabled:
+        type: bool
+        default: false
+        description: Enable AppArmor (Debian/Ubuntu)
+
+      apparmor_enforce_mode:
+        type: bool
+        default: true
+        description: Use enforce mode (vs complain)
+
+      selinux_enabled:
+        type: bool
+        default: false
+        description: Enable SELinux (RHEL/CentOS)
+
+      selinux_policy:
+        type: str
+        default: "targeted"
+        choices:
+          - targeted
+          - mls
+          - strict
+        description: SELinux policy type
+
+      selinux_mode:
+        type: str
+        default: "enforcing"
+        choices:
+          - enforcing
+          - permissive
+          - disabled
+        description: SELinux enforcement mode
+
+      # ========================================================================
+      # PHASE 2.A: PROMETHEUS MONITORING
+      # ========================================================================
+      monitoring_prometheus_enabled:
+        type: bool
+        default: false
+        description: Enable Prometheus server
+
+      monitoring_prometheus_version:
+        type: str
+        default: "2.48.1"
+        description: Prometheus version
+
+      monitoring_prometheus_port:
+        type: int
+        default: 9090
+        description: Prometheus listen port
+
+      monitoring_prometheus_retention:
+        type: str
+        default: "30d"
+        description: Metrics retention period
+
+      monitoring_prometheus_retention_size:
+        type: str
+        default: "50GB"
+        description: Max storage size
+
+      monitoring_prometheus_custom_scrapes:
+        type: list
+        elements: dict
+        default: []
+        description: Custom scrape configurations
+
+      monitoring_prometheus_custom_rules:
+        type: list
+        elements: dict
+        default: []
+        description: Custom alerting rules
+
+      # ========================================================================
+      # PHASE 2.A: GRAFANA
+      # ========================================================================
+      monitoring_grafana_enabled:
+        type: bool
+        default: false
+        description: Enable Grafana dashboards
+
+      monitoring_grafana_version:
+        type: str
+        default: "10.2.2"
+        description: Grafana version
+
+      monitoring_grafana_port:
+        type: int
+        default: 3000
+        description: Grafana listen port
+
+      monitoring_grafana_domain:
+        type: str
+        default: "localhost"
+        description: Grafana domain name
+
+      monitoring_grafana_admin_user:
+        type: str
+        default: "admin"
+        description: Grafana admin username
+
+      monitoring_grafana_admin_password:
+        type: str
+        default: ""
+        description: Grafana admin password (use vault)
+        no_log: true
+
+      monitoring_grafana_auth_type:
+        type: str
+        default: "basic"
+        choices:
+          - basic
+          - oauth2
+          - ldap
+        description: Grafana authentication type
+
+      # ========================================================================
+      # PHASE 2.A: ALERTMANAGER
+      # ========================================================================
+      monitoring_alertmanager_enabled:
+        type: bool
+        default: false
+        description: Enable AlertManager
+
+      monitoring_alertmanager_version:
+        type: str
+        default: "0.26.0"
+        description: AlertManager version
+
+      monitoring_alertmanager_port:
+        type: int
+        default: 9093
+        description: AlertManager listen port
+
+      monitoring_alertmanager_retention:
+        type: str
+        default: "120h"
+        description: Alert retention period
+
+      monitoring_alertmanager_slack_webhook:
+        type: str
+        default: ""
+        description: Slack webhook URL for alerts
+        no_log: true
+
+      monitoring_alertmanager_slack_channel:
+        type: str
+        default: "#alerts"
+        description: Slack channel for alerts
+
+      monitoring_alertmanager_email_to:
+        type: str
+        default: ""
+        description: Email recipient for alerts
+
+      monitoring_alertmanager_email_smarthost:
+        type: str
+        default: ""
+        description: SMTP server for alerts
+
+      # ========================================================================
+      # PHASE 2.B: DOCKER INSTALLATION
+      # ========================================================================
+      container_docker_enabled:
+        type: bool
+        default: false
+        description: Enable Docker installation
+
+      container_docker_version:
+        type: str
+        default: "latest"
+        description: Docker version to install
+
+      container_docker_compose_enabled:
+        type: bool
+        default: false
+        description: Enable Docker Compose
+
+      container_docker_data_root:
+        type: str
+        default: "/var/lib/docker"
+        description: Docker data directory
+
+      container_docker_storage_driver:
+        type: str
+        default: "overlay2"
+        choices:
+          - overlay2
+          - devicemapper
+          - btrfs
+          - zfs
+        description: Docker storage driver
+
+      container_docker_live_restore:
+        type: bool
+        default: true
+        description: Keep containers running during daemon restart
+
+      container_docker_log_driver:
+        type: str
+        default: "json-file"
+        choices:
+          - json-file
+          - syslog
+          - journald
+          - fluentd
+        description: Docker logging driver
+
+      container_docker_log_max_size:
+        type: str
+        default: "10m"
+        description: Max log file size per container
+
+      container_docker_log_max_file:
+        type: str
+        default: "3"
+        description: Max log files per container
+
+      container_docker_icc:
+        type: bool
+        default: false
+        description: Inter-container communication (security risk if true)
+
+      container_docker_buildkit_enabled:
+        type: bool
+        default: true
+        description: Enable BuildKit for faster builds
+
+      container_docker_content_trust:
+        type: bool
+        default: false
+        description: Require signed images
+
+      container_docker_users:
+        type: list
+        elements: str
+        default: []
+        description: Users to add to docker group
+
+      container_docker_custom_networks:
+        type: list
+        elements: dict
+        default: []
+        description: Custom Docker networks to create
+
+      container_docker_prune_enabled:
+        type: bool
+        default: false
+        description: Enable automatic image pruning
+
+      container_docker_prune_days:
+        type: str
+        default: "30"
+        description: Age of images to prune
+
+      # ========================================================================
+      # PHASE 2.C: CONSUL SERVICE DISCOVERY
+      # ========================================================================
+      service_discovery_consul_enabled:
+        type: bool
+        default: false
+        description: Enable Consul service discovery
+
+      service_discovery_consul_version:
+        type: str
+        default: "1.17.0"
+        description: Consul version
+
+      service_discovery_consul_bind_addr:
+        type: str
+        default: "127.0.0.1"
+        description: Consul bind address
+
+      service_discovery_consul_http_port:
+        type: int
+        default: 8500
+        description: Consul HTTP API port
+
+      service_discovery_consul_node_type:
+        type: str
+        default: "server"
+        choices:
+          - server
+          - client
+        description: Consul node type
+
+      service_discovery_consul_ui_enabled:
+        type: bool
+        default: true
+        description: Enable Consul web UI
+
+      service_discovery_consul_datacenter:
+        type: str
+        default: "dc1"
+        description: Consul datacenter name
+
+      service_discovery_consul_server_count:
+        type: int
+        default: 3
+        description: Number of Consul servers (odd number)
+
+      service_discovery_consul_services:
+        type: list
+        elements: dict
+        default: []
+        description: Services to register with Consul
+
+      # ========================================================================
+      # PHASE 2.C: HAPROXY LOAD BALANCING
+      # ========================================================================
+      loadbalancing_haproxy_enabled:
+        type: bool
+        default: false
+        description: Enable HAProxy load balancer
+
+      loadbalancing_haproxy_version:
+        type: str
+        default: "2.8.0"
+        description: HAProxy version
+
+      loadbalancing_haproxy_frontend_port:
+        type: int
+        default: 80
+        description: HAProxy frontend port
+
+      loadbalancing_haproxy_ssl_enabled:
+        type: bool
+        default: false
+        description: Enable SSL/TLS termination
+
+      loadbalancing_haproxy_stats_enabled:
+        type: bool
+        default: true
+        description: Enable HAProxy stats page
+
+      loadbalancing_haproxy_stats_port:
+        type: int
+        default: 8404
+        description: HAProxy stats port
+
+      loadbalancing_haproxy_maxconn:
+        type: int
+        default: 4096
+        description: Max connections
+
+      loadbalancing_haproxy_frontends:
+        type: list
+        elements: dict
+        default: []
+        description: HAProxy frontend configurations
+
+      loadbalancing_haproxy_backends:
+        type: list
+        elements: dict
+        default: []
+        description: HAProxy backend configurations
+
+      # ========================================================================
+      # PHASE 2.D: VAULT SECRETS MANAGEMENT
+      # ========================================================================
+      security_vault_enabled:
+        type: bool
+        default: true
+        description: Enable HashiCorp Vault
+
+      security_vault_version:
+        type: str
+        default: "1.16.0"
+        description: Vault version
+
+      security_vault_bind_addr:
+        type: str
+        default: "127.0.0.1"
+        description: Vault bind address
+
+      security_vault_http_port:
+        type: int
+        default: 8200
+        description: Vault HTTP port
+
+      security_vault_storage_backend:
+        type: str
+        default: "file"
+        choices:
+          - file
+          - consul
+          - raft
+        description: Vault storage backend
+
+      security_vault_storage_path:
+        type: str
+        default: "/var/lib/vault"
+        description: Vault data directory
+
+      security_vault_ha_enabled:
+        type: bool
+        default: false
+        description: Enable Vault HA mode
+
+      security_vault_tls_enabled:
+        type: bool
+        default: false
+        description: Enable TLS for Vault
+
+      security_vault_audit_enabled:
+        type: bool
+        default: true
+        description: Enable Vault audit logging
+
+      security_vault_pki_enabled:
+        type: bool
+        default: true
+        description: Enable PKI secrets engine
+
+      security_vault_pki_max_lease_ttl:
+        type: str
+        default: "87600h"
+        description: PKI max lease TTL (10 years)
+
+      security_vault_database_rotation_enabled:
+        type: bool
+        default: true
+        description: Enable database credential rotation
+
+      security_vault_ssh_rotation_enabled:
+        type: bool
+        default: true
+        description: Enable SSH key rotation
+
+      security_vault_api_key_rotation_enabled:
+        type: bool
+        default: true
+        description: Enable API key rotation
+
+      # ========================================================================
+      # PHASE 2.E: DATABASE REPLICATION
+      # ========================================================================
+      database_postgresql_enabled:
+        type: bool
+        default: false
+        description: Enable PostgreSQL replication
+
+      database_postgresql_version:
+        type: str
+        default: "15"
+        description: PostgreSQL version
+
+      database_postgresql_wal_level:
+        type: str
+        default: "replica"
+        choices:
+          - minimal
+          - replica
+          - logical
+        description: PostgreSQL WAL level
+
+      database_postgresql_max_wal_senders:
+        type: int
+        default: 5
+        description: Max WAL sender processes
+
+      database_mysql_enabled:
+        type: bool
+        default: false
+        description: Enable MySQL/MariaDB Galera
+
+      database_mysql_version:
+        type: str
+        default: "10.6"
+        description: MariaDB version
+
+      database_mysql_cluster_name:
+        type: str
+        default: "mysql-cluster"
+        description: Galera cluster name
+
+      database_failover_enabled:
+        type: bool
+        default: false
+        description: Enable automatic failover
+
+      database_failover_manager:
+        type: str
+        default: "patroni"
+        choices:
+          - patroni
+          - repmgr
+          - orchestrator
+        description: Failover manager
+
+      # ========================================================================
+      # PHASE 3: KUBERNETES ORCHESTRATION
+      # ========================================================================
+      orchestration_kubernetes_enabled:
+        type: bool
+        default: false
+        description: Enable Kubernetes cluster setup
+
+      orchestration_kubernetes_version:
+        type: str
+        default: "1.28"
+        description: Kubernetes version
+
+      orchestration_cluster_name:
+        type: str
+        default: "production-cluster"
+        description: Kubernetes cluster name
+
+      orchestration_container_runtime:
+        type: str
+        default: "containerd"
+        choices:
+          - containerd
+          - cri-o
+          - docker
+        description: Container runtime
+
+      orchestration_kubernetes_network_plugin:
+        type: str
+        default: "flannel"
+        choices:
+          - flannel
+          - calico
+          - cilium
+          - weave
+        description: CNI network plugin
+
+      orchestration_kubernetes_pod_network:
+        type: str
+        default: "10.244.0.0/16"
+        description: Pod network CIDR
+
+      orchestration_kubernetes_service_network:
+        type: str
+        default: "10.96.0.0/12"
+        description: Service network CIDR
+
+      orchestration_kubernetes_rbac_enabled:
+        type: bool
+        default: true
+        description: Enable RBAC
+
+      orchestration_kubernetes_ingress_controller_enabled:
+        type: bool
+        default: true
+        description: Enable ingress controller
+
+      orchestration_kubernetes_ingress_controller_type:
+        type: str
+        default: "nginx"
+        choices:
+          - nginx
+          - traefik
+          - haproxy
+          - istio
+        description: Ingress controller type
+
+      orchestration_kubernetes_cert_manager_enabled:
+        type: bool
+        default: true
+        description: Enable cert-manager
+
+      # ========================================================================
+      # PHASE 3: SERVICE MESH (ISTIO)
+      # ========================================================================
+      service_mesh_enabled:
+        type: bool
+        default: false
+        description: Enable service mesh
+
+      service_mesh_type:
+        type: str
+        default: "istio"
+        choices:
+          - istio
+          - linkerd
+          - consul-connect
+        description: Service mesh type
+
+      service_mesh_istio_version:
+        type: str
+        default: "1.18.0"
+        description: Istio version
+
+      service_mesh_mtls_enabled:
+        type: bool
+        default: true
+        description: Enable mutual TLS
+
+      service_mesh_mtls_mode:
+        type: str
+        default: "STRICT"
+        choices:
+          - STRICT
+          - PERMISSIVE
+          - DISABLE
+        description: mTLS enforcement mode
+
+      service_mesh_tracing_enabled:
+        type: bool
+        default: true
+        description: Enable distributed tracing
+
+      service_mesh_tracing_backend:
+        type: str
+        default: "zipkin"
+        choices:
+          - zipkin
+          - jaeger
+          - datadog
+        description: Tracing backend
+
+      # ========================================================================
+      # PHASE 3: DISASTER RECOVERY
+      # ========================================================================
+      disaster_recovery_enabled:
+        type: bool
+        default: true
+        description: Enable disaster recovery
+
+      backup_storage_path:
+        type: str
+        default: "/var/backups/kubernetes"
+        description: Backup storage directory
+
+      backup_storage_type:
+        type: str
+        default: "local"
+        choices:
+          - local
+          - s3
+          - gcs
+          - azure
+        description: Backup storage type
+
+      disaster_recovery_rto:
+        type: str
+        default: "4 hours"
+        description: Recovery Time Objective
+
+      disaster_recovery_rpo:
+        type: str
+        default: "1 hour"
+        description: Recovery Point Objective
+
+      disaster_recovery_backup_retention:
+        type: int
+        default: 30
+        description: Backup retention days
+
+      disaster_recovery_encryption_enabled:
+        type: bool
+        default: true
+        description: Encrypt backups
+
+      disaster_recovery_automated_failover_enabled:
+        type: bool
+        default: true
+        description: Enable automated failover
+
+      # ========================================================================
+      # KERNEL HARDENING (PHASE 1.A)
+      # ========================================================================
+      kernel_hardening_enabled:
+        type: bool
+        default: true
+        description: Enable kernel security hardening
+
+      kernel_aslr_enabled:
+        type: bool
+        default: true
+        description: Enable Address Space Layout Randomization
+
+      kernel_ptrace_scope:
+        type: int
+        default: 2
+        choices:
+          - 0  # Classic ptrace permissions
+          - 1  # Restricted ptrace
+          - 2  # Admin-only attach
+          - 3  # No attach
+        description: Ptrace restriction level
+
+      kernel_modules_disabled:
+        type: bool
+        default: false
+        description: Disable kernel module loading
+
+      kernel_dmesg_restrict:
+        type: bool
+        default: true
+        description: Restrict dmesg to privileged users
+
+      kernel_magic_sysrq_enabled:
+        type: bool
+        default: false
+        description: Enable Magic SysRq key (security risk)
+
+      kernel_core_dump_enabled:
+        type: bool
+        default: false
+        description: Allow core dumps
+
+      # ========================================================================
+      # PASSWORD POLICY (PHASE 1.A)
+      # ========================================================================
+      password_policy_enabled:
+        type: bool
+        default: true
+        description: Enable password policy enforcement
+
+      password_min_length:
+        type: int
+        default: 14
+        description: Minimum password length
+
+      password_min_uppercase:
+        type: int
+        default: 1
+        description: Minimum uppercase characters
+
+      password_min_lowercase:
+        type: int
+        default: 1
+        description: Minimum lowercase characters
+
+      password_min_digits:
+        type: int
+        default: 1
+        description: Minimum digit characters
+
+      password_min_special_chars:
+        type: int
+        default: 1
+        description: Minimum special characters
+
+      password_max_age_days:
+        type: int
+        default: 90
+        description: Password expiration (days)
+
+      password_deny_attempts:
+        type: int
+        default: 5
+        description: Failed attempts before lockout
+
+      password_lockout_time:
+        type: int
+        default: 900
+        description: Account lockout duration (seconds)
+
+      password_reuse_history:
+        type: int
+        default: 5
+        description: Password history to prevent reuse
+
+      # ========================================================================
+      # STORAGE HARDENING (PHASE 1.A)
+      # ========================================================================
+      storage_hardening_enabled:
+        type: bool
+        default: true
+        description: Enable storage security hardening
+
+      storage_tmp_size:
+        type: str
+        default: "2G"
+        description: Size limit for /tmp
+
+      storage_enable_quotas:
+        type: bool
+        default: true
+        description: Enable disk quotas
+
+      quota_user_soft_limit:
+        type: int
+        default: 5242880
+        description: User soft quota (KB)
+
+      quota_user_hard_limit:
+        type: int
+        default: 10485760
+        description: User hard quota (KB)
+
+      storage_disk_warning_percent:
+        type: int
+        default: 85
+        description: Disk warning threshold (%)
+
+      storage_disk_critical_percent:
+        type: int
+        default: 95
+        description: Disk critical threshold (%)
+
+      storage_allow_usb:
+        type: bool
+        default: false
+        description: Allow USB storage devices
+
+      storage_enable_encryption:
+        type: bool
+        default: false
+        description: Enable storage encryption
+
+      # ========================================================================
+      # COMPLIANCE SCANNING (PHASE 1.B)
+      # ========================================================================
+      compliance_scanning_enabled:
+        type: bool
+        default: true
+        description: Enable compliance scanning
+
+      compliance_aide_enabled:
+        type: bool
+        default: true
+        description: Enable AIDE file integrity monitoring
+
+      compliance_cis_enabled:
+        type: bool
+        default: true
+        description: Enable CIS benchmark scanning
+
+      compliance_nist_enabled:
+        type: bool
+        default: true
+        description: Enable NIST compliance checks
+
+      compliance_openscap_enabled:
+        type: bool
+        default: true
+        description: Enable OpenSCAP scanning
+
+      compliance_reporting_enabled:
+        type: bool
+        default: true
+        description: Generate compliance reports
+
+      compliance_report_location:
+        type: str
+        default: "/var/log/compliance"
+        description: Compliance report directory
+
+      # ========================================================================
+      # NETWORK MANAGEMENT
+      # ========================================================================
+      network_static_ips:
+        type: list
+        elements: dict
+        default: []
+        description: Static IP configurations
+
+      network_bonding_enabled:
+        type: bool
+        default: false
+        description: Enable network bonding
+
+      network_bonds:
+        type: list
+        elements: dict
+        default: []
+        description: Bond interface configurations
+
+      network_vlans:
+        type: list
+        elements: dict
+        default: []
+        description: VLAN configurations
+
+      network_keepalived_enabled:
+        type: bool
+        default: false
+        description: Enable keepalived for HA VIP
+
+      network_vip:
+        type: str
+        default: ""
+        description: Virtual IP address for HA
+
+      network_vip_interface:
+        type: str
+        default: "eth0"
+        description: Interface for virtual IP
+
+      network_keepalived_priority:
+        type: int
+        default: 100
+        description: Keepalived priority (higher = master)
+
+      network_keepalived_vrid:
+        type: int
+        default: 51
+        description: Virtual Router ID (1-255)
+
+      # ========================================================================
+      # USER MANAGEMENT
+      # ========================================================================
+      access_systems_enabled:
+        type: dict
+        default:
+          ssh:
+            enabled: false
+            config_loaded: true
+        description: Access system configurations
+
+      managed_users:
+        type: dict
+        default: {}
+        description: Dictionary of SSH users to manage
+
+      ssh_config:
+        type: dict
+        default:
+          enabled: false
+          config_loaded: true
+        description: SSH configuration settings
+
+      ssh_public_key_path:
+        type: str
+        default: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+        description: Path to SSH public key

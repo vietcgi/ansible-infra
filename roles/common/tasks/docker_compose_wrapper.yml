@@ -3,14 +3,23 @@
 # Integrates Docker Compose v2 with organization customization
 # Purpose: Install and configure Docker Compose for multi-container orchestration
 
-# Pre-flight validation
+# Skip if Docker is disabled
+- name: Skip Docker Compose if Docker is disabled
+  ansible.builtin.debug:
+    msg: "Docker Compose skipped. Docker is disabled (container_docker_enabled: false)"
+  when: not (container_docker_enabled | default(false))
+  tags:
+    - docker_compose
+    - containers
+
+# Pre-flight validation - only when Docker is enabled
 - name: Validate Docker Compose requirements
   ansible.builtin.assert:
     that:
       - container_docker_compose_enabled | default(true) | bool
-      - container_docker_enabled | default(true) | bool
-    fail_msg: "Docker Compose requires Docker to be enabled"
+    fail_msg: "Docker Compose is disabled (container_docker_compose_enabled: false)"
     quiet: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - containers
@@ -21,6 +30,7 @@
   ansible.builtin.stat:
     path: /usr/bin/docker
   register: docker_binary_check
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - validation
@@ -28,7 +38,10 @@
 - name: Fail if Docker is not installed
   ansible.builtin.fail:
     msg: "Docker must be installed before Docker Compose installation"
-  when: not docker_binary_check.stat.exists
+  when:
+    - container_docker_enabled | default(false)
+    - docker_binary_check.stat is defined
+    - not docker_binary_check.stat.exists
   tags:
     - docker_compose
     - validation
@@ -46,6 +59,7 @@
     - /etc/docker/compose
     - /opt/docker-compose
     - "{{ container_docker_compose_data_dir | default('/data/docker-compose') }}"
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - directories
@@ -57,6 +71,7 @@
   register: docker_compose_version_check
   changed_when: false
   ignore_errors: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - version_check
@@ -70,6 +85,7 @@
     owner: root
     group: root
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - installation
@@ -84,6 +100,7 @@
     mode: "0755"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - installation
@@ -98,6 +115,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - config
@@ -112,7 +130,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_defaults | default({}) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_defaults | default({}) | length > 0
   tags:
     - docker_compose
     - config
@@ -131,6 +151,7 @@
     mode: "0644"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - logging
@@ -144,6 +165,7 @@
     owner: root
     group: root
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - logging
@@ -158,7 +180,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_networks | default([]) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_networks | default([]) | length > 0
   tags:
     - docker_compose
     - network
@@ -173,7 +197,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_volumes | default([]) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_volumes | default([]) | length > 0
   tags:
     - docker_compose
     - volumes
@@ -194,6 +220,7 @@
     mode: "0644"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - health
@@ -207,6 +234,7 @@
     owner: root
     group: root
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - systemd
@@ -221,7 +249,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_install_samples | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_install_samples | default(false) | bool
   tags:
     - docker_compose
     - samples
@@ -236,7 +266,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_resource_limits | default({}) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_resource_limits | default({}) | length > 0
   tags:
     - docker_compose
     - resources
@@ -259,7 +291,9 @@
     group: root
     mode: "0644"
   become: true
-  when: ansible_os_family != "Alpine"
+  when:
+    - container_docker_enabled | default(false)
+    - ansible_os_family != "Alpine"
   tags:
     - docker_compose
     - completion
@@ -270,6 +304,7 @@
     cmd: docker-compose --version
   register: docker_compose_version
   changed_when: false
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - validation
@@ -282,6 +317,7 @@
   register: docker_compose_help
   changed_when: false
   ignore_errors: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - validation
@@ -297,7 +333,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_compose_monitoring | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_compose_monitoring | default(false) | bool
   tags:
     - docker_compose
     - monitoring
@@ -306,11 +344,12 @@
 - name: Log Docker Compose completion
   ansible.builtin.debug:
     msg: |
-      ✓ Docker Compose Installation Complete:
+      Docker Compose Installation Complete:
       - Version: {{ docker_compose_version.stdout | default('unknown') }}
       - Status: Ready for deployment
       - Configuration: /etc/docker/compose/
       - Data Directory: {{ container_docker_compose_data_dir | default('/data/docker-compose') }}
+  when: container_docker_enabled | default(false)
   tags:
     - docker_compose
     - health
@@ -320,7 +359,9 @@
 - name: Docker Compose installation task completion
   ansible.builtin.debug:
     msg: "Docker Compose installation wrapper task completed successfully"
-  when: not ansible_check_mode
+  when:
+    - container_docker_enabled | default(false)
+    - not ansible_check_mode
   tags:
     - docker_compose
     - summary

@@ -1,0 +1,213 @@
+---
+# Headscale Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Version: {{ headscale_version }}
+
+# Server URL - The URL clients will use to connect
+server_url: {{ headscale_server_url }}
+
+# Listen addresses
+listen_addr: {{ headscale_listen_addr }}
+metrics_listen_addr: {{ headscale_metrics_listen_addr }}
+grpc_listen_addr: {{ headscale_grpc_listen_addr }}
+grpc_allow_insecure: {{ headscale_grpc_allow_insecure | lower }}
+
+# IP Prefixes for the tailnet
+prefixes:
+{% for prefix in headscale_ip_prefixes %}
+  - {{ prefix }}
+{% endfor %}
+
+# Database configuration
+database:
+{% if headscale_database_type == 'sqlite' %}
+  type: sqlite
+  sqlite:
+    path: {{ headscale_sqlite_path }}
+    write_ahead_log: {{ headscale_sqlite_wal_enabled | lower }}
+{% else %}
+  type: postgres
+  postgres:
+    host: {{ headscale_postgres_host }}
+    port: {{ headscale_postgres_port }}
+    name: {{ headscale_postgres_name }}
+    user: {{ headscale_postgres_user }}
+    pass: {{ headscale_postgres_password }}
+    max_open_conns: {{ headscale_postgres_max_open_conns }}
+    max_idle_conns: {{ headscale_postgres_max_idle_conns }}
+    conn_max_idle_time_secs: {{ headscale_postgres_conn_max_idle_time_secs | default(3600) }}
+    ssl: {{ headscale_postgres_ssl | lower }}
+{% endif %}
+
+# TLS / ACME configuration
+{% if headscale_tls_enabled | bool %}
+{% if headscale_tls_mode == 'letsencrypt' %}
+acme_url: {{ headscale_acme_url }}
+acme_email: {{ headscale_acme_email }}
+tls_letsencrypt_hostname: {{ headscale_domain }}
+tls_letsencrypt_cache_dir: /var/lib/headscale/cache
+tls_letsencrypt_challenge_type: {{ headscale_acme_challenge_type | default('HTTP-01') }}
+tls_letsencrypt_listen: {{ headscale_acme_listen | default(':http') }}
+{% else %}
+tls_cert_path: /etc/headscale/server.crt
+tls_key_path: /etc/headscale/server.key
+{% endif %}
+{% endif %}
+
+# Disable update check
+disable_check_updates: {{ headscale_disable_check_updates | default(false) | lower }}
+
+# Ephemeral node timeout
+ephemeral_node_inactivity_timeout: {{ headscale_ephemeral_node_inactivity_timeout }}
+
+# DNS configuration
+dns:
+  magic_dns: {{ headscale_dns_magic_enabled | lower }}
+  base_domain: {{ headscale_dns_base_domain }}
+  override_local_dns: {{ headscale_dns_override_local | default(true) | lower }}
+
+  nameservers:
+    global:
+{% for ns in headscale_dns_nameservers_global %}
+      - {{ ns }}
+{% endfor %}
+{% if headscale_dns_nameservers_split | length > 0 %}
+    split:
+{% for domain, servers in headscale_dns_nameservers_split.items() %}
+      {{ domain }}:
+{% for server in servers %}
+        - {{ server }}
+{% endfor %}
+{% endfor %}
+{% else %}
+    split: {}
+{% endif %}
+
+{% if headscale_dns_search_domains | length > 0 %}
+  search_domains:
+{% for domain in headscale_dns_search_domains %}
+    - {{ domain }}
+{% endfor %}
+{% else %}
+  search_domains: []
+{% endif %}
+
+{% if headscale_dns_extra_records | length > 0 %}
+  extra_records:
+{% for record in headscale_dns_extra_records %}
+    - name: {{ record.name }}
+      type: {{ record.type }}
+      value: {{ record.value }}
+{% endfor %}
+{% else %}
+  extra_records: []
+{% endif %}
+
+# DERP (relay) configuration
+derp:
+  server:
+    enabled: {{ headscale_derp_server_enabled | lower }}
+{% if headscale_derp_server_enabled | bool %}
+    region_id: {{ headscale_derp_server_region_id }}
+    region_code: "{{ headscale_derp_server_region_code }}"
+    region_name: "{{ headscale_derp_server_region_name }}"
+    stun_listen_addr: "{{ headscale_derp_server_stun_listen_addr }}"
+{% if headscale_derp_server_private_key_path | length > 0 %}
+    private_key_path: {{ headscale_derp_server_private_key_path }}
+{% endif %}
+{% if headscale_derp_server_ipv4 | length > 0 %}
+    ipv4: {{ headscale_derp_server_ipv4 }}
+{% endif %}
+{% if headscale_derp_server_ipv6 | length > 0 %}
+    ipv6: {{ headscale_derp_server_ipv6 }}
+{% endif %}
+{% endif %}
+
+  urls:
+{% for url in headscale_derp_urls %}
+    - {{ url }}
+{% endfor %}
+
+{% if headscale_derp_paths | length > 0 %}
+  paths:
+{% for path in headscale_derp_paths %}
+    - {{ path }}
+{% endfor %}
+{% else %}
+  paths: []
+{% endif %}
+
+  auto_update_enabled: {{ headscale_derp_auto_update | lower }}
+  update_frequency: {{ headscale_derp_update_frequency }}
+
+# OIDC configuration
+{% if headscale_oidc_enabled | bool %}
+oidc:
+  only_start_if_oidc_is_available: {{ headscale_oidc_only_start_if_oidc_is_available | lower }}
+  issuer: "{{ headscale_oidc_issuer }}"
+  client_id: "{{ headscale_oidc_client_id }}"
+{% if headscale_oidc_client_secret_path | default('') | length > 0 %}
+  client_secret_path: "{{ headscale_oidc_client_secret_path }}"
+{% else %}
+  client_secret: "{{ headscale_oidc_client_secret }}"
+{% endif %}
+  expiry: {{ headscale_oidc_expiry }}
+  use_expiry_from_token: {{ headscale_oidc_use_expiry_from_token | lower }}
+  scope:
+{% for scope in headscale_oidc_scope %}
+    - {{ scope }}
+{% endfor %}
+{% if headscale_oidc_extra_params | length > 0 %}
+  extra_params:
+{% for key, value in headscale_oidc_extra_params.items() %}
+    {{ key }}: {{ value }}
+{% endfor %}
+{% else %}
+  extra_params: {}
+{% endif %}
+{% if headscale_oidc_allowed_domains | length > 0 %}
+  allowed_domains:
+{% for domain in headscale_oidc_allowed_domains %}
+    - {{ domain }}
+{% endfor %}
+{% else %}
+  allowed_domains: []
+{% endif %}
+{% if headscale_oidc_allowed_users | length > 0 %}
+  allowed_users:
+{% for user in headscale_oidc_allowed_users %}
+    - {{ user }}
+{% endfor %}
+{% else %}
+  allowed_users: []
+{% endif %}
+{% if headscale_oidc_allowed_groups | length > 0 %}
+  allowed_groups:
+{% for group in headscale_oidc_allowed_groups %}
+    - {{ group }}
+{% endfor %}
+{% else %}
+  allowed_groups: []
+{% endif %}
+  strip_email_domain: {{ headscale_oidc_strip_email_domain | lower }}
+  map_legacy_users: {{ headscale_oidc_map_legacy_users | lower }}
+{% endif %}
+
+# ACL policy
+policy:
+  mode: {{ headscale_policy_mode }}
+{% if headscale_policy_mode == 'file' %}
+  path: /etc/headscale/acl.json
+{% endif %}
+
+# Logging
+log:
+  level: {{ headscale_log_level }}
+  format: {{ headscale_log_format }}
+
+# Logtail (disabled for self-hosted)
+logtail:
+  enabled: false
+
+# Features
+randomize_client_port: {{ headscale_randomize_client_port | lower }}

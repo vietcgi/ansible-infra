@@ -48,6 +48,15 @@
         fail_msg: "Server provisioning validation failed"
         success_msg: "✓ Server provisioned and configured successfully"
 
+    - name: Create provisioning report directory
+      ansible.builtin.file:
+        path: /var/log/ansible-infra
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      become: true
+
     - name: Create provisioning report
       ansible.builtin.copy:
         content: |

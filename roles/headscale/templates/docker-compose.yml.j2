@@ -1,0 +1,77 @@
+---
+# Headscale Docker Compose Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+services:
+  headscale:
+    image: {{ headscale_image }}:{{ headscale_image_tag }}
+    container_name: {{ headscale_container_name }}
+    restart: unless-stopped
+    command: serve
+{% if headplane_enabled | bool %}
+    labels:
+      me.tale.headplane.target: headscale
+{% endif %}
+    ports:
+      - "{{ headscale_port }}:8080"
+      - "{{ headscale_metrics_port }}:9090"
+      - "{{ headscale_grpc_port }}:50443"
+{% if headscale_derp_server_enabled | bool %}
+      - "3478:3478/udp"
+{% endif %}
+    volumes:
+      - {{ headscale_config_dir }}/config.yaml:/etc/headscale/config.yaml:ro
+{% if headscale_policy_mode == 'file' %}
+      - {{ headscale_config_dir }}/acl.json:/etc/headscale/acl.json:ro
+{% endif %}
+      - {{ headscale_data_dir }}:/var/lib/headscale
+      - {{ headscale_run_dir }}:/var/run/headscale
+{% if headscale_tls_enabled | bool and headscale_tls_mode == 'manual' %}
+      - {{ headscale_config_dir }}/server.crt:/etc/headscale/server.crt:ro
+      - {{ headscale_config_dir }}/server.key:/etc/headscale/server.key:ro
+{% endif %}
+    healthcheck:
+      test: ["CMD", "headscale", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    environment:
+      - TZ={{ ansible_date_time.tz | default('UTC') }}
+{% if headscale_database_type == 'postgres' %}
+      - HEADSCALE_DB_TYPE=postgres
+      - HEADSCALE_DB_HOST={{ headscale_postgres_host }}
+      - HEADSCALE_DB_PORT={{ headscale_postgres_port }}
+      - HEADSCALE_DB_NAME={{ headscale_postgres_name }}
+      - HEADSCALE_DB_USER={{ headscale_postgres_user }}
+      - HEADSCALE_DB_PASS={{ headscale_postgres_password }}
+{% endif %}
+
+{% if headplane_enabled | bool %}
+  headplane:
+    image: {{ headplane_image }}:{{ headplane_image_tag }}
+    container_name: {{ headplane_container_name }}
+    restart: unless-stopped
+    depends_on:
+      headscale:
+        condition: service_healthy
+    ports:
+      - "{{ headplane_port }}:3000"
+    volumes:
+      - {{ headscale_config_dir }}/headplane.yaml:/etc/headplane/config.yaml:ro
+      - {{ headplane_data_dir }}:/var/lib/headplane
+      - {{ headscale_config_dir }}/config.yaml:/etc/headscale/config.yaml
+{% if headscale_policy_mode == 'file' %}
+      - {{ headscale_config_dir }}/acl.json:/etc/headscale/acl.json
+{% endif %}
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ={{ ansible_date_time.tz | default('UTC') }}
+{% if headplane_cookie_secret | length > 0 %}
+      - COOKIE_SECRET={{ headplane_cookie_secret }}
+{% endif %}
+{% endif %}
+
+networks:
+  default:
+    name: {{ headscale_compose_project }}_network

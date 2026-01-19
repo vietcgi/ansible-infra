@@ -1,0 +1,62 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Install required packages for K3s simulation
+      ansible.builtin.apt:
+        update_cache: true
+        state: present
+        name:
+          - curl
+          - ca-certificates
+
+    - name: Create K3s config directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Create mock kubeconfig for testing
+      ansible.builtin.copy:
+        content: |
+          apiVersion: v1
+          kind: Config
+          clusters: []
+          contexts: []
+          current-context: ""
+          preferences: {}
+          users: []
+        dest: /etc/rancher/k3s/k3s.yaml
+        mode: '0644'
+        owner: root
+        group: root
+
+    - name: Create mock kubectl command
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # Mock kubectl for molecule testing
+          case "$*" in
+            "get nodes")
+              exit 0
+              ;;
+            "get deployment -n kube-system cilium-operator")
+              # Simulate Cilium not installed
+              exit 1
+              ;;
+            "wait --for=condition=ready pod -l k8s-app=cilium -n kube-system --timeout="*)
+              echo "pod/cilium-xxx condition met"
+              exit 0
+              ;;
+            *)
+              exit 0
+              ;;
+          esac
+        dest: /usr/bin/kubectl
+        mode: '0755'
+        owner: root
+        group: root

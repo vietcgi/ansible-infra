@@ -1,6 +1,36 @@
 ---
 # Performance Tuning - System-wide Optimization
 # CPU, memory, I/O, and network optimization for production workloads
+# Auto-detects bare metal vs VPS - can override with performance_tuning_enabled
+
+- name: Detect if running on bare metal or VM
+  ansible.builtin.set_fact:
+    is_bare_metal: "{{ ansible_virtualization_role | default('host') == 'host' or ansible_virtualization_type | default('NA') in ['NA', 'kvm'] }}"
+    is_full_vm: "{{ ansible_virtualization_type | default('NA') in ['kvm', 'vmware', 'virtualbox', 'hyperv'] and ansible_virtualization_role | default('guest') == 'guest' }}"
+    is_container: "{{ ansible_virtualization_type | default('NA') in ['docker', 'lxc', 'podman', 'openvz', 'containerd'] }}"
+  tags:
+    - performance_tuning
+
+- name: Set performance tuning based on environment
+  ansible.builtin.set_fact:
+    _perf_tuning_enabled: >-
+      {{ performance_tuning_enabled if performance_tuning_enabled is defined
+         else (is_bare_metal | default(false) or is_full_vm | default(false)) }}
+  tags:
+    - performance_tuning
+
+- name: Display detected environment
+  ansible.builtin.debug:
+    msg: |
+      Environment Detection:
+        Virtualization type: {{ ansible_virtualization_type | default('NA') }}
+        Virtualization role: {{ ansible_virtualization_role | default('host') }}
+        Is bare metal: {{ is_bare_metal }}
+        Is full VM: {{ is_full_vm }}
+        Is container: {{ is_container }}
+        Performance tuning: {{ 'ENABLED' if _perf_tuning_enabled else 'DISABLED' }}
+  tags:
+    - performance_tuning
 
 - name: Configure CPU scheduler for performance
   ansible.posix.sysctl:
@@ -8,14 +38,15 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: true
-    failed_when: false
     reload: true
   loop:
-    # CPU scheduling
+    # CPU scheduling - may not exist on all kernels/VPS environments
     - { key: "kernel.sched_migration_cost_ns", value: "5000000" }
     - { key: "kernel.sched_latency_ns", value: "24000000" }
     - { key: "kernel.sched_wakeup_granularity_ns", value: "4000000" }
     - { key: "kernel.sched_min_granularity_ns", value: "2000000" }
+  failed_when: false
+  when: _perf_tuning_enabled | default(false)
   tags:
     - performance_tuning
     - cpu
@@ -26,7 +57,6 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: true
-    failed_when: false
     reload: true
   loop:
     - { key: "vm.swappiness", value: "10" }
@@ -36,6 +66,8 @@
     - { key: "vm.dirty_expire_centisecs", value: "3000" }
     - { key: "vm.page-cluster", value: "3" }
     - { key: "vm.zone_reclaim_mode", value: "0" }
+  failed_when: false
+  when: _perf_tuning_enabled | default(false)
   tags:
     - performance_tuning
     - memory
@@ -46,7 +78,10 @@
     regexp: "^GRUB_CMDLINE_LINUX="
     line: 'GRUB_CMDLINE_LINUX="transparent_hugepage=madvise"'
     backup: true
-  when: ansible_kernel is version('2.6.38', '>=')
+  when:
+    - _perf_tuning_enabled | default(false)
+    - ansible_kernel is version('2.6.38', '>=')
+  failed_when: false
   notify: update grub
   tags:
     - performance_tuning
@@ -59,6 +94,8 @@
     owner: root
     group: root
     mode: "0644"
+  when: _perf_tuning_enabled | default(false)
+  failed_when: false
   notify: reload systemd settings
   tags:
     - performance_tuning
@@ -70,7 +107,6 @@
     value: "{{ item.value }}"
     state: present
     sysctl_set: true
-    failed_when: false
     reload: true
   loop:
     # TCP send/receive buffer optimization
@@ -86,6 +122,8 @@
     - { key: "net.ipv4.tcp_keepalive_time", value: "600" }
     - { key: "net.ipv4.tcp_keepalive_probes", value: "5" }
     - { key: "net.ipv4.tcp_keepalive_intvl", value: "15" }
+  failed_when: false
+  when: _perf_tuning_enabled | default(false)
   tags:
     - performance_tuning
     - network
@@ -96,7 +134,8 @@
     value: "1"
     state: present
     sysctl_set: true
-    failed_when: false
+  failed_when: false
+  when: _perf_tuning_enabled | default(false)
   tags:
     - performance_tuning
     - network
@@ -108,6 +147,8 @@
     owner: root
     group: root
     mode: "0755"
+  when: _perf_tuning_enabled | default(false)
+  failed_when: false
   tags:
     - performance_tuning
     - database
@@ -119,36 +160,16 @@
     owner: root
     group: root
     mode: "0644"
-  when: performance_enable_cpu_affinity | default(false)
+  when:
+    - _perf_tuning_enabled | default(false)
+    - performance_enable_cpu_affinity | default(false)
   tags:
     - performance_tuning
     - cpu
 
-- name: Display performance tuning configuration
+- name: Display performance tuning status
   ansible.builtin.debug:
-    msg: |
-      Performance Tuning Configured:
-      ============================
-      CPU Scheduling: Optimized for latency/throughput balance
-      Memory Management:
-        - Swappiness: 10 (minimal swap usage)
-        - Dirty ratio: 15%/5% background
-        - Transparent Huge Pages: Enabled (madvise)
-
-      Network Optimization:
-        - TCP buffers: 4K-64MB
-        - TCP Fast Open: Enabled
-        - TCP window scaling: Enabled
-        - Connection backlog: 8192
-
-      I/O Scheduler: Configured for SSD/NVMe workloads
-      Database Tuning: Available via performance tuning script
-      CPU Affinity: Optional (disabled by default)
-
-      Impact:
-        - Throughput: +15-20%
-        - Latency: -10-15%
-        - Memory efficiency: +20-30%
+    msg: "Performance tuning: {{ 'ENABLED (auto-detected)' if _perf_tuning_enabled else 'DISABLED (container/restricted env)' }}"
   tags:
     - performance_tuning
     - report

@@ -1,0 +1,104 @@
+# Proxmox VE Dynamic Inventory
+# =============================
+# Automatically discovers VMs and containers from Proxmox VE cluster
+#
+# Requirements:
+#   pip install proxmoxer requests
+#   ansible-galaxy collection install community.proxmox
+#
+# Authentication (set via environment variables):
+#   PROXMOX_URL - URL to Proxmox cluster (e.g., https://pve.example.com:8006)
+#   PROXMOX_USER - Username (e.g., ansible@pam)
+#   PROXMOX_PASSWORD - Password
+#   OR use API tokens:
+#   PROXMOX_TOKEN_ID - Token ID (e.g., ansible@pam!ansible-token)
+#   PROXMOX_TOKEN_SECRET - Token secret
+#
+# Usage:
+#   export PROXMOX_URL="https://pve.example.com:8006"
+#   export PROXMOX_USER="ansible@pam"
+#   export PROXMOX_PASSWORD="your-password"
+#   ansible-inventory -i inventories/dynamic/proxmox.proxmox.yml --list
+#   ansible-playbook -i inventories/dynamic/proxmox.proxmox.yml playbooks/provision.yml
+---
+plugin: community.proxmox.proxmox
+
+# Proxmox API connection
+# These use environment variables if set, otherwise fall back to defaults
+url: "{{ lookup('ansible.builtin.env', 'PROXMOX_URL') | default('https://proxmox.example.com:8006', true) }}"
+user: "{{ lookup('ansible.builtin.env', 'PROXMOX_USER') | default('ansible@pam', true) }}"
+password: "{{ lookup('ansible.builtin.env', 'PROXMOX_PASSWORD') | default('changeme', true) }}"
+
+# Alternative: API Token authentication (uncomment and set via env vars)
+# token_id: "{{ lookup('ansible.builtin.env', 'PROXMOX_TOKEN_ID') }}"
+# token_secret: "{{ lookup('ansible.builtin.env', 'PROXMOX_TOKEN_SECRET') }}"
+
+# SSL verification (set to false for self-signed certs)
+validate_certs: false
+
+# What to include in inventory
+want_facts: true
+
+# Filter by VM/container status
+filters:
+  - proxmox_status == "running"
+
+# Exclude templates from inventory
+exclude_templates: true
+
+# Group naming prefix
+group_prefix: proxmox_
+
+# Compose variables from VM/container attributes
+compose:
+  # Set ansible_host - use first available IP
+  ansible_host: proxmox_ipconfig0.ip.split('/')[0] if proxmox_ipconfig0 is defined and proxmox_ipconfig0.ip is defined else inventory_hostname
+  # Default ansible_user
+  ansible_user: "'root'"
+  # VM metadata
+  vm_id: proxmox_vmid
+  vm_name: proxmox_name
+  vm_node: proxmox_node
+  vm_type: proxmox_type
+  vm_status: proxmox_status
+
+# Create groups based on VM/container attributes
+keyed_groups:
+  # Group by Proxmox node
+  - key: proxmox_node
+    prefix: pve_node
+    separator: "_"
+
+  # Group by type (VM vs container)
+  - key: proxmox_type
+    prefix: pve
+    separator: "_"
+
+  # Group by OS type
+  - key: proxmox_ostype | default('unknown')
+    prefix: os
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All Proxmox VMs and containers
+  proxmox: true
+  # Virtual machines only
+  proxmox_vms: proxmox_type == 'qemu'
+  # LXC containers only
+  proxmox_containers: proxmox_type == 'lxc'
+  # Linux guests
+  linux: proxmox_ostype is defined and 'l' in proxmox_ostype
+  # Windows guests
+  windows: proxmox_ostype is defined and 'w' in proxmox_ostype
+  # Running instances
+  running: proxmox_status == 'running'
+
+# Cache settings
+cache: true
+cache_plugin: jsonfile
+cache_connection: /tmp/ansible_proxmox_cache
+cache_timeout: 300
+
+# Strict mode - fail on errors
+strict: false

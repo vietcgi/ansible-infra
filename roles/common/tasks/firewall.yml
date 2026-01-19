@@ -157,6 +157,91 @@
         policy: deny
       when: firewall_enabled | default(true)
 
+# Docker/UFW Compatibility - Docker bypasses UFW by default, this fixes it
+- name: Configure Docker-compatible firewall rules (DOCKER-USER chain)
+  when:
+    - ansible_os_family in ['Debian']
+    - firewall_enabled | default(true)
+  become: true
+  tags:
+    - firewall
+    - docker
+    - security
+
+  block:
+    - name: Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Get default network interface
+      ansible.builtin.shell: |
+        ip route | grep default | awk '{print $5}' | head -1
+      register: default_interface
+      changed_when: false
+      failed_when: false
+      when: docker_installed.rc == 0
+
+    - name: Create DOCKER-USER iptables rules for UFW compatibility
+      ansible.builtin.shell: |
+        # Get the default interface
+        DEFAULT_IF="{{ default_interface.stdout | default('eth0') }}"
+
+        # Ensure DOCKER-USER chain exists (Docker creates this, but check anyway)
+        iptables -N DOCKER-USER 2>/dev/null || true
+
+        # Flush existing DOCKER-USER rules to start fresh
+        iptables -F DOCKER-USER 2>/dev/null || true
+
+        # Allow established/related connections
+        iptables -A DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+
+        # Allow localhost traffic
+        iptables -A DOCKER-USER -s 127.0.0.0/8 -j RETURN
+
+        # Allow Docker internal networks (default bridge and common ranges)
+        iptables -A DOCKER-USER -s 172.16.0.0/12 -j RETURN
+        iptables -A DOCKER-USER -s 10.0.0.0/8 -j RETURN
+        iptables -A DOCKER-USER -s 192.168.0.0/16 -j RETURN
+
+        # Drop external traffic to Docker containers on the default interface
+        # This prevents Docker from bypassing UFW for published ports
+        if [ -n "$DEFAULT_IF" ]; then
+          iptables -A DOCKER-USER -i "$DEFAULT_IF" -j DROP
+        fi
+
+        # Final return for anything that passed
+        iptables -A DOCKER-USER -j RETURN
+      when: docker_installed.rc == 0
+      changed_when: false
+
+    - name: Save iptables rules for persistence
+      ansible.builtin.shell: |
+        if command -v netfilter-persistent >/dev/null 2>&1; then
+          netfilter-persistent save
+        elif command -v iptables-save >/dev/null 2>&1; then
+          mkdir -p /etc/iptables 2>/dev/null || true
+          iptables-save > /etc/iptables/rules.v4 2>/dev/null || \
+          iptables-save > /etc/iptables.rules 2>/dev/null || true
+        fi
+        exit 0
+      when: docker_installed.rc == 0
+      changed_when: false
+
+    - name: Display Docker firewall configuration status
+      ansible.builtin.debug:
+        msg: |
+          Docker/UFW Compatibility Configured:
+          ====================================
+          DOCKER-USER chain rules applied to prevent Docker from bypassing UFW.
+          Default interface: {{ default_interface.stdout | default('unknown') }}
+          - Established connections: ALLOWED
+          - Localhost traffic: ALLOWED
+          - Docker internal networks: ALLOWED
+          - External interface to containers: BLOCKED (use -p 127.0.0.1:port:port for local-only binding)
+      when: docker_installed.rc == 0
+
 - name: Install firewall for RHEL/CentOS
   when:
     - ansible_os_family in ['RedHat', 'Rocky', 'Alma']

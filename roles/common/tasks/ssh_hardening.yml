@@ -24,6 +24,7 @@
     dest: /etc/ssh/sshd_config
     backup: true
     mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
   become: true
   failed_when: false
   notify: restart sshd macos

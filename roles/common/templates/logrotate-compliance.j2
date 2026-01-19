@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+# Log rotation for compliance scan logs
+
+{{ compliance_report_location | default('/var/log/compliance') }}/*.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}
+
+/var/log/aide/*.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}

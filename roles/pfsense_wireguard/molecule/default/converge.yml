@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: pfsense
+  gather_facts: false
+
+  pre_tasks:
+    - name: Verify pfSense connectivity
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          echo "Connected to pfSense " . $config['system']['version'];
+      register: pfsense_check
+      changed_when: false
+
+    - name: Display pfSense version
+      ansible.builtin.debug:
+        msg: "{{ pfsense_check.stdout }}"
+
+  roles:
+    - role: pfsense_wireguard

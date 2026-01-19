@@ -1,0 +1,58 @@
+---
+# pfSense WireGuard - Validation Tasks
+
+- name: Validate provider mode configuration
+  when: pfsense_wireguard_mode == 'provider'
+  block:
+    - name: Check required provider variables
+      ansible.builtin.assert:
+        that:
+          - pfsense_wireguard_provider.endpoint | length > 0
+          - pfsense_wireguard_provider.public_key | length > 0
+          - pfsense_wireguard_provider.private_key | length > 0
+          - pfsense_wireguard_provider.address | length > 0
+        fail_msg: |
+          Missing required provider configuration:
+          - endpoint: {{ pfsense_wireguard_provider.endpoint | default('NOT SET') }}
+          - public_key: {{ pfsense_wireguard_provider.public_key | default('NOT SET') | truncate(20) }}
+          - private_key: {{ 'SET' if pfsense_wireguard_provider.private_key else 'NOT SET' }}
+          - address: {{ pfsense_wireguard_provider.address | default('NOT SET') }}
+
+    - name: Validate WireGuard key format (base64, 44 chars)
+      ansible.builtin.assert:
+        that:
+          - pfsense_wireguard_provider.public_key | length == 44
+          - pfsense_wireguard_provider.private_key | length == 44
+        fail_msg: "WireGuard keys must be 44 characters (base64 encoded)"
+
+- name: Validate custom tunnel configuration
+  when: pfsense_wireguard_mode != 'provider'
+  block:
+    - name: Check tunnels are defined
+      ansible.builtin.assert:
+        that:
+          - pfsense_wireguard_tunnels | length > 0
+        fail_msg: "No WireGuard tunnels defined in pfsense_wireguard_tunnels"
+
+    - name: Validate each tunnel configuration
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.private_key is defined
+          - item.peers | length > 0
+        fail_msg: "Tunnel {{ item.name | default('unknown') }} missing required fields"
+      loop: "{{ pfsense_wireguard_tunnels }}"
+
+- name: Display validated configuration
+  ansible.builtin.debug:
+    msg: |
+      ✓ Configuration validated
+      Mode: {{ pfsense_wireguard_mode }}
+      {% if pfsense_wireguard_mode == 'provider' %}
+      Provider: {{ pfsense_wireguard_provider.name }}
+      Endpoint: {{ pfsense_wireguard_provider.endpoint }}:{{ pfsense_wireguard_provider.endpoint_port }}
+      Tunnel IP: {{ pfsense_wireguard_provider.address }}
+      {% else %}
+      Tunnels: {{ pfsense_wireguard_tunnels | length }}
+      {% endif %}
+  when: pfsense_wireguard_debug | bool

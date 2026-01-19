@@ -1,0 +1,138 @@
+---
+# pfSense WireGuard - Verification Tasks
+
+- name: Check WireGuard tunnel status
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      $output = shell_exec("/usr/local/bin/wg show all 2>&1");
+      echo $output;
+  register: wg_status
+  changed_when: false
+
+- name: Display WireGuard status
+  ansible.builtin.debug:
+    msg: |
+      WireGuard Tunnel Status
+      =======================
+      {{ wg_status.stdout }}
+
+- name: Check tunnel handshake status
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      $output = shell_exec("/usr/local/bin/wg show tun_wg0 latest-handshakes 2>&1");
+      if (empty(trim($output))) {
+        echo "no_handshake";
+      } else {
+        $parts = explode("\t", trim($output));
+        if (count($parts) >= 2) {
+          $timestamp = intval($parts[1]);
+          if ($timestamp > 0) {
+            $age = time() - $timestamp;
+            echo "handshake_age:" . $age;
+          } else {
+            echo "no_handshake";
+          }
+        } else {
+          echo "no_handshake";
+        }
+      }
+  register: handshake_status
+  changed_when: false
+
+- name: Evaluate handshake status
+  ansible.builtin.set_fact:
+    handshake_ok: "{{ 'handshake_age:' in handshake_status.stdout and (handshake_status.stdout | regex_replace('handshake_age:', '') | int) < 180 }}"
+
+- name: Display handshake status
+  ansible.builtin.debug:
+    msg: |
+      Handshake Status: {{ handshake_ok | ternary('✓ Active', '✗ No recent handshake') }}
+      {% if 'handshake_age:' in handshake_status.stdout %}
+      Last handshake: {{ handshake_status.stdout | regex_replace('handshake_age:', '') }} seconds ago
+      {% endif %}
+
+- name: Test connectivity through tunnel
+  when: handshake_ok
+  block:
+    - name: Ping through WireGuard interface
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          // Ping test through WireGuard interface
+          $result = shell_exec("/sbin/ping -c 3 -W 5 -S {{ pfsense_wireguard_provider.address | regex_replace('/.*', '') }} {{ pfsense_wireguard_verify_endpoint }} 2>&1");
+          if (strpos($result, '3 packets received') !== false || strpos($result, '3 received') !== false) {
+            echo "ping_success";
+          } else {
+            echo "ping_failed:" . $result;
+          }
+      register: ping_result
+      failed_when: false
+
+    - name: Display connectivity test result
+      ansible.builtin.debug:
+        msg: |
+          Connectivity Test
+          =================
+          Target: {{ pfsense_wireguard_verify_endpoint }}
+          Source: {{ pfsense_wireguard_provider.address | regex_replace('/.*', '') }}
+          Result: {{ 'ping_success' in ping_result.stdout | ternary('✓ Success', '✗ Failed') }}
+
+- name: Get public IP through VPN
+  when: handshake_ok
+  block:
+    - name: Check external IP
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          // Get public IP through WireGuard
+          $ch = curl_init();
+          curl_setopt($ch, CURLOPT_URL, "https://api.ipify.org");
+          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+          curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+          curl_setopt($ch, CURLOPT_INTERFACE, "tun_wg0");
+          $ip = curl_exec($ch);
+          $error = curl_error($ch);
+          curl_close($ch);
+
+          if (!empty($ip) && filter_var($ip, FILTER_VALIDATE_IP)) {
+            echo "public_ip:" . $ip;
+          } else {
+            echo "ip_check_failed:" . $error;
+          }
+      register: public_ip_result
+      failed_when: false
+
+    - name: Display public IP
+      ansible.builtin.debug:
+        msg: |
+          Public IP Check
+          ===============
+          {% if 'public_ip:' in public_ip_result.stdout %}
+          VPN Public IP: {{ public_ip_result.stdout | regex_replace('public_ip:', '') }}
+          Status: ✓ Traffic routing through VPN
+          {% else %}
+          Status: ✗ Could not determine public IP
+          {{ public_ip_result.stdout }}
+          {% endif %}
+
+- name: Display verification summary
+  ansible.builtin.debug:
+    msg: |
+      ═══════════════════════════════════════
+      WireGuard Verification Summary
+      ═══════════════════════════════════════
+
+      Tunnel:     {{ 'interface: tun_wg0' in wg_status.stdout | ternary('✓ Active', '✗ Not active') }}
+      Handshake:  {{ handshake_ok | ternary('✓ Recent', '✗ None/Stale') }}
+      {% if handshake_ok %}
+      Ping Test:  {{ 'ping_success' in (ping_result.stdout | default('')) | ternary('✓ Working', '✗ Failed') }}
+      {% if 'public_ip:' in (public_ip_result.stdout | default('')) %}
+      Public IP:  {{ public_ip_result.stdout | regex_replace('public_ip:', '') }}
+      {% endif %}
+      {% endif %}
+
+      {% if not handshake_ok %}
+      Troubleshooting:
+      1. Check endpoint is reachable: {{ pfsense_wireguard_provider.endpoint }}
+      2. Verify keys are correct
+      3. Check WAN firewall allows outbound UDP/51820
+      4. Review System Logs > WireGuard
+      {% endif %}

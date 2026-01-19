@@ -20,10 +20,6 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
-# Log file location (varies by OS)
-logpath = /var/log/apache2/error.log
-          /var/log/httpd/error_log
-
 # Backend detection (pure or systemd)
 backend = {{ fail2ban_apache_backend | default('auto') }}
 
@@ -37,7 +33,7 @@ timeout = {{ fail2ban_apache_timeout | default(600) }}
 # Chain for iptables rules
 chain = INPUT
 
----
+
 
 # Jail for Apache limit request
 [apache-limit-req]
@@ -56,7 +52,7 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
----
+
 
 # Jail for Apache noscript (prevents automated attacks)
 [apache-noscript]
@@ -75,7 +71,7 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
----
+
 
 # Jail for Apache overflows
 [apache-overflows]
@@ -94,7 +90,7 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
----
+
 
 # Jail for Apache bad bots
 [apache-badbots]
@@ -113,7 +109,7 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
----
+
 
 # Jail for Apache mod_security
 [apache-modsecurity]

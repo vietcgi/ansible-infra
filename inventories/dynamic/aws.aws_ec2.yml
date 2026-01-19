@@ -1,0 +1,125 @@
+# AWS EC2 Dynamic Inventory
+# ===========================
+# Automatically discovers EC2 instances from AWS
+#
+# Requirements:
+#   pip install boto3 botocore
+#   ansible-galaxy collection install amazon.aws
+#
+# Authentication (choose one):
+#   1. Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+#   2. AWS credentials file: ~/.aws/credentials
+#   3. IAM instance role (when running on EC2)
+#
+# Usage:
+#   ansible-inventory -i inventories/dynamic/aws.aws_ec2.yml --list
+#   ansible-playbook -i inventories/dynamic/aws.aws_ec2.yml playbooks/provision.yml
+#
+# Required IAM permissions:
+#   ec2:DescribeInstances
+#   ec2:DescribeRegions (if using all regions)
+---
+plugin: amazon.aws.aws_ec2
+
+# AWS Region(s) to query
+# Use 'all' for all regions or specify a list
+regions:
+  - us-east-1
+  - us-west-2
+  # - eu-west-1
+  # - ap-southeast-1
+
+# Optional: Filter instances by tags or other attributes
+filters:
+  # Only include running instances
+  instance-state-name:
+    - running
+  # Filter by specific tags (uncomment as needed)
+  # tag:Environment:
+  #   - production
+  #   - staging
+  # tag:ManagedBy:
+  #   - ansible
+
+# Hostnames: Priority order for determining ansible_host
+hostnames:
+  # Use private IP for internal access (VPN/VPC peering)
+  - private-ip-address
+  # Fallback to public IP if private is not available
+  - ip-address
+  # Or use DNS names:
+  # - dns-name
+  # - private-dns-name
+
+# Compose variables from EC2 instance attributes
+compose:
+  # Set ansible_host based on preference
+  ansible_host: private_ip_address | default(public_ip_address, true)
+  # Set ansible_user based on AMI type
+  ansible_user: ('ubuntu' if 'ubuntu' in (tags.get('OS', '') | lower) else 'ec2-user')
+  # Custom variables from tags
+  environment: tags.get('Environment', 'unknown')
+  role: tags.get('Role', 'server')
+  project: tags.get('Project', 'default')
+
+# Create groups based on instance attributes
+keyed_groups:
+  # Group by AWS region
+  - key: placement.region
+    prefix: aws_region
+    separator: "_"
+
+  # Group by availability zone
+  - key: placement.availability_zone
+    prefix: aws_az
+    separator: "_"
+
+  # Group by instance type
+  - key: instance_type
+    prefix: aws_type
+    separator: "_"
+
+  # Group by VPC
+  - key: vpc_id
+    prefix: aws_vpc
+    separator: "_"
+
+  # Group by Environment tag
+  - key: tags.Environment | default('untagged')
+    prefix: env
+    separator: "_"
+
+  # Group by Role tag
+  - key: tags.Role | default('server')
+    prefix: role
+    separator: "_"
+
+  # Group by Project tag
+  - key: tags.Project | default('default')
+    prefix: project
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All EC2 instances
+  aws_ec2: true
+  # Production instances
+  production: "'production' in (tags.Environment | default('') | lower)"
+  # Staging instances
+  staging: "'staging' in (tags.Environment | default('') | lower)"
+  # Web servers
+  webservers: "'web' in (tags.Role | default('') | lower)"
+  # Database servers
+  databases: "'db' in (tags.Role | default('') | lower) or 'database' in (tags.Role | default('') | lower)"
+
+# Cache settings (optional, improves performance)
+cache: true
+cache_plugin: jsonfile
+cache_connection: /tmp/ansible_aws_ec2_cache
+cache_timeout: 300  # 5 minutes
+
+# Strict mode: fail if errors occur during inventory generation
+strict: false
+
+# Include extra data (increases API calls)
+include_extra_api_calls: false

@@ -1,146 +1,548 @@
 ---
 # Common Role - Main Tasks
 # Provides OS-agnostic server foundation setup
+#
+# Available Tags:
+# ===============
+# Phases:
+#   - core          : Core foundation (OS validation, packages, users, time)
+#   - phase1        : Security, Monitoring, Backup basics
+#   - phase1a       : Critical Security Hardening
+#   - phase1b       : Operational Excellence
+#   - phase2a       : Advanced Monitoring Stack
+#   - phase2b       : Container/Docker
+#   - phase2c       : Service Discovery & Load Balancing
+#   - phase2d       : Security & PKI (Vault)
+#   - phase2e       : Database HA
+#   - phase3        : Final Integration & Orchestration
+#
+# Features:
+#   - security      : All security-related tasks
+#   - monitoring    : All monitoring-related tasks
+#   - network       : Network and firewall tasks
+#   - docker        : Docker/container tasks
+#   - database      : Database tasks
+#
+# Examples:
+#   ansible-playbook playbooks/provision.yml --tags core
+#   ansible-playbook playbooks/provision.yml --tags phase1
+#   ansible-playbook playbooks/provision.yml --tags security
+#   ansible-playbook playbooks/provision.yml --tags "phase1,phase1a"
+#   ansible-playbook playbooks/provision.yml --skip-tags phase2b
 
-- name: Import task files
-  ansible.builtin.include_tasks: "{{ item }}"
-  loop:
-    # Core foundation tasks
-    - validate_os.yml
-    - system_update.yml
-    - core_packages.yml
-    - python.yml
-    - manage_users.yml
-    - chrony.yml
-    - ssh_hardening.yml
-    - sysctl.yml
-    - audit.yml
-    - limits.yml
-    - dns.yml
-    - logging.yml
+################################################################################
+# CORE FOUNDATION
+################################################################################
 
-    # Core foundation additions (recently added high-priority gaps)
-    - hostname_domain.yml
-    - swap_management.yml
-    - encryption_at_rest.yml
-    - change_tracking.yml
-    - network_management.yml
+- name: Validate OS compatibility
+  ansible.builtin.include_tasks:
+    file: validate_os.yml
+    apply:
+      tags: [core, validation]
+  tags: [core, validation, always]
 
-    # PHASE 1: Security, Monitoring, and Backup
-    - firewall.yml
-    - fail2ban.yml
-    - metrics.yml
-    - log_shipping.yml
-    - sudo_hardening.yml
-    - vault.yml
-    - backup.yml
-    - apparmor.yml
-    - selinux.yml
+- name: System updates
+  ansible.builtin.include_tasks:
+    file: system_update.yml
+    apply:
+      tags: [core, updates, packages]
+  tags: [core, updates, packages]
 
-    # PHASE 1.A: Critical Security Hardening (Kernel, Password, Storage)
-    - kernel_hardening.yml
-    - password_policy.yml
-    - storage_hardening.yml
+- name: Install core packages
+  ansible.builtin.include_tasks:
+    file: core_packages.yml
+    apply:
+      tags: [core, packages]
+  tags: [core, packages]
 
-    # PHASE 1.B: Operational Excellence (Performance, Monitoring, Compliance)
-    - performance_tuning.yml
-    - monitoring_tuning.yml
-    - compliance_scanning.yml
-    - compliance_automation.yml
-    - backup_recovery_testing.yml
+- name: Configure Python
+  ansible.builtin.include_tasks:
+    file: python.yml
+    apply:
+      tags: [core, python, packages]
+  tags: [core, python, packages]
 
-    # PHASE 2.A: Advanced Monitoring Stack (Upstream Role Wrappers)
-    - monitoring_prometheus_wrapper.yml
-    - monitoring_grafana_wrapper.yml
-    - monitoring_alertmanager_wrapper.yml
+- name: Manage users
+  ansible.builtin.include_tasks:
+    file: manage_users.yml
+    apply:
+      tags: [core, users, security]
+  tags: [core, users, security]
 
-    # PHASE 2.B: Container & Application Deployment (Docker)
-    - docker_installation_wrapper.yml
-    - docker_compose_wrapper.yml
-    - docker_security_wrapper.yml
+- name: Configure time synchronization
+  ansible.builtin.include_tasks:
+    file: chrony.yml
+    apply:
+      tags: [core, time, ntp]
+  tags: [core, time, ntp]
 
-    # PHASE 2.C: Service Discovery & Load Balancing (Consul + HAProxy)
-    - consul_installation_wrapper.yml
-    - consul_service_discovery_wrapper.yml
-    - haproxy_loadbalancer_wrapper.yml
+- name: SSH hardening
+  ansible.builtin.include_tasks:
+    file: ssh_hardening.yml
+    apply:
+      tags: [core, ssh, security]
+  tags: [core, ssh, security]
 
-    # PHASE 2.D: Security & PKI Infrastructure (HashiCorp Vault)
-    - vault_installation_wrapper.yml
-    - vault_pki_wrapper.yml
-    - vault_secrets_rotation_wrapper.yml
+- name: Sysctl configuration
+  ansible.builtin.include_tasks:
+    file: sysctl.yml
+    apply:
+      tags: [core, sysctl, kernel]
+  tags: [core, sysctl, kernel]
 
-    # PHASE 2.E: Database Replication & High Availability
-    - postgresql_replication_wrapper.yml
-    - mysql_galera_wrapper.yml
+- name: Audit configuration
+  ansible.builtin.include_tasks:
+    file: audit.yml
+    apply:
+      tags: [core, audit, security]
+  tags: [core, audit, security]
 
-    # PHASE 3: Final Integration & Orchestration
-    - kubernetes_orchestration_wrapper.yml
-    - application_deployment_wrapper.yml
-    - service_mesh_integration_wrapper.yml
-    - disaster_recovery_wrapper.yml
-    - advanced_monitoring_wrapper.yml
+- name: System limits
+  ansible.builtin.include_tasks:
+    file: limits.yml
+    apply:
+      tags: [core, limits]
+  tags: [core, limits]
+
+- name: DNS configuration
+  ansible.builtin.include_tasks:
+    file: dns.yml
+    apply:
+      tags: [core, dns, network]
+  tags: [core, dns, network]
+
+- name: Logging configuration
+  ansible.builtin.include_tasks:
+    file: logging.yml
+    apply:
+      tags: [core, logging]
+  tags: [core, logging]
+
+- name: Hostname and domain
+  ansible.builtin.include_tasks:
+    file: hostname_domain.yml
+    apply:
+      tags: [core, hostname, network]
+  tags: [core, hostname, network]
+
+- name: Swap management
+  ansible.builtin.include_tasks:
+    file: swap_management.yml
+    apply:
+      tags: [core, swap, memory]
+  tags: [core, swap, memory]
+
+- name: Encryption at rest
+  ansible.builtin.include_tasks:
+    file: encryption_at_rest.yml
+    apply:
+      tags: [core, encryption, security]
+  tags: [core, encryption, security]
+
+- name: Change tracking
+  ansible.builtin.include_tasks:
+    file: change_tracking.yml
+    apply:
+      tags: [core, tracking]
+  tags: [core, tracking]
+
+- name: Network management
+  ansible.builtin.include_tasks:
+    file: network_management.yml
+    apply:
+      tags: [core, network]
+  tags: [core, network]
+
+################################################################################
+# PHASE 1: Security, Monitoring, and Backup
+################################################################################
+
+- name: Firewall configuration
+  ansible.builtin.include_tasks:
+    file: firewall.yml
+    apply:
+      tags: [phase1, firewall, security, network]
+  tags: [phase1, firewall, security, network]
+
+- name: Fail2ban configuration
+  ansible.builtin.include_tasks:
+    file: fail2ban.yml
+    apply:
+      tags: [phase1, fail2ban, security]
+  tags: [phase1, fail2ban, security]
+
+- name: IP blocklist configuration
+  ansible.builtin.include_tasks:
+    file: ipset_blocklist.yml
+    apply:
+      tags: [phase1, ipset, blocklist, security]
+  when: blocklist_enabled | default(true)
+  tags: [phase1, ipset, blocklist, security]
+
+- name: Metrics collection
+  ansible.builtin.include_tasks:
+    file: metrics.yml
+    apply:
+      tags: [phase1, metrics, monitoring]
+  tags: [phase1, metrics, monitoring]
+
+- name: Log shipping
+  ansible.builtin.include_tasks:
+    file: log_shipping.yml
+    apply:
+      tags: [phase1, logging, monitoring]
+  tags: [phase1, logging, monitoring]
+
+- name: Sudo hardening
+  ansible.builtin.include_tasks:
+    file: sudo_hardening.yml
+    apply:
+      tags: [phase1, sudo, security]
+  tags: [phase1, sudo, security]
+
+- name: Vault local configuration
+  ansible.builtin.include_tasks:
+    file: vault.yml
+    apply:
+      tags: [phase1, vault, security]
+  tags: [phase1, vault, security]
+
+- name: Backup configuration
+  ansible.builtin.include_tasks:
+    file: backup.yml
+    apply:
+      tags: [phase1, backup]
+  tags: [phase1, backup]
+
+- name: AppArmor configuration
+  ansible.builtin.include_tasks:
+    file: apparmor.yml
+    apply:
+      tags: [phase1, apparmor, security, mac]
+  tags: [phase1, apparmor, security, mac]
+
+- name: SELinux configuration
+  ansible.builtin.include_tasks:
+    file: selinux.yml
+    apply:
+      tags: [phase1, selinux, security, mac]
+  tags: [phase1, selinux, security, mac]
+
+################################################################################
+# PHASE 1.A: Critical Security Hardening
+################################################################################
+
+- name: Kernel hardening
+  ansible.builtin.include_tasks:
+    file: kernel_hardening.yml
+    apply:
+      tags: [phase1a, kernel, security, hardening]
+  when: kernel_hardening_enabled | default(false)
+  tags: [phase1a, kernel, security, hardening]
+
+- name: Password policy
+  ansible.builtin.include_tasks:
+    file: password_policy.yml
+    apply:
+      tags: [phase1a, password, security, hardening]
+  tags: [phase1a, password, security, hardening]
+
+- name: Storage hardening
+  ansible.builtin.include_tasks:
+    file: storage_hardening.yml
+    apply:
+      tags: [phase1a, storage, security, hardening]
+  tags: [phase1a, storage, security, hardening]
+
+################################################################################
+# PHASE 1.B: Operational Excellence
+################################################################################
+
+- name: Performance tuning
+  ansible.builtin.include_tasks:
+    file: performance_tuning.yml
+    apply:
+      tags: [phase1b, performance, tuning]
+  tags: [phase1b, performance, tuning]
+
+- name: Monitoring tuning
+  ansible.builtin.include_tasks:
+    file: monitoring_tuning.yml
+    apply:
+      tags: [phase1b, monitoring, tuning]
+  tags: [phase1b, monitoring, tuning]
+
+- name: Compliance scanning
+  ansible.builtin.include_tasks:
+    file: compliance_scanning.yml
+    apply:
+      tags: [phase1b, compliance, security]
+  tags: [phase1b, compliance, security]
+
+- name: Compliance automation
+  ansible.builtin.include_tasks:
+    file: compliance_automation.yml
+    apply:
+      tags: [phase1b, compliance, automation]
+  tags: [phase1b, compliance, automation]
+
+- name: Backup recovery testing
+  ansible.builtin.include_tasks:
+    file: backup_recovery_testing.yml
+    apply:
+      tags: [phase1b, backup, testing]
+  tags: [phase1b, backup, testing]
+
+################################################################################
+# PHASE 2.A: Advanced Monitoring Stack
+################################################################################
+
+- name: Include Prometheus monitoring
+  ansible.builtin.include_tasks:
+    file: monitoring_prometheus_wrapper.yml
+    apply:
+      tags: [phase2a, prometheus, monitoring]
+  when: monitoring_prometheus_enabled | default(false)
+  tags: [phase2a, prometheus, monitoring]
+
+- name: Include Grafana dashboards
+  ansible.builtin.include_tasks:
+    file: monitoring_grafana_wrapper.yml
+    apply:
+      tags: [phase2a, grafana, monitoring]
+  when: monitoring_grafana_enabled | default(false)
+  tags: [phase2a, grafana, monitoring]
+
+- name: Include AlertManager
+  ansible.builtin.include_tasks:
+    file: monitoring_alertmanager_wrapper.yml
+    apply:
+      tags: [phase2a, alertmanager, monitoring, alerting]
+  when: monitoring_alertmanager_enabled | default(false)
+  tags: [phase2a, alertmanager, monitoring, alerting]
+
+################################################################################
+# PHASE 2.B: Container & Application Deployment
+################################################################################
+
+- name: Include Docker installation
+  ansible.builtin.include_tasks:
+    file: docker_installation_wrapper.yml
+    apply:
+      tags: [phase2b, docker, containers]
+  when: container_docker_enabled | default(false)
+  tags: [phase2b, docker, containers]
+
+- name: Include Docker Compose
+  ansible.builtin.include_tasks:
+    file: docker_compose_wrapper.yml
+    apply:
+      tags: [phase2b, docker, docker_compose, containers]
+  when: container_docker_enabled | default(false)
+  tags: [phase2b, docker, docker_compose, containers]
+
+- name: Include Docker security
+  ansible.builtin.include_tasks:
+    file: docker_security_wrapper.yml
+    apply:
+      tags: [phase2b, docker, docker_security, containers, security]
+  when: container_docker_enabled | default(false)
+  tags: [phase2b, docker, docker_security, containers, security]
+
+################################################################################
+# PHASE 2.C: Service Discovery & Load Balancing
+################################################################################
+
+- name: Include Consul installation
+  ansible.builtin.include_tasks:
+    file: consul_installation_wrapper.yml
+    apply:
+      tags: [phase2c, consul, service_discovery]
+  when: service_discovery_consul_enabled | default(false)
+  tags: [phase2c, consul, service_discovery]
+
+- name: Include Consul service discovery
+  ansible.builtin.include_tasks:
+    file: consul_service_discovery_wrapper.yml
+    apply:
+      tags: [phase2c, consul, service_discovery]
+  when: service_discovery_consul_enabled | default(false)
+  tags: [phase2c, consul, service_discovery]
+
+- name: Include HAProxy load balancer
+  ansible.builtin.include_tasks:
+    file: haproxy_loadbalancer_wrapper.yml
+    apply:
+      tags: [phase2c, haproxy, loadbalancing, network]
+  when: loadbalancing_haproxy_enabled | default(false)
+  tags: [phase2c, haproxy, loadbalancing, network]
+
+################################################################################
+# PHASE 2.D: Security & PKI Infrastructure
+################################################################################
+
+- name: Include Vault installation
+  ansible.builtin.include_tasks:
+    file: vault_installation_wrapper.yml
+    apply:
+      tags: [phase2d, vault, pki, security]
+  when: security_vault_enabled | default(false)
+  tags: [phase2d, vault, pki, security]
+
+- name: Include Vault PKI
+  ansible.builtin.include_tasks:
+    file: vault_pki_wrapper.yml
+    apply:
+      tags: [phase2d, vault, pki, certificates, security]
+  when: security_vault_pki_enabled | default(false)
+  tags: [phase2d, vault, pki, certificates, security]
+
+- name: Include Vault secrets rotation
+  ansible.builtin.include_tasks:
+    file: vault_secrets_rotation_wrapper.yml
+    apply:
+      tags: [phase2d, vault, secrets, rotation, security]
+  when: security_vault_enabled | default(false)
+  tags: [phase2d, vault, secrets, rotation, security]
+
+################################################################################
+# PHASE 2.E: Database Replication & High Availability
+################################################################################
+
+- name: Include PostgreSQL replication
+  ansible.builtin.include_tasks:
+    file: postgresql_replication_wrapper.yml
+    apply:
+      tags: [phase2e, postgresql, database, replication]
+  when: database_postgresql_enabled | default(false)
+  tags: [phase2e, postgresql, database, replication]
+
+- name: Include MySQL Galera cluster
+  ansible.builtin.include_tasks:
+    file: mysql_galera_wrapper.yml
+    apply:
+      tags: [phase2e, mysql, galera, database, replication]
+  when: database_mysql_enabled | default(false)
+  tags: [phase2e, mysql, galera, database, replication]
+
+################################################################################
+# PHASE 2.F: GPU Hosting & Vast.ai Marketplace
+################################################################################
+
+- name: Include NVIDIA driver installation
+  ansible.builtin.include_tasks:
+    file: nvidia_driver_installation.yml
+    apply:
+      tags: [phase2f, nvidia, gpu, drivers]
+  when: gpu_nvidia_enabled | default(false)
+  tags: [phase2f, nvidia, gpu, drivers]
+
+- name: Include NVIDIA container toolkit
+  ansible.builtin.include_tasks:
+    file: nvidia_container_toolkit_wrapper.yml
+    apply:
+      tags: [phase2f, nvidia, gpu, containers, docker]
+  when: gpu_container_toolkit_enabled | default(false)
+  tags: [phase2f, nvidia, gpu, containers, docker]
+
+- name: Include GPU monitoring
+  ansible.builtin.include_tasks:
+    file: gpu_monitoring_wrapper.yml
+    apply:
+      tags: [phase2f, gpu, monitoring, dcgm]
+  when: gpu_monitoring_enabled | default(false)
+  tags: [phase2f, gpu, monitoring, dcgm]
+
+- name: Include Vast.ai host installation
+  ansible.builtin.include_tasks:
+    file: vastai_host_installation.yml
+    apply:
+      tags: [phase2f, vastai, gpu, marketplace]
+  when: vastai_enabled | default(false)
+  tags: [phase2f, vastai, gpu, marketplace]
+
+- name: Include Vast.ai host configuration
+  ansible.builtin.include_tasks:
+    file: vastai_host_configuration.yml
+    apply:
+      tags: [phase2f, vastai, gpu, config]
+  when: vastai_enabled | default(false)
+  tags: [phase2f, vastai, gpu, config]
+
+################################################################################
+# PHASE 3: Final Integration & Orchestration
+################################################################################
+
+- name: Include Kubernetes orchestration
+  ansible.builtin.include_tasks:
+    file: kubernetes_orchestration_wrapper.yml
+    apply:
+      tags: [phase3, kubernetes, orchestration]
+  when: orchestration_kubernetes_enabled | default(false)
+  tags: [phase3, kubernetes, orchestration]
+
+- name: Include application deployment
+  ansible.builtin.include_tasks:
+    file: application_deployment_wrapper.yml
+    apply:
+      tags: [phase3, deployment, application]
+  when: application_deployment_enabled | default(false)
+  tags: [phase3, deployment, application]
+
+- name: Include service mesh integration
+  ansible.builtin.include_tasks:
+    file: service_mesh_integration_wrapper.yml
+    apply:
+      tags: [phase3, service_mesh, networking]
+  when: service_mesh_enabled | default(false)
+  tags: [phase3, service_mesh, networking]
+
+- name: Include disaster recovery
+  ansible.builtin.include_tasks:
+    file: disaster_recovery_wrapper.yml
+    apply:
+      tags: [phase3, disaster_recovery, backup]
+  when: disaster_recovery_enabled | default(false)
+  tags: [phase3, disaster_recovery, backup]
+
+- name: Include advanced monitoring
+  ansible.builtin.include_tasks:
+    file: advanced_monitoring_wrapper.yml
+    apply:
+      tags: [phase3, monitoring, advanced]
+  when: advanced_monitoring_enabled | default(false)
+  tags: [phase3, monitoring, advanced]
+
+################################################################################
+# Summary
+################################################################################
 
 - name: Display role completion summary
   ansible.builtin.debug:
     msg: "Common role applied successfully - base server configuration complete"
   when: not ansible_check_mode
+  tags: [always, summary]
 
-- name: Display PHASE 2.A status
+- name: Display optional features status
   ansible.builtin.debug:
     msg: |
-      ✓ PHASE 2.A Monitoring Stack Status:
-      - Prometheus: {{ 'Enabled' if monitoring_prometheus_enabled | default(true) else 'Disabled' }}
-      - Grafana: {{ 'Enabled' if monitoring_grafana_enabled | default(true) else 'Disabled' }}
-      - AlertManager: {{ 'Enabled' if monitoring_alertmanager_enabled | default(true) else 'Disabled' }}
-  tags:
-    - monitoring
-    - phase_2_a
-    - summary
-  when: not ansible_check_mode
-
-- name: Display PHASE 2.B status
-  ansible.builtin.debug:
-    msg: |
-      ✓ PHASE 2.B Container Deployment Status:
-      - Docker: {{ 'Enabled' if container_docker_enabled | default(true) else 'Disabled' }}
-      - Docker Compose: {{ 'Enabled' if container_docker_compose_enabled | default(true) else 'Disabled' }}
-      - Security Hardening: Configured
-  tags:
-    - docker
-    - containers
-    - phase_2_b
-    - summary
-  when: not ansible_check_mode
-
-- name: Display PHASE 2.C status
-  ansible.builtin.debug:
-    msg: |
-      ✓ PHASE 2.C Service Discovery & Load Balancing Status:
-      - Consul: {{ 'Enabled' if service_discovery_consul_enabled | default(false) else 'Disabled' }}
-      - HAProxy: {{ 'Enabled' if loadbalancing_haproxy_enabled | default(false) else 'Disabled' }}
-      - Service Integration: {{ 'Enabled' if (service_discovery_consul_enabled | default(false) and loadbalancing_haproxy_enabled | default(false)) else 'Not fully enabled' }}
-  tags:
-    - consul
-    - haproxy
-    - service_discovery
-    - load_balancing
-    - phase_2_c
-    - summary
-  when: not ansible_check_mode
-
-- name: Display PHASE 2.D status
-  ansible.builtin.debug:
-    msg: |
-      ✓ PHASE 2.D Security & PKI Infrastructure Status:
-      - Vault: {{ 'Enabled' if security_vault_enabled | default(false) else 'Disabled' }}
-      - PKI: {{ 'Enabled' if security_vault_pki_enabled | default(false) else 'Disabled' }}
-      - Rotation: {{ 'Enabled' if (security_vault_database_rotation_enabled | default(false) or security_vault_ssh_rotation_enabled | default(false) or security_vault_api_key_rotation_enabled | default(false)) else 'Disabled' }}
-      - Audit Logging: {{ 'Enabled' if security_vault_audit_enabled | default(false) else 'Disabled' }}
-  tags:
-    - vault
-    - security
-    - pki
-    - secrets
-    - phase_2_d
-    - summary
+      Optional Features Status:
+      ========================
+      Monitoring:
+        - Prometheus: {{ 'Enabled' if monitoring_prometheus_enabled | default(false) else 'Disabled' }}
+        - Grafana: {{ 'Enabled' if monitoring_grafana_enabled | default(false) else 'Disabled' }}
+        - AlertManager: {{ 'Enabled' if monitoring_alertmanager_enabled | default(false) else 'Disabled' }}
+      Containers:
+        - Docker: {{ 'Enabled' if container_docker_enabled | default(false) else 'Disabled' }}
+      Service Discovery:
+        - Consul: {{ 'Enabled' if service_discovery_consul_enabled | default(false) else 'Disabled' }}
+        - HAProxy: {{ 'Enabled' if loadbalancing_haproxy_enabled | default(false) else 'Disabled' }}
+      Security:
+        - Vault: {{ 'Enabled' if security_vault_enabled | default(false) else 'Disabled' }}
+      Databases:
+        - PostgreSQL: {{ 'Enabled' if database_postgresql_enabled | default(false) else 'Disabled' }}
+        - MySQL: {{ 'Enabled' if database_mysql_enabled | default(false) else 'Disabled' }}
+      Orchestration:
+        - Kubernetes: {{ 'Enabled' if orchestration_kubernetes_enabled | default(false) else 'Disabled' }}
+  tags: [always, summary]
   when: not ansible_check_mode

@@ -1,0 +1,88 @@
+---
+# Plesk Firewall Configuration
+# Opens all required ports for Plesk hosting server
+#
+# Usage:
+#   ansible-playbook playbooks/plesk-firewall.yml -i inventories/projects/plesk-server
+
+- name: Configure Plesk Firewall
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    plesk_ports:
+      # Plesk Panel
+      - { port: 8443, proto: tcp, comment: "Plesk Panel HTTPS" }
+      - { port: 8447, proto: tcp, comment: "Plesk Installer" }
+      - { port: 8880, proto: tcp, comment: "Plesk Panel HTTP" }
+
+      # Web
+      - { port: 80, proto: tcp, comment: "HTTP" }
+      - { port: 443, proto: tcp, comment: "HTTPS" }
+
+      # SSH
+      - { port: 22, proto: tcp, comment: "SSH" }
+
+      # FTP
+      - { port: 21, proto: tcp, comment: "FTP" }
+
+      # Email SMTP
+      - { port: 25, proto: tcp, comment: "SMTP" }
+      - { port: 465, proto: tcp, comment: "SMTPS" }
+      - { port: 587, proto: tcp, comment: "SMTP Submission" }
+
+      # Email POP3/IMAP
+      - { port: 110, proto: tcp, comment: "POP3" }
+      - { port: 995, proto: tcp, comment: "POP3S" }
+      - { port: 143, proto: tcp, comment: "IMAP" }
+      - { port: 993, proto: tcp, comment: "IMAPS" }
+
+      # DNS
+      - { port: 53, proto: tcp, comment: "DNS TCP" }
+      - { port: 53, proto: udp, comment: "DNS UDP" }
+
+      # Database
+      - { port: 3306, proto: tcp, comment: "MySQL" }
+
+  tasks:
+    - name: Check current iptables rules
+      ansible.builtin.command: iptables -L INPUT -n --line-numbers
+      register: iptables_rules
+      changed_when: false
+
+    - name: Display current rules
+      ansible.builtin.debug:
+        var: iptables_rules.stdout_lines
+
+    - name: Ensure iptables-persistent is installed (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: iptables-persistent
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Add iptables rules for Plesk ports
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: "{{ item.proto }}"
+        destination_port: "{{ item.port }}"
+        jump: ACCEPT
+        comment: "{{ item.comment }}"
+        state: present
+      loop: "{{ plesk_ports }}"
+      notify: Save iptables rules
+
+    - name: Add FTP passive port range
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "49152:65535"
+        jump: ACCEPT
+        comment: "FTP Passive Mode"
+        state: present
+      notify: Save iptables rules
+
+  handlers:
+    - name: Save iptables rules
+      ansible.builtin.command: netfilter-persistent save
+      when: ansible_os_family == "Debian"

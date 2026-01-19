@@ -1,0 +1,171 @@
+---
+# Headscale - Validation Tasks
+
+- name: Validate Headscale configuration
+  ansible.builtin.assert:
+    that:
+      - headscale_enabled | bool
+      - headscale_domain | length > 0
+      - headscale_server_url | length > 0
+      - headscale_port | int > 0
+      - headscale_port | int < 65536
+      - headscale_metrics_port | int > 0
+      - headscale_metrics_port | int < 65536
+      - headscale_grpc_port | int > 0
+      - headscale_grpc_port | int < 65536
+      - headscale_base_dir | length > 0
+      - headscale_config_dir | length > 0
+      - headscale_data_dir | length > 0
+      - headscale_ip_prefixes | length > 0
+      - headscale_database_type in ['sqlite', 'postgres']
+    fail_msg: "Headscale configuration validation failed"
+    success_msg: "Headscale configuration validated successfully"
+
+- name: Validate domain is not example.com
+  ansible.builtin.assert:
+    that:
+      - "'example.com' not in headscale_domain"
+    fail_msg: "headscale_domain must be set to your actual domain, not example.com"
+  when: headscale_state == 'present'
+
+- name: Validate PostgreSQL configuration when using postgres
+  ansible.builtin.assert:
+    that:
+      - headscale_postgres_host | length > 0
+      - headscale_postgres_port | int > 0
+      - headscale_postgres_name | length > 0
+      - headscale_postgres_user | length > 0
+      - headscale_postgres_password | length > 0
+    fail_msg: "PostgreSQL configuration incomplete"
+  no_log: true
+  when:
+    - headscale_database_type == 'postgres'
+    - headscale_state == 'present'
+
+- name: Validate OIDC configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - headscale_oidc_issuer | length > 0
+      - headscale_oidc_client_id | length > 0
+      - headscale_oidc_client_secret | length > 0
+    fail_msg: "OIDC configuration incomplete - issuer, client_id, and client_secret are required"
+  no_log: true
+  when:
+    - headscale_oidc_enabled | bool
+    - headscale_state == 'present'
+
+- name: Validate TLS configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - headscale_tls_mode in ['letsencrypt', 'manual']
+    fail_msg: "headscale_tls_mode must be 'letsencrypt' or 'manual'"
+  when:
+    - headscale_tls_enabled | bool
+    - headscale_state == 'present'
+
+- name: Validate Let's Encrypt configuration
+  ansible.builtin.assert:
+    that:
+      - headscale_acme_email | length > 0
+    fail_msg: "headscale_acme_email is required for Let's Encrypt"
+  when:
+    - headscale_tls_enabled | bool
+    - headscale_tls_mode == 'letsencrypt'
+    - headscale_state == 'present'
+
+- name: Validate manual TLS configuration
+  ansible.builtin.assert:
+    that:
+      - headscale_tls_cert_path | length > 0
+      - headscale_tls_key_path | length > 0
+    fail_msg: "headscale_tls_cert_path and headscale_tls_key_path are required for manual TLS"
+  when:
+    - headscale_tls_enabled | bool
+    - headscale_tls_mode == 'manual'
+    - headscale_state == 'present'
+
+- name: Validate Headplane cookie secret when enabled
+  ansible.builtin.assert:
+    that:
+      - headplane_cookie_secret | length >= 32
+    fail_msg: "headplane_cookie_secret must be at least 32 characters. Generate with: openssl rand -hex 16"
+  no_log: true
+  when:
+    - headplane_enabled | bool
+    - headscale_state == 'present'
+
+- name: Verify supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution in ['Ubuntu', 'Debian']
+    fail_msg: "Headscale role requires Ubuntu or Debian (detected {{ ansible_distribution }})"
+
+- name: Check OS version compatibility
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution_major_version | int >= 11 or (ansible_distribution == 'Ubuntu' and ansible_distribution_major_version | int >= 20)
+    fail_msg: "Headscale requires Ubuntu 20.04+ or Debian 11+ (detected {{ ansible_distribution }} {{ ansible_distribution_version }})"
+
+- name: Check if Docker is available
+  ansible.builtin.command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Docker is not installed
+  ansible.builtin.fail:
+    msg: "Docker is required but not installed. Please install Docker first using the common role with container_docker_enabled: true"
+  when: docker_check.rc != 0
+
+- name: Check if Docker Compose is available
+  ansible.builtin.command: docker compose version
+  register: compose_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Docker Compose is not installed
+  ansible.builtin.fail:
+    msg: "Docker Compose v2 is required but not installed"
+  when: compose_check.rc != 0
+
+- name: Check available disk space
+  ansible.builtin.shell: |
+    set -euo pipefail
+    parent_dir=$(dirname "{{ headscale_base_dir }}")
+    if [ -d "$parent_dir" ]; then
+      available=$(df "$parent_dir" | awk 'NR==2 {print $4}')
+    else
+      available=$(df / | awk 'NR==2 {print $4}')
+    fi
+    if [ "$available" -lt 524288 ]; then
+      echo "Insufficient disk space (need 512MB, have $(( available / 1024 ))MB)"
+      exit 1
+    fi
+    echo "OK: $(( available / 1024 ))MB available"
+  args:
+    executable: /bin/bash
+  register: disk_check
+  changed_when: false
+
+- name: Check available memory
+  ansible.builtin.assert:
+    that:
+      - ansible_memtotal_mb | int >= 512
+    fail_msg: "Insufficient memory (minimum 512MB required, have {{ ansible_memtotal_mb }}MB)"
+
+- name: Check for port conflicts
+  ansible.builtin.shell: |
+    set -uo pipefail
+    ss -tlnp 2>/dev/null | grep -E ":({{ headscale_port }}|{{ headscale_metrics_port }}|{{ headscale_grpc_port }}|{{ headplane_port }})" | grep -v docker || echo "No conflicts"
+  args:
+    executable: /bin/bash
+  register: port_check
+  changed_when: false
+  failed_when: false
+
+- name: Warn about potential port conflicts
+  ansible.builtin.debug:
+    msg: "Warning: Ports may be in use. Check output: {{ port_check.stdout }}"
+  when:
+    - "'LISTEN' in port_check.stdout"
+    - "'No conflicts' not in port_check.stdout"

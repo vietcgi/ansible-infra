@@ -1,0 +1,102 @@
+---
+# ipset blocklist: Pre-emptive IP blocking using known attacker lists
+# Blocks IPs at network level before they can reach services
+# Combines external threat feeds with local auth.log analysis
+
+- name: Install ipset package
+  ansible.builtin.package:
+    name: ipset
+    state: present
+  tags:
+    - ipset
+    - blocklist
+    - security
+
+- name: Install curl for fetching blocklists
+  ansible.builtin.package:
+    name: curl
+    state: present
+  tags:
+    - ipset
+    - blocklist
+
+- name: Create blocklist update script
+  ansible.builtin.template:
+    src: ipset_blocklist_update.sh.j2
+    dest: /usr/local/bin/update-blocklist.sh
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - ipset
+    - blocklist
+
+- name: Create ipset blocklist systemd service
+  ansible.builtin.template:
+    src: ipset_blocklist.service.j2
+    dest: /etc/systemd/system/ipset-blocklist.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload systemd
+  tags:
+    - ipset
+    - blocklist
+
+- name: Create cron job for daily blocklist update
+  ansible.builtin.cron:
+    name: "Update IP blocklist"
+    minute: "0"
+    hour: "{{ blocklist_update_hour | default('4') }}"
+    job: "/usr/local/bin/update-blocklist.sh >/dev/null 2>&1"
+    user: root
+  tags:
+    - ipset
+    - blocklist
+
+- name: Enable ipset-blocklist service
+  ansible.builtin.systemd:
+    name: ipset-blocklist
+    enabled: true
+  tags:
+    - ipset
+    - blocklist
+
+- name: Run initial blocklist update
+  ansible.builtin.command: /usr/local/bin/update-blocklist.sh
+  register: blocklist_init
+  changed_when: "'updated' in blocklist_init.stdout"
+  tags:
+    - ipset
+    - blocklist
+
+- name: Add iptables rule for blocklist (if not exists)
+  ansible.builtin.shell: |
+    if ! iptables -C INPUT -m set --match-set blocklist src -j DROP 2>/dev/null; then
+      iptables -I INPUT 1 -m set --match-set blocklist src -j DROP
+      echo "RULE_ADDED"
+    fi
+  register: iptables_result
+  changed_when: "'RULE_ADDED' in iptables_result.stdout"
+  notify: save iptables
+  tags:
+    - ipset
+    - blocklist
+
+- name: Verify blocklist is active
+  ansible.builtin.command: ipset list blocklist -t
+  register: blocklist_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - ipset
+    - blocklist
+    - validate
+
+- name: Report blocklist status
+  ansible.builtin.debug:
+    msg: "Blocklist: {{ blocklist_status.stdout_lines | select('search', 'Number of entries') | first | default('Not available') }}"
+  when: blocklist_status.rc == 0
+  tags:
+    - ipset
+    - blocklist

@@ -1,0 +1,72 @@
+---
+# Vast.ai GPU Host - Group Variables
+# These settings apply to all hosts in this project
+#
+# Sensitive values (API keys) should use environment variables or Ansible Vault
+
+# =========================================================================
+# VAST.AI MARKETPLACE SETTINGS
+# =========================================================================
+
+# API Key - Use environment variable or Ansible Vault
+# export VASTAI_API_KEY="your-api-key"
+# Or use: ansible-vault encrypt_string 'your-api-key' --name 'vastai_api_key'
+vastai_api_key: "{{ lookup('env', 'VASTAI_API_KEY') }}"
+
+# GPU Rental Configuration
+vastai_min_gpu: 1                        # Allow single-GPU rentals
+vastai_port_range_start: 40000
+vastai_port_range_end: 40019
+
+# Pricing Strategy
+# Conservative: Lower prices for faster verification and initial rentals
+# Competitive: Match market rates after verification
+# Premium: Higher prices for verified, high-uptime machines
+vastai_price_gpu: 0.50                   # Start conservative, increase after verification
+vastai_price_disk: 0.15
+vastai_price_inet_up: 0.00
+vastai_price_inet_down: 0.00
+vastai_discount_rate: 0.4                # 40% max discount for long-term prepay
+
+# =========================================================================
+# GPU DRIVER SETTINGS
+# =========================================================================
+
+gpu_nvidia_driver_version: "550"         # Use stable server driver
+gpu_nvidia_driver_type: "server"         # 'server' for hosting, 'desktop' for workstations
+gpu_nvidia_driver_hold: true             # Prevent auto-updates breaking GPU
+
+# =========================================================================
+# MONITORING & OBSERVABILITY
+# =========================================================================
+
+gpu_monitoring_enabled: true
+gpu_monitoring_dcgm_port: 9400
+
+# Prometheus can scrape: http://<host>:9400/metrics
+# Grafana Dashboard ID: 12239
+
+# =========================================================================
+# SECURITY HARDENING
+# =========================================================================
+
+# SSH Protection
+fail2ban_enabled: true
+fail2ban_maxretry_ssh: 5
+fail2ban_bantime_ssh: 14400              # 4 hours
+
+# Firewall
+firewall_enabled: true
+vastai_firewall_ports_enabled: true      # Auto-open Vast.ai ports
+
+# =========================================================================
+# SYSTEM OPTIMIZATION
+# =========================================================================
+
+# Time sync (important for Vast.ai verification)
+common_chrony_enabled: true
+common_timezone: "UTC"
+
+# System updates
+common_update_packages: true
+common_upgrade_packages: true

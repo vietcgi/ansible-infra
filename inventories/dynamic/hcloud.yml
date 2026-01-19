@@ -1,0 +1,128 @@
+# Hetzner Cloud Dynamic Inventory
+# =================================
+# Automatically discovers servers from Hetzner Cloud
+#
+# Requirements:
+#   pip install hcloud
+#   ansible-galaxy collection install hetzner.hcloud
+#
+# Authentication:
+#   Set HCLOUD_TOKEN environment variable or use token parameter
+#   Get API token from: https://console.hetzner.cloud/projects/*/security/tokens
+#
+# Usage:
+#   export HCLOUD_TOKEN="your-api-token"
+#   ansible-inventory -i inventories/dynamic/hcloud.yml --list
+#   ansible-playbook -i inventories/dynamic/hcloud.yml playbooks/provision.yml
+---
+plugin: hetzner.hcloud.hcloud
+
+# API Token (prefer environment variable HCLOUD_TOKEN for security)
+# token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+
+# Server status filter
+status:
+  - running
+  # - starting
+  # - stopping
+
+# Location filter (optional - uncomment to filter by datacenter)
+# locations:
+#   - fsn1  # Falkenstein
+#   - nbg1  # Nuremberg
+#   - hel1  # Helsinki
+#   - ash   # Ashburn, VA
+
+# Server type filter (optional)
+# types:
+#   - cx21
+#   - cx31
+#   - cpx11
+
+# Label selector (Hetzner labels, not Ansible)
+# Uses Kubernetes-style label selectors
+# label_selector: "env=production,app=web"
+
+# Image filter (optional)
+# images:
+#   - ubuntu-22.04
+#   - debian-12
+
+# Compose variables from server attributes
+compose:
+  # Use private IP if available (for private networks), else public IPv4
+  ansible_host: private_ipv4 | default(ipv4, true)
+  ansible_user: ('root' if image.os_flavor == 'unknown' else 'root')
+  # Server metadata
+  hcloud_id: id
+  hcloud_name: name
+  hcloud_status: status
+  hcloud_server_type: server_type
+  hcloud_datacenter: datacenter
+  hcloud_location: location
+  hcloud_image: image.name | default('unknown')
+  # Custom variables from labels
+  environment: labels.get('env', 'unknown')
+  role: labels.get('role', 'server')
+  project: labels.get('project', 'default')
+
+# Create groups based on server attributes
+keyed_groups:
+  # Group by datacenter
+  - key: datacenter
+    prefix: hcloud_dc
+    separator: "_"
+
+  # Group by location
+  - key: location
+    prefix: hcloud_loc
+    separator: "_"
+
+  # Group by server type
+  - key: server_type
+    prefix: hcloud_type
+    separator: "_"
+
+  # Group by image/OS
+  - key: image.os_flavor | default('unknown')
+    prefix: os
+    separator: "_"
+
+  # Group by labels
+  - key: labels.env | default('untagged')
+    prefix: env
+    separator: "_"
+
+  - key: labels.role | default('server')
+    prefix: role
+    separator: "_"
+
+  - key: labels.project | default('default')
+    prefix: project
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All Hetzner Cloud servers
+  hcloud: true
+  # Group by environment labels
+  production: "'production' == labels.get('env', '')"
+  staging: "'staging' == labels.get('env', '')"
+  development: "'development' == labels.get('env', '') or 'dev' == labels.get('env', '')"
+  # Group by role labels
+  webservers: "'web' in labels.get('role', '') or 'webserver' in labels.get('role', '')"
+  databases: "'db' in labels.get('role', '') or 'database' in labels.get('role', '')"
+  # Group by network attachment
+  private_network: private_ipv4 is defined and private_ipv4 | length > 0
+
+# Connect options
+connect_with: public_ipv4  # or private_ipv4 for internal networks
+
+# Cache settings
+cache: true
+cache_plugin: jsonfile
+cache_connection: /tmp/ansible_hcloud_cache
+cache_timeout: 300
+
+# Strict mode
+strict: false

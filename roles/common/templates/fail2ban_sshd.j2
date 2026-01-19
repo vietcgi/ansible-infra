@@ -5,13 +5,14 @@
 [sshd]
 enabled = true
 port = {{ fail2ban_ssh_port | default('ssh') }}
-filter = sshd
+filter = sshd[mode=normal]
 logpath = %(sshd_log)s
 
-# SSH-specific settings
-maxretry = {{ fail2ban_maxretry_ssh | default(fail2ban_maxretry | default(5)) }}
-findtime = {{ fail2ban_findtime_ssh | default(fail2ban_findtime | default(600)) }}
-bantime = {{ fail2ban_bantime_ssh | default(fail2ban_bantime | default(3600)) }}
+# SSH-specific settings (balanced for security without false positives)
+# Industry standards: 3-5 retries, 10min window, 4-24hr ban
+maxretry = {{ fail2ban_maxretry_ssh | default(5) }}
+findtime = {{ fail2ban_findtime_ssh | default(600) }}
+bantime = {{ fail2ban_bantime_ssh | default(14400) }}
 
 # SSH backend (pure regex vs systemd parsing)
 backend = {{ fail2ban_sshd_backend | default('auto') }}
@@ -30,7 +31,6 @@ sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
 # Ban IPv4 and IPv6
 banaction = iptables-multiport
 banaction_allports = iptables-allports
-destemail = {{ fail2ban_destemail | default('root') }}
 
 # Optional: Increase sensitivity for SSH
 # Common SSH attack patterns:
@@ -38,21 +38,8 @@ destemail = {{ fail2ban_destemail | default('root') }}
 # - Permission denied
 # - Failed password
 # - Disconnected
-ignorecommand = /path/to/custom/ignore/script
-ignoreregex =
-
-# Monitor both authentication and connection issues
-logpath = /var/log/auth.log
-            /var/log/secure
-
-# Connection timeout handling
-timeout = {{ fail2ban_sshd_timeout | default(600) }}
-
-# Ban all ports when SSH detected
-banaction_allports = iptables-allports
-
 # Use IPv6 bans if available
 banaction_ipv6 = ip6tables-multiport
 
 # Chain for iptables rules
-chain = {% if ansible_os_family == 'Debian' %}INPUT{% else %}INPUT{% endif %}
+chain = INPUT

@@ -1,0 +1,90 @@
+---
+# pfSense WireGuard Role - Main Tasks
+# Uses pfsensible.core collection for pfSense automation
+
+- name: pfSense WireGuard Configuration
+  when: pfsense_wireguard_enabled | bool
+  block:
+    - name: Display configuration summary
+      ansible.builtin.debug:
+        msg: |
+          pfSense WireGuard Configuration
+          ================================
+          Mode: {{ pfsense_wireguard_mode }}
+          {% if pfsense_wireguard_mode == 'provider' %}
+          Provider: {{ pfsense_wireguard_provider.name }}
+          Endpoint: {{ pfsense_wireguard_provider.endpoint }}:{{ pfsense_wireguard_provider.endpoint_port }}
+          {% endif %}
+          Interface: {{ pfsense_wireguard_interface_name }}
+          NAT: {{ pfsense_wireguard_configure_nat | ternary('Yes', 'No') }}
+          Kill Switch: {{ pfsense_wireguard_kill_switch | ternary('Yes', 'No') }}
+
+    - name: Validate required variables
+      ansible.builtin.include_tasks: validate.yml
+
+    - name: Install WireGuard package
+      ansible.builtin.include_tasks: install.yml
+      when: pfsense_wireguard_ensure_package | bool
+
+    - name: Configure WireGuard tunnel
+      ansible.builtin.include_tasks: tunnel.yml
+
+    - name: Assign WireGuard interface
+      ansible.builtin.include_tasks: interface.yml
+      when: pfsense_wireguard_assign_interface | bool
+
+    - name: Configure gateway
+      ansible.builtin.include_tasks: gateway.yml
+      when: pfsense_wireguard_create_gateway | bool
+
+    - name: Configure outbound NAT
+      ansible.builtin.include_tasks: nat.yml
+      when: pfsense_wireguard_configure_nat | bool
+
+    - name: Configure firewall rules
+      ansible.builtin.include_tasks: firewall.yml
+      when: pfsense_wireguard_configure_firewall | bool
+
+    - name: Configure kill switch
+      ansible.builtin.include_tasks: killswitch.yml
+      when: pfsense_wireguard_kill_switch | bool
+
+    - name: Verify WireGuard connectivity
+      ansible.builtin.include_tasks: verify.yml
+      when: pfsense_wireguard_verify | bool
+
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ pfSense WireGuard Configuration Complete
+          ==========================================
+          Tunnel: Configured
+          Interface: {{ pfsense_wireguard_interface_name }}
+          Gateway: {{ pfsense_wireguard_gateway_name | default('Not configured') }}
+          NAT: {{ pfsense_wireguard_configure_nat | ternary('Configured', 'Skipped') }}
+          Firewall: {{ pfsense_wireguard_configure_firewall | ternary('Configured', 'Skipped') }}
+          Kill Switch: {{ pfsense_wireguard_kill_switch | ternary('Enabled', 'Disabled') }}
+
+          Next Steps:
+          1. Verify tunnel status: Status > WireGuard
+          2. Check interface status: Status > Interfaces
+          3. Test connectivity through VPN
+          4. Verify your public IP has changed
+
+  rescue:
+    - name: Display error information
+      ansible.builtin.debug:
+        msg: |
+          ✗ pfSense WireGuard configuration failed
+          =========================================
+          Error: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          Troubleshooting:
+          1. Verify pfSense is accessible via SSH
+          2. Check WireGuard package is compatible with pfSense version
+          3. Verify provider credentials (keys, endpoint)
+          4. Check pfSense system logs
+
+    - name: Fail with error details
+      ansible.builtin.fail:
+        msg: "WireGuard configuration failed. See error above."

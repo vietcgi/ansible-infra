@@ -1,0 +1,71 @@
+---
+# Molecule configuration for pfsense_wireguard role
+#
+# Note: pfSense testing requires a real VM (not container)
+# This config uses delegated driver for manual VM management
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ../../requirements.yml
+
+driver:
+  name: delegated
+  options:
+    managed: false
+
+platforms:
+  - name: pfsense-test
+    groups:
+      - pfsense
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "../../roles:~/.ansible/roles"
+  inventory:
+    host_vars:
+      pfsense-test:
+        ansible_host: ${PFSENSE_TEST_HOST:-192.168.56.10}
+        ansible_user: ${PFSENSE_TEST_USER:-admin}
+        ansible_python_interpreter: /usr/local/bin/python3.8
+        ansible_connection: network_cli
+        ansible_network_os: pfsensible.core.pfsense
+
+        # Test configuration (SafeShark-like)
+        pfsense_wireguard_enabled: true
+        pfsense_wireguard_mode: "provider"
+        pfsense_wireguard_provider:
+          name: "TestVPN"
+          endpoint: ${WG_ENDPOINT:-test.example.com}
+          endpoint_port: 51820
+          public_key: ${WG_PUBLIC_KEY:-test-public-key-placeholder-44char}
+          private_key: ${WG_PRIVATE_KEY:-test-private-key-placeholder-44char}
+          address: "10.66.66.2/32"
+          allowed_ips: "0.0.0.0/0"
+          persistent_keepalive: 25
+          mtu: 1420
+
+        pfsense_wireguard_configure_nat: true
+        pfsense_wireguard_nat_sources:
+          - "lan"
+        pfsense_wireguard_verify: false  # Skip verification in CI
+
+  options:
+    v: true
+
+verifier:
+  name: ansible
+
+scenario:
+  name: default
+  test_sequence:
+    - dependency
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - cleanup
+    - destroy

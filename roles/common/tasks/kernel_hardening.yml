@@ -3,6 +3,48 @@
 # Hardens the Linux kernel against common attack vectors
 # Implements: CIS Benchmark 3.x, NIST SP 800-53 SI-16, DISA STIGs
 
+# Load required modules at boot BEFORE modules_disabled is set
+# This allows k3s/Cilium to function with kernel hardening enabled
+- name: Configure required kernel modules for k3s/Cilium
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k3s.conf
+    content: |
+      # Required for k3s/Kubernetes/Cilium
+      # Loaded at boot before kernel.modules_disabled=1 takes effect
+      overlay
+      br_netfilter
+      nf_tables
+      ip_tables
+      ip_set
+      ip_set_hash_ip
+      ip_set_hash_net
+      xt_conntrack
+      vxlan
+    mode: "0644"
+  become: true
+  tags:
+    - kernel_hardening
+    - k3s
+    - security
+
+- name: Load kernel modules now (if not already loaded)
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+    - nf_tables
+    - ip_tables
+    - ip_set
+    - xt_conntrack
+    - vxlan
+  become: true
+  ignore_errors: true
+  tags:
+    - kernel_hardening
+    - k3s
+
 - name: Apply advanced kernel hardening parameters
   ansible.posix.sysctl:
     name: "{{ item.key }}"
@@ -23,14 +65,13 @@
     # Restrict ptrace syscall (prevent process inspection)
     - { key: "kernel.yama.ptrace_scope", value: "2" }
 
-    # Disable dynamic kernel module loading
-    - { key: "kernel.modules_disabled", value: "1" }
-
-    # Restrict magic SysRq key (prevent DoS)
-    - { key: "kernel.magic_sysrq", value: "0" }
+    # Disable dynamic kernel module loading (CAUTION: breaks module loading permanently until reboot)
+    # Only enable if you're certain all required modules are already loaded
+    - { key: "kernel.modules_disabled", value: "{{ '1' if kernel_modules_disabled | default(false) else '0' }}" }
 
     # Prevent unprivileged namespace creation (container escape prevention)
-    - { key: "kernel.unprivileged_userns_clone", value: "0" }
+    # Note: May break some container runtimes - test thoroughly
+    - { key: "kernel.unprivileged_userns_clone", value: "{{ '0' if kernel_restrict_userns | default(true) else '1' }}" }
 
     # Include PID in core dumps for tracking
     - { key: "kernel.core_uses_pid", value: "1" }
@@ -44,30 +85,19 @@
     # Restrict /proc/sys access
     - { key: "kernel.perf_event_paranoid", value: "3" }
 
-    # Hide kernel addresses in /proc/modules
-    - { key: "kernel.modules_disabled", value: "1" }
-
-    # Restrict BPF access to root
-    - { key: "kernel.unprivileged_userns_clone", value: "0" }
-
     # Conservative memory allocation (prevent OOM issues)
     - { key: "vm.overcommit_memory", value: "1" }
-
-    # Enable ExecShield (NX bit enforcement)
-    - { key: "kernel.exec-shield", value: "1" }
-  notify: reboot required
   tags:
     - kernel_hardening
     - security
 
-- name: Restrict access to /proc/sys and /proc/sysrq-trigger
+- name: Restrict access to /proc/sysrq-trigger
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /proc/sysrq-trigger
     mode: "0600"
-  loop:
-    - /proc/sysrq-trigger
-    - /proc/sys/kernel
-  ignore_errors: true
+  failed_when: false
+  # Note: /proc/sys/kernel is a virtual filesystem - permissions controlled
+  # via sysctl (kernel.kptr_restrict, kernel.dmesg_restrict), not chmod
   tags:
     - kernel_hardening
     - security
@@ -82,7 +112,6 @@
   loop:
     - drivers # USB3, Bluetooth, FIREWIRE
     - filesystems # Unnecessary filesystems
-  notify: rebuild initramfs
   tags:
     - kernel_hardening
     - security
@@ -94,7 +123,6 @@
     state: present
     sysctl_set: true
   when: ansible_kernel is version('5.8', '>=')
-  notify: reboot required
   tags:
     - kernel_hardening
     - security

@@ -3,17 +3,28 @@
 # Implements distributed service discovery and KV store
 # Purpose: Install and configure HashiCorp Consul for service registration and discovery
 
-# Pre-flight checks
-- name: Validate Consul installation is enabled
-  ansible.builtin.assert:
-    that:
-      - service_discovery_consul_enabled | default(false) | bool
-    fail_msg: "Consul installation is disabled (service_discovery_consul_enabled=false)"
-    quiet: true
+# Skip if Consul is disabled
+- name: Skip Consul installation if disabled
+  ansible.builtin.debug:
+    msg: "Consul installation disabled. Set service_discovery_consul_enabled: true to enable."
+  when: not (service_discovery_consul_enabled | default(false))
   tags:
     - consul
     - service_discovery
+
+# Validate required variables and prerequisites
+- name: Validate Consul installation prerequisites
+  ansible.builtin.assert:
+    that:
+      - service_discovery_consul_version is defined
+      - service_discovery_consul_version | length > 0
+    fail_msg: "service_discovery_consul_version must be defined for Consul installation"
+    success_msg: "Consul prerequisites validated successfully"
+  when: service_discovery_consul_enabled | default(false)
+  tags:
+    - consul
     - validation
+    - preflight
 
 # Create consul user for service isolation
 - name: Create consul system user

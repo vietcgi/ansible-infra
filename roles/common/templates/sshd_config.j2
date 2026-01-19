@@ -22,18 +22,22 @@ MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,h
 # Host-based authentication
 HostbasedAuthentication no
 PubkeyAuthentication yes
-PermitRootLogin {{ 'yes' if common_ssh_permit_root_login else 'no' }}
+PermitRootLogin {{ common_ssh_permit_root_login | default('no') }}
 StrictModes yes
 
 # Password-based authentication
-PasswordAuthentication {{ 'yes' if common_ssh_password_authentication else 'no' }}
+PasswordAuthentication {{ common_ssh_password_authentication | default('no') }}
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
 
 # General authentication
 MaxAuthTries 3
 MaxSessions 10
+{% if common_ssh_password_authentication | default('no') != 'yes' %}
+# Key-only: Restrict to publickey authentication
 AuthenticationMethods publickey
+{% endif %}
+# When PasswordAuthentication=yes, omit AuthenticationMethods to allow either key or password
 
 # Session management
 UsePAM yes
@@ -43,9 +47,18 @@ AcceptEnv LANG LC_*
 Subsystem sftp /usr/lib/openssh/sftp-server
 
 # Security settings
-AllowUsers *@* # Define specific users in inventory
+{% if common_ssh_allow_users is defined and common_ssh_allow_users | length > 0 %}
+AllowUsers {{ common_ssh_allow_users | join(' ') }}
+{% endif %}
+{% if common_ssh_deny_users is defined and common_ssh_deny_users | length > 0 %}
+DenyUsers {{ common_ssh_deny_users | join(' ') }}
+{% elif common_ssh_permit_root_login | default('no') != 'yes' %}
+# Only deny root if PermitRootLogin is not explicitly enabled
 DenyUsers root
-AllowGroups ssh-users
+{% endif %}
+{% if common_ssh_allow_groups is defined and common_ssh_allow_groups | length > 0 %}
+AllowGroups {{ common_ssh_allow_groups | join(' ') }}
+{% endif %}
 IgnoreRhosts yes
 IgnoreUserKnownHosts yes
 PermitUserEnvironment no
@@ -54,4 +67,4 @@ ClientAliveCountMax 3
 Compression no
 UseDNS no
 TCPKeepAlive yes
-MaxStartups 10:30:100
+MaxStartups {{ common_ssh_max_startups | default('100:30:300') }}

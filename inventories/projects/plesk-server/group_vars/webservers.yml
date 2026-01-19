@@ -1,0 +1,62 @@
+---
+# Web Server Group Configuration
+# Settings specific to web servers
+# These override settings from group_vars/all.yml
+
+# ============================================================================
+# WEB SERVER SPECIFIC SETTINGS
+# ============================================================================
+
+# SSH port for web servers
+common_ssh_port: 2222
+
+# Enable caching for web servers
+enable_caching: true
+cache_type: "redis"  # or "memcached"
+
+# Maximum connections for web servers
+max_connections: 5000
+
+# Monitoring specific to web servers
+monitoring_enabled: true
+monitoring_node_exporter_enabled: true
+
+# Web server role identifier
+server_role: "webserver"
+
+# Enable application deployment
+enable_deployment: true
+deployment_method: "git"
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+
+# Increase file descriptors for web servers
+common_max_open_files: 65536
+
+# Connection timeout settings
+connection_timeout: 30
+read_timeout: 60
+
+# ============================================================================
+# SECURITY FOR WEB SERVERS
+# ============================================================================
+
+# Enable rate limiting
+enable_rate_limiting: true
+rate_limit_connections: 1000
+
+# Enable DDoS protection
+enable_ddos_protection: true
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# These settings apply to the 'webservers' group only.
+# To override for a specific host:
+#   Create: host_vars/<hostname>.yml
+#   Example: host_vars/web01.yml
+#
+# Host-specific overrides have higher priority than group overrides.

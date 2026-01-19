@@ -1,0 +1,114 @@
+# DigitalOcean Dynamic Inventory
+# ================================
+# Automatically discovers Droplets from DigitalOcean
+#
+# Requirements:
+#   pip install requests
+#   ansible-galaxy collection install community.digitalocean
+#
+# Authentication:
+#   Set DO_API_TOKEN environment variable
+#   Get API token from: https://cloud.digitalocean.com/account/api/tokens
+#
+# Usage:
+#   export DO_API_TOKEN="your-api-token"
+#   ansible-inventory -i inventories/dynamic/digitalocean.yml --list
+#   ansible-playbook -i inventories/dynamic/digitalocean.yml playbooks/provision.yml
+---
+plugin: community.digitalocean.digitalocean
+
+# API Token (prefer environment variable for security)
+# api_token: "{{ lookup('env', 'DO_API_TOKEN') }}"
+
+# Pagination settings
+per_page: 200
+
+# Attributes to fetch for each droplet
+attributes:
+  - id
+  - name
+  - memory
+  - vcpus
+  - disk
+  - region
+  - image
+  - size
+  - status
+  - networks
+  - tags
+  - vpc_uuid
+
+# Variable prefix for host variables
+var_prefix: do_
+
+# Compose variables from droplet attributes
+compose:
+  # Set ansible_host to public IPv4
+  ansible_host: do_networks.v4 | selectattr('type', 'eq', 'public') | map(attribute='ip_address') | first | default(None)
+  # Private IP for internal communication
+  private_ip: do_networks.v4 | selectattr('type', 'eq', 'private') | map(attribute='ip_address') | first | default(None)
+  # Default user for DigitalOcean images
+  ansible_user: "'root'"
+  # Droplet metadata
+  droplet_id: do_id
+  droplet_name: do_name
+  droplet_region: do_region.slug
+  droplet_size: do_size.slug
+  droplet_image: do_image.slug | default(do_image.name)
+  droplet_status: do_status
+  # Extract environment from tags
+  environment: do_tags | select('match', 'env:.*') | map('regex_replace', 'env:', '') | first | default('unknown')
+  role: do_tags | select('match', 'role:.*') | map('regex_replace', 'role:', '') | first | default('server')
+  project: do_tags | select('match', 'project:.*') | map('regex_replace', 'project:', '') | first | default('default')
+
+# Create groups based on droplet attributes
+keyed_groups:
+  # Group by region
+  - key: do_region.slug
+    prefix: do_region
+    separator: "_"
+
+  # Group by size/type
+  - key: do_size.slug
+    prefix: do_size
+    separator: "_"
+
+  # Group by image
+  - key: do_image.distribution | default('unknown') | lower | regex_replace('[^a-z0-9]', '_')
+    prefix: os
+    separator: "_"
+
+  # Group by VPC
+  - key: do_vpc_uuid | default('no_vpc')
+    prefix: do_vpc
+    separator: "_"
+
+  # Group by status
+  - key: do_status
+    prefix: status
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All DigitalOcean droplets
+  digitalocean: true
+  # Active/running droplets only
+  active: do_status == 'active'
+  # Group by common tags
+  production: "'env:production' in do_tags"
+  staging: "'env:staging' in do_tags"
+  development: "'env:development' in do_tags or 'env:dev' in do_tags"
+  # Role-based groups
+  webservers: "'role:web' in do_tags or 'role:webserver' in do_tags"
+  databases: "'role:db' in do_tags or 'role:database' in do_tags"
+  # Droplets with private networking
+  private_network: do_networks.v4 | selectattr('type', 'eq', 'private') | list | length > 0
+
+# Cache settings
+cache: true
+cache_plugin: jsonfile
+cache_connection: /tmp/ansible_digitalocean_cache
+cache_timeout: 300
+
+# Strict mode
+strict: false

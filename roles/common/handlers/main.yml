@@ -228,7 +228,10 @@
     state: restarted
     daemon_reload: true
   become: true
-  when: filebeat_load_state.stdout != 'not-found'
+  when:
+    - filebeat_load_state is defined
+    - filebeat_load_state.stdout is defined
+    - filebeat_load_state.stdout != 'not-found'
   failed_when: false
   listen: restart filebeat
 
@@ -238,4 +241,26 @@
     state: restarted
   become: true
   listen: "restart grafana"
+  ignore_errors: true
+
+- name: Save iptables
+  ansible.builtin.shell: |
+    if command -v netfilter-persistent >/dev/null 2>&1; then
+      netfilter-persistent save
+    elif command -v iptables-save >/dev/null 2>&1; then
+      mkdir -p /etc/iptables 2>/dev/null || true
+      iptables-save > /etc/iptables/rules.v4 2>/dev/null || \
+      iptables-save > /etc/iptables.rules 2>/dev/null || true
+    fi
+    exit 0
+  become: true
+  changed_when: false
+  listen: save iptables
+  ignore_errors: true
+
+- name: Remount filesystems
+  ansible.builtin.command: mount -o remount /
+  become: true
+  changed_when: false
+  listen: remount filesystems
   ignore_errors: true

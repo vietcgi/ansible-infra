@@ -1,0 +1,26 @@
+---
+# pfSense WireGuard Role - Handlers
+
+- name: Restart WireGuard
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      require_once("wireguard/wg.inc");
+      wg_configure();
+      echo "restarted";
+  listen: "restart wireguard"
+
+- name: Reload filter rules
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      require_once("filter.inc");
+      filter_configure();
+      echo "reloaded";
+  listen: "reload firewall"
+
+- name: Reload interfaces
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      require_once("interfaces.inc");
+      interfaces_configure();
+      echo "reloaded";
+  listen: "reload interfaces"

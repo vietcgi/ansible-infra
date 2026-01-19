@@ -1,0 +1,52 @@
+---
+# pfSense WireGuard - Firewall Rules
+
+- name: Get WireGuard interface internal name
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      foreach ($config['interfaces'] as $ifname => $ifconf) {
+        if (isset($ifconf['descr']) && $ifconf['descr'] == '{{ pfsense_wireguard_interface_name }}') {
+          echo $ifname;
+          exit;
+        }
+      }
+      echo "not_found";
+  register: wg_ifname_fw
+  changed_when: false
+
+- name: Create firewall rule - Allow all on WireGuard interface
+  pfsensible.core.pfsense_rule:
+    name: "Allow all WireGuard traffic"
+    interface: "{{ wg_ifname_fw.stdout | trim }}"
+    action: pass
+    ipprotocol: inet
+    protocol: any
+    source: any
+    destination: any
+    state: present
+  register: wg_allow_rule
+
+- name: Create firewall rule - Allow WireGuard UDP on WAN
+  pfsensible.core.pfsense_rule:
+    name: "Allow WireGuard handshake (UDP {{ pfsense_wireguard_provider.endpoint_port | default(51820) }})"
+    interface: wan
+    action: pass
+    ipprotocol: inet
+    protocol: udp
+    source: any
+    destination: "wanip:{{ pfsense_wireguard_provider.endpoint_port | default(51820) }}"
+    state: present
+  register: wg_wan_rule
+  when: pfsense_wireguard_mode != 'provider'  # Only for server mode
+
+- name: Display firewall configuration
+  ansible.builtin.debug:
+    msg: |
+      ✓ Firewall Rules Configured
+
+      WireGuard Interface ({{ wg_ifname_fw.stdout | trim }}):
+      - Allow all traffic: {{ wg_allow_rule.changed | ternary('Created', 'Exists') }}
+
+      Notes:
+      - Traffic from LAN through WireGuard is allowed by NAT rules
+      - Ensure LAN rules allow traffic to reach the WireGuard gateway

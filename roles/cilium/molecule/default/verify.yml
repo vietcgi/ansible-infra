@@ -1,0 +1,49 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Check for Cilium CLI binary
+      ansible.builtin.stat:
+        path: /usr/local/bin/cilium
+      register: cilium_cli_binary
+
+    - name: Verify Cilium CLI exists
+      ansible.builtin.assert:
+        that: cilium_cli_binary.stat.exists
+        fail_msg: "Cilium CLI binary /usr/local/bin/cilium does not exist"
+        success_msg: "Cilium CLI binary exists as expected"
+
+    - name: Verify Cilium CLI is executable
+      ansible.builtin.assert:
+        that: cilium_cli_binary.stat.executable
+        fail_msg: "Cilium CLI binary is not executable"
+        success_msg: "Cilium CLI binary is executable"
+
+    - name: Test Cilium CLI command
+      ansible.builtin.command: /usr/local/bin/cilium status
+      register: cilium_status_output
+      changed_when: false
+      failed_when: false
+
+    - name: Display Cilium status output
+      ansible.builtin.debug:
+        var: cilium_status_output.stdout_lines
+
+    - name: Verify Cilium CLI responds
+      ansible.builtin.assert:
+        that: cilium_status_output.rc == 0
+        fail_msg: "Cilium CLI did not respond correctly"
+        success_msg: "Cilium CLI responds as expected"
+
+    - name: Check K3s kubeconfig exists
+      ansible.builtin.stat:
+        path: /etc/rancher/k3s/k3s.yaml
+      register: kubeconfig_file
+
+    - name: Verify kubeconfig exists
+      ansible.builtin.assert:
+        that: kubeconfig_file.stat.exists
+        fail_msg: "Kubeconfig file /etc/rancher/k3s/k3s.yaml does not exist"
+        success_msg: "Kubeconfig file exists as expected"

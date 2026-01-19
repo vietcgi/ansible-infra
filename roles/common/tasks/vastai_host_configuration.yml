@@ -1,0 +1,141 @@
+---
+# Vast.ai Host Configuration
+# Configures pricing, GPU split, and marketplace listing
+# Follows ansible-infra patterns
+
+- name: Skip Vast.ai configuration if disabled
+  ansible.builtin.debug:
+    msg: "Vast.ai configuration disabled."
+  when: not (vastai_enabled | default(false))
+  tags:
+    - vastai
+    - config
+
+# Configure Vast.ai CLI
+- name: Configure Vast.ai CLI
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - cli
+  block:
+    - name: Set Vast.ai API key for CLI
+      ansible.builtin.command: "vastai set api-key {{ vastai_api_key }}"
+      become: true
+      changed_when: true
+      no_log: true
+
+# Get machine information
+- name: Gather Vast.ai machine information
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - info
+  block:
+    - name: Get machine ID
+      ansible.builtin.command: cat /var/lib/vastai_kaalia/machine_id
+      register: machine_id
+      changed_when: false
+      become: true
+
+    - name: Store machine ID
+      ansible.builtin.set_fact:
+        vastai_machine_id: "{{ machine_id.stdout | trim }}"
+
+    - name: Get GPU count
+      ansible.builtin.shell: |
+        set -o pipefail
+        nvidia-smi --query-gpu=count --format=csv,noheader | head -1
+      args:
+        executable: /bin/bash
+      register: gpu_count
+      changed_when: false
+
+    - name: Store GPU count
+      ansible.builtin.set_fact:
+        vastai_gpu_count: "{{ gpu_count.stdout | trim }}"
+
+# Run speed test
+- name: Run Vast.ai speed test
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - speedtest
+  block:
+    - name: Check if speed test script exists
+      ansible.builtin.stat:
+        path: /var/lib/vastai_kaalia/send_mach_info.py
+      register: speedtest_script
+
+    - name: Execute speed test
+      ansible.builtin.shell: |
+        cd /var/lib/vastai_kaalia && python3 ./send_mach_info.py --speedtest
+      args:
+        executable: /bin/bash
+      become: true
+      register: speedtest_result
+      changed_when: false
+      failed_when: false
+      when: speedtest_script.stat.exists
+      async: 120
+      poll: 10
+
+# List machine on marketplace
+- name: Configure marketplace listing
+  when:
+    - vastai_enabled | default(false)
+    - vastai_auto_list | default(true)
+  tags:
+    - vastai
+    - marketplace
+  block:
+    - name: List machine with pricing
+      ansible.builtin.command: >
+        vastai list machine {{ vastai_machine_id }}
+        --price_gpu {{ vastai_price_gpu }}
+        --price_disk {{ vastai_price_disk }}
+        --price_inetu {{ vastai_price_inet_up }}
+        --price_inetd {{ vastai_price_inet_down }}
+        --discount_rate {{ vastai_discount_rate }}
+        --min_chunk {{ vastai_min_gpu }}
+      become: true
+      register: list_result
+      changed_when: list_result.rc == 0
+      failed_when: false
+
+    - name: Display listing result
+      ansible.builtin.debug:
+        msg: "{{ list_result.stdout | default('Machine listing attempted') }}"
+      when: list_result.stdout is defined
+
+# Summary
+- name: Display Vast.ai configuration summary
+  ansible.builtin.debug:
+    msg: |
+      ===============================================================
+       Vast.ai GPU Host Configuration Complete
+      ===============================================================
+
+       Machine ID:        {{ vastai_machine_id }}
+       GPU Count:         {{ vastai_gpu_count }}
+       Min GPU/Rental:    {{ vastai_min_gpu }}
+
+       Pricing:
+         - GPU:           ${{ vastai_price_gpu }}/hr
+         - Storage:       ${{ vastai_price_disk }}/GB/month
+         - Upload:        ${{ vastai_price_inet_up }}/GB
+         - Download:      ${{ vastai_price_inet_down }}/GB
+         - Max Discount:  {{ (vastai_discount_rate | float * 100) | int }}%
+
+       Port Range:        {{ vastai_port_range_start }}-{{ vastai_port_range_end }}
+
+       Next Steps:
+         1. Configure port forwarding on your router
+         2. Check dashboard: https://cloud.vast.ai/host/machines
+         3. Verify: vastai search offers "machine_id={{ vastai_machine_id }}"
+
+      ===============================================================
+  when: vastai_enabled | default(false)
+  tags:
+    - vastai
+    - summary
+    - always

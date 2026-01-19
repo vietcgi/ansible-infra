@@ -1,0 +1,89 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Performance Baseline Establishment Script
+# Collects baseline performance metrics for comparison
+
+set -euo pipefail
+
+BASELINE_DIR="/var/lib/monitoring"
+BASELINE_FILE="${BASELINE_DIR}/baseline.db"
+LOG_FILE="/var/log/performance-baseline.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+mkdir -p "$BASELINE_DIR"
+
+log "Starting performance baseline collection..."
+
+# Collect CPU baseline
+CPU_CORES=$(nproc)
+CPU_MODEL=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | xargs)
+CPU_IDLE=$(top -bn1 | grep "Cpu(s)" | awk '{print $8}' | cut -d. -f1)
+
+# Collect memory baseline
+MEM_TOTAL=$(free -m | awk '/^Mem:/ {print $2}')
+MEM_AVAILABLE=$(free -m | awk '/^Mem:/ {print $7}')
+SWAP_TOTAL=$(free -m | awk '/^Swap:/ {print $2}')
+
+# Collect disk baseline
+DISK_TOTAL=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$2); print $2}')
+DISK_USED=$(df -BG / | awk 'NR==2 {gsub(/G/,"",$3); print $3}')
+DISK_IOPS=$(iostat -d 1 2 2>/dev/null | awk '/^[a-z]/ && NR>3 {sum+=$2} END {print int(sum)}' || echo "0")
+
+# Collect network baseline
+NET_INTERFACES=$(ip -o link show | grep -c "state UP" || echo "1")
+
+# Collect load average
+LOAD_1=$(cat /proc/loadavg | awk '{print $1}')
+LOAD_5=$(cat /proc/loadavg | awk '{print $2}')
+LOAD_15=$(cat /proc/loadavg | awk '{print $3}')
+
+# Write baseline file
+cat > "$BASELINE_FILE" << EOF
+# Performance Baseline - Generated $(date '+%Y-%m-%d %H:%M:%S')
+# Host: $(hostname -f)
+
+[system]
+hostname=$(hostname -f)
+kernel=$(uname -r)
+uptime_seconds=$(cat /proc/uptime | awk '{print int($1)}')
+
+[cpu]
+cores=${CPU_CORES}
+model=${CPU_MODEL}
+baseline_idle_percent=${CPU_IDLE}
+
+[memory]
+total_mb=${MEM_TOTAL}
+available_mb=${MEM_AVAILABLE}
+swap_total_mb=${SWAP_TOTAL}
+
+[disk]
+root_total_gb=${DISK_TOTAL}
+root_used_gb=${DISK_USED}
+baseline_iops=${DISK_IOPS}
+
+[network]
+active_interfaces=${NET_INTERFACES}
+
+[load]
+baseline_1min=${LOAD_1}
+baseline_5min=${LOAD_5}
+baseline_15min=${LOAD_15}
+
+[thresholds]
+cpu_warning_percent={{ monitoring_cpu_warning_threshold | default(80) }}
+cpu_critical_percent={{ monitoring_cpu_critical_threshold | default(95) }}
+memory_warning_percent={{ monitoring_memory_warning_threshold | default(80) }}
+memory_critical_percent={{ monitoring_memory_critical_threshold | default(95) }}
+disk_warning_percent={{ storage_disk_warning_percent | default(85) }}
+disk_critical_percent={{ storage_disk_critical_percent | default(95) }}
+EOF
+
+log "Baseline established successfully: $BASELINE_FILE"
+log "  CPU: ${CPU_CORES} cores, ${CPU_IDLE}% idle"
+log "  Memory: ${MEM_AVAILABLE}MB available of ${MEM_TOTAL}MB"
+log "  Disk: ${DISK_USED}GB used of ${DISK_TOTAL}GB"
+log "  Load: ${LOAD_1} / ${LOAD_5} / ${LOAD_15}"

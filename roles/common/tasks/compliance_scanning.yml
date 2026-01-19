@@ -3,29 +3,78 @@
 # Automated CIS, NIST, and industry compliance checking
 # Compliance: CIS Benchmark, NIST SP 800-53, SOC 2, PCI DSS
 
-- name: Install compliance scanning tools
+- name: Skip compliance scanning if disabled
+  ansible.builtin.debug:
+    msg: "Compliance scanning disabled. Set compliance_scanning_enabled: true to enable."
+  when: not (compliance_scanning_enabled | default(false))
+  tags:
+    - compliance_scanning
+
+- name: Install core compliance scanning tools
   ansible.builtin.package:
     name: "{{ item }}"
     state: present
   loop:
     - lynis
-    - aide
-    - aide-common
-    - samhain
     - chkrootkit
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
     - cis_benchmark
 
-- name: Install OpenSCAP for NIST compliance
+- name: Install AIDE file integrity checker
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - aide
+    - aide-common
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
+  tags:
+    - compliance_scanning
+    - file_integrity
+
+# NOTE: Samhain disabled by default - causes high CPU/IO and conflicts with AIDE
+- name: Install Samhain file integrity checker (optional)
+  ansible.builtin.package:
+    name: samhain
+    state: present
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_samhain_enabled | default(false)
+  tags:
+    - compliance_scanning
+    - file_integrity
+
+- name: Install OpenSCAP for NIST compliance (Debian/Ubuntu)
   ansible.builtin.package:
     name: "{{ item }}"
     state: present
   loop:
     - libopenscap8
-    - openscap-utils
-    - openscap-daemon
-  when: ansible_os_family == 'Debian'
+    - ssg-debderived  # SCAP Security Guide for Debian-based
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_openscap_enabled | default(false)
+    - ansible_os_family == 'Debian'
+  failed_when: false  # Package availability varies by distro version
+  tags:
+    - compliance_scanning
+    - nist
+
+- name: Install OpenSCAP for NIST compliance (RHEL/CentOS)
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - openscap-scanner
+    - scap-security-guide
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_openscap_enabled | default(false)
+    - ansible_os_family == 'RedHat'
   tags:
     - compliance_scanning
     - nist
@@ -37,6 +86,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -47,6 +97,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_cis_enabled | default(false)
   tags:
     - compliance_scanning
     - cis_benchmark
@@ -62,6 +115,37 @@
   args:
     executable: /bin/bash
   changed_when: false
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
+  tags:
+    - compliance_scanning
+    - aide
+
+- name: Create AIDE check script
+  ansible.builtin.template:
+    src: run-aide-check.sh.j2
+    dest: /opt/compliance-scanning/run-aide-check.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
+  tags:
+    - compliance_scanning
+    - aide
+
+- name: Create AIDE log directory
+  ansible.builtin.file:
+    path: /var/log/aide
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
   tags:
     - compliance_scanning
     - aide
@@ -74,6 +158,9 @@
     job: "/opt/compliance-scanning/run-aide-check.sh >> /var/log/aide/daily-scan.log 2>&1"
     state: present
     user: root
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
   tags:
     - compliance_scanning
     - aide
@@ -85,6 +172,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -97,6 +185,7 @@
     job: "/opt/compliance-scanning/run-full-scan.sh >> /var/log/compliance/weekly-scan.log 2>&1"
     state: present
     user: root
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -107,6 +196,7 @@
     owner: root
     group: root
     mode: "0750"
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -118,6 +208,9 @@
     owner: root
     group: root
     mode: "0644"
+  when:
+    - compliance_scanning_enabled | default(false)
+    - compliance_aide_enabled | default(false)
   tags:
     - compliance_scanning
     - aide
@@ -129,6 +222,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -139,6 +233,7 @@
     owner: root
     group: root
     mode: "0644"
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
 
@@ -163,6 +258,7 @@
       - Baseline deviation detection
       - Unauthorized changes alert
       - NIST compliance validation
+  when: compliance_scanning_enabled | default(false)
   tags:
     - compliance_scanning
     - report

@@ -28,8 +28,6 @@
       line: "Defaults log_input"
     - regexp: "^Defaults\\s+log_output"
       line: "Defaults log_output"
-    - regexp: "^Defaults\\s+requiretty"
-      line: "{{ 'Defaults requiretty' if sudo_require_tty | default(true) else '' }}"
     - regexp: "^Defaults\\s+env_reset"
       line: "Defaults env_reset"
     - regexp: "^Defaults\\s+secure_path"

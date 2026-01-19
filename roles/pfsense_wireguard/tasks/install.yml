@@ -1,0 +1,52 @@
+---
+# pfSense WireGuard - Package Installation
+
+- name: Check if WireGuard package is installed
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      require_once("pkg-utils.inc");
+      $installed = is_pkg_installed("{{ pfsense_wireguard_package }}");
+      echo $installed ? "installed" : "not_installed";
+  register: wg_package_check
+  changed_when: false
+
+- name: Display package status
+  ansible.builtin.debug:
+    msg: "WireGuard package status: {{ wg_package_check.stdout | trim }}"
+
+- name: Install WireGuard package
+  when: wg_package_check.stdout | trim == "not_installed"
+  block:
+    - name: Install WireGuard via pkg
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("pkg-utils.inc");
+          $result = pkg_install("{{ pfsense_wireguard_package }}");
+          echo $result ? "success" : "failed";
+      register: wg_install_result
+
+    - name: Verify installation succeeded
+      ansible.builtin.assert:
+        that:
+          - wg_install_result.stdout | trim == "success"
+        fail_msg: "Failed to install WireGuard package"
+
+    - name: Wait for package installation to complete
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Reload WireGuard module
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          // Load WireGuard kernel module
+          mwexec("/sbin/kldload if_wg 2>/dev/null");
+          echo "module_loaded";
+      register: wg_module_load
+      changed_when: false
+      failed_when: false
+
+- name: Display installation result
+  ansible.builtin.debug:
+    msg: |
+      ✓ WireGuard Package
+      Status: {{ wg_package_check.stdout | trim == "installed" | ternary('Already installed', 'Newly installed') }}

@@ -1,0 +1,62 @@
+---
+# Headscale Control Server - Main Tasks
+
+- name: Headscale Control Server Setup
+  block:
+    - name: Retrieve secrets from Infisical
+      ansible.builtin.include_tasks: secrets.yml
+      when: headscale_infisical_enabled | bool
+
+    - name: Validate Headscale configuration
+      ansible.builtin.include_tasks: validate.yml
+
+    - name: Install Headscale components
+      ansible.builtin.include_tasks: install.yml
+
+    - name: Configure Headscale
+      ansible.builtin.include_tasks: configure.yml
+
+    - name: Manage Headscale services
+      ansible.builtin.include_tasks: service.yml
+
+    - name: Display deployment status
+      ansible.builtin.debug:
+        msg: |
+          Headscale Control Server Setup Complete
+          ========================================
+          Server URL: {{ headscale_server_url }}
+          API Port: {{ headscale_port }}
+          Metrics Port: {{ headscale_metrics_port }}
+          gRPC Port: {{ headscale_grpc_port }}
+          Database: {{ headscale_database_type }}
+          OIDC: {{ 'enabled' if headscale_oidc_enabled else 'disabled' }}
+          TLS: {{ 'enabled' if headscale_tls_enabled else 'disabled' }}
+          Headplane UI: {{ 'enabled at port ' ~ headplane_port if headplane_enabled else 'disabled' }}
+          ========================================
+
+          Next Steps:
+          {% if headplane_enabled %}
+          1. Access Headplane UI: http://{{ headscale_domain }}:{{ headplane_port }}/admin
+          2. Generate an API key: docker exec {{ headscale_container_name }} headscale apikeys create --expiration 90d
+          3. Use the API key to log in to Headplane
+          {% endif %}
+
+          Connect a client:
+          1. Create a user: docker exec {{ headscale_container_name }} headscale users create myuser
+          2. Create a pre-auth key: docker exec {{ headscale_container_name }} headscale preauthkeys create --user myuser
+          3. On client: tailscale up --login-server {{ headscale_server_url }} --authkey <YOUR_KEY>
+      when: headscale_state == 'present'
+
+    - name: Display removal status
+      ansible.builtin.debug:
+        msg: "Headscale has been removed successfully"
+      when: headscale_state == 'absent'
+
+  rescue:
+    - name: Display setup error
+      ansible.builtin.debug:
+        msg: "Headscale setup failed: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+    - name: Fail with details
+      ansible.builtin.fail:
+        msg: "Headscale setup encountered an error. Check logs above."

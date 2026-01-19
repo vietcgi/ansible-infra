@@ -4,7 +4,7 @@
 
 [recidivism]
 enabled = true
-filter = recidivism
+filter = recidive
 action = %(action_mwl)s
 
 # Recidivism detection settings
@@ -16,12 +16,10 @@ maxretry = {{ fail2ban_recidivism_maxretry_1 | default(1) }}
 findtime = {{ fail2ban_recidivism_findtime_1 | default(604800) }}
 bantime = {{ fail2ban_recidivism_bantime_1 | default(86400) }}
 
----
-
 # Second offense: ban for 1 week
 [recidivism-2]
 enabled = {{ fail2ban_enable_recidivism_2 | default(true) | lower }}
-filter = recidivism
+filter = recidive
 action = %(action_mwl)s
 logpath = /var/log/fail2ban.log
 
@@ -32,12 +30,10 @@ bantime = {{ fail2ban_recidivism_bantime_2 | default(604800) }}
 destemail = {{ fail2ban_destemail | default('root') }}
 sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
 
----
-
 # Third offense: ban for 1 month
 [recidivism-3]
 enabled = {{ fail2ban_enable_recidivism_3 | default(true) | lower }}
-filter = recidivism
+filter = recidive
 action = %(action_mwl)s
 logpath = /var/log/fail2ban.log
 
@@ -48,12 +44,10 @@ bantime = {{ fail2ban_recidivism_bantime_3 | default(2592000) }}
 destemail = {{ fail2ban_destemail | default('root') }}
 sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
 
----
-
 # Fourth offense or more: permanent ban (1 year)
 [recidivism-4plus]
 enabled = {{ fail2ban_enable_recidivism_4plus | default(true) | lower }}
-filter = recidivism
+filter = recidive
 action = %(action_mwl)s
 logpath = /var/log/fail2ban.log
 
@@ -61,23 +55,6 @@ maxretry = {{ fail2ban_recidivism_maxretry_4plus | default(4) }}
 findtime = {{ fail2ban_recidivism_findtime_4plus | default(31536000) }}
 bantime = {{ fail2ban_recidivism_bantime_4plus | default(31536000) }}
 
-destemail = {{ fail2ban_destemail | default('root') }}
-sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
-
----
-
-# Custom recidivism configuration
-# You can override default bantime progression with these variables:
-
-# Database settings for recidivism tracking
-dbfile = /var/lib/fail2ban/fail2ban.sqlite3
-dbpurgeage = {{ fail2ban_dbpurgeage | default(86400) }}
-
-# Recidivism action configuration
-ignorecommand =
-ignoreregex =
-
-# Email notification settings
 destemail = {{ fail2ban_destemail | default('root') }}
 sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
 

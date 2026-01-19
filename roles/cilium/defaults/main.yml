@@ -1,0 +1,63 @@
+---
+
+# Cilium installation control
+cilium_enabled: false
+
+# Cilium CLI version (pinned for reproducibility)
+# Update quarterly or as needed for security/features
+# Latest as of 2025-10-01
+cilium_cli_version: "v0.18.7"
+
+# Cilium container version (deployed to cluster)
+# Latest as of 2025-10-01
+cilium_version: "1.18.2"
+
+# Cilium kube-proxy replacement mode (true = full replacement, false = disabled)
+cilium_kube_proxy_replacement: true
+
+# Additional Cilium install options
+cilium_install_opts: []
+
+# Cilium operator replicas (set to 1 for single-node clusters)
+cilium_operator_replicas: 1
+
+# Cilium CLI binary path
+cilium_cli_path: /usr/local/bin/cilium
+
+# Temporary download directory
+cilium_tmp_dir: /tmp
+
+# Installation timeout (seconds)
+cilium_install_timeout: 600
+
+# Wait for Cilium to be ready after installation
+cilium_wait_for_ready: true
+cilium_ready_timeout: 300
+
+# Fail the role if Cilium is not ready (recommended for production)
+cilium_fail_on_not_ready: false
+
+# Verify checksums for downloaded binaries (recommended)
+cilium_verify_checksum: true
+
+# Run connectivity test after installation (slow but thorough)
+cilium_connectivity_test: false
+
+# LoadBalancer IP pool configuration
+# Enable to create a Cilium LoadBalancer IP pool (e.g., for WireGuard mesh IPs)
+cilium_lb_pool_enabled: false
+
+# LoadBalancer IP pool name
+cilium_lb_pool_name: "mesh-pool"
+
+# LoadBalancer IP pool source
+# Options:
+#   - "wireguard": Automatically detect WireGuard IP from wg0 interface
+#   - "custom": Use cilium_lb_pool_ip variable
+cilium_lb_pool_source: "wireguard"
+
+# Custom LoadBalancer IP (used when cilium_lb_pool_source: "custom")
+cilium_lb_pool_ip: ""
+
+# WireGuard interface name (used when cilium_lb_pool_source: "wireguard")
+cilium_lb_pool_wg_interface: "wg0"

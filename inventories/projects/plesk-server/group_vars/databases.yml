@@ -1,0 +1,103 @@
+---
+# Database Server Group Configuration
+# Settings specific to database servers
+# These override settings from group_vars/all.yml
+
+# ============================================================================
+# DATABASE SPECIFIC SETTINGS
+# ============================================================================
+
+# SSH port for database servers
+common_ssh_port: 2222
+
+# Database server role identifier
+server_role: "database"
+
+# Monitoring specific to databases
+monitoring_enabled: true
+monitoring_node_exporter_enabled: true
+
+# ============================================================================
+# STORAGE CONFIGURATION
+# ============================================================================
+
+# Disable swap on database servers (critical for data integrity)
+common_disable_swap: true
+
+# Storage optimization
+optimize_storage: true
+storage_optimization_level: "high"
+
+# Database-specific limits
+common_max_open_files: 131072
+common_max_processes: 8192
+
+# ============================================================================
+# DATABASE BACKUP
+# ============================================================================
+
+# Backup configuration
+backup_enabled: true
+backup_retention_days: 60
+backup_schedule: "0 2 * * *"  # 2 AM daily
+backup_type: "full"
+
+# Disaster recovery
+dr_replication_enabled: true
+dr_replication_schedule: "*/5 * * * *"  # Every 5 minutes
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+
+# Kernel tuning for database workloads
+common_enable_sysctl_tuning: true
+sysctl_vm_swappiness: 0
+sysctl_net_core_somaxconn: 65535
+
+# Connection pooling
+enable_connection_pooling: true
+max_connections: 500
+
+# ============================================================================
+# SECURITY FOR DATABASES
+# ============================================================================
+
+# Strong security hardening for databases
+security_hardening_level: production
+
+# Enable firewall
+firewall_enabled: true
+
+# Audit logging (critical for databases)
+common_enable_audit_logging: true
+audit_log_retention: 90
+
+# TLS/SSL for database connections
+enable_tls: true
+require_tls: true
+
+# ============================================================================
+# MONITORING AND ALERTING
+# ============================================================================
+
+# Extended monitoring for databases
+monitoring_prometheus_enabled: true
+monitoring_alerts_enabled: true
+
+# Alert thresholds
+alert_disk_usage_threshold: 80
+alert_memory_usage_threshold: 85
+alert_cpu_usage_threshold: 75
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# These settings apply to the 'databases' group only.
+# To override for a specific host:
+#   Create: host_vars/<hostname>.yml
+#   Example: host_vars/db01.yml
+#
+# Database-specific configurations should be managed in the
+# database-specific role, not here. This file is for system-level config.

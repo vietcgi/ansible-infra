@@ -1,0 +1,10 @@
+---
+# Handlers for Cilium role
+
+- name: Rollback Cilium on failure
+  ansible.builtin.command: "{{ cilium_cli_path }} uninstall --wait"
+  environment:
+    KUBECONFIG: "{{ cilium_kubeconfig }}"
+  ignore_errors: yes
+  when: ansible_failed_task is defined
+  listen: "Rollback Cilium on failure"

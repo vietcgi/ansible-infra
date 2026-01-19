@@ -1,0 +1,58 @@
+---
+# SafeShark VPN Provider Configuration
+# https://safeshark.net
+#
+# Usage:
+#   1. Get your WireGuard config from SafeShark dashboard
+#   2. Extract the keys and endpoint from the .conf file
+#   3. Set these variables in your inventory/group_vars
+#
+# Example SafeShark .conf file:
+#   [Interface]
+#   PrivateKey = YOUR_PRIVATE_KEY_HERE
+#   Address = 10.66.66.X/32
+#   DNS = 10.66.66.1
+#
+#   [Peer]
+#   PublicKey = SAFESHARK_PUBLIC_KEY
+#   AllowedIPs = 0.0.0.0/0, ::/0
+#   Endpoint = us-west.safeshark.net:51820
+#   PersistentKeepalive = 25
+
+pfsense_wireguard_mode: "provider"
+
+pfsense_wireguard_provider:
+  name: "SafeShark"
+  # From [Peer] section
+  endpoint: ""                    # e.g., us-west.safeshark.net
+  endpoint_port: 51820
+  public_key: ""                  # SafeShark's public key
+
+  # From [Interface] section
+  private_key: ""                 # Your private key (use vault!)
+  address: ""                     # e.g., 10.66.66.2/32
+  dns:
+    - "10.66.66.1"               # SafeShark DNS
+
+  # Connection settings
+  allowed_ips: "0.0.0.0/0, ::/0" # Route all traffic
+  persistent_keepalive: 25
+  mtu: 1420
+
+# Interface naming
+pfsense_wireguard_interface_name: "SAFESHARK"
+pfsense_wireguard_interface_descr: "SafeShark VPN"
+
+# Gateway
+pfsense_wireguard_gateway_name: "SAFESHARK_GW"
+pfsense_wireguard_gateway_descr: "SafeShark VPN Gateway"
+
+# NAT all LAN traffic through VPN
+pfsense_wireguard_configure_nat: true
+pfsense_wireguard_nat_sources:
+  - "lan"
+
+# Recommended: Enable kill switch to prevent leaks
+pfsense_wireguard_kill_switch: false  # Set to true after testing
+pfsense_wireguard_kill_switch_interfaces:
+  - "lan"

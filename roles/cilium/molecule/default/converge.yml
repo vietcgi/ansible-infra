@@ -1,0 +1,43 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+
+    - name: Create mock cilium CLI (will be skipped by download check)
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          # Mock cilium CLI for molecule testing
+          case "$1" in
+            "install")
+              echo "🔮 Auto-detected Kubernetes kind: K3S"
+              echo "✨ Creating \"cilium\" namespace..."
+              echo "✅ Cilium was successfully installed!"
+              exit 0
+              ;;
+            "status")
+              echo "    /¯¯\\"
+              echo " /¯¯\\__/¯¯\\    Cilium:         OK"
+              echo " \\__/¯¯\\__/    Operator:       OK"
+              echo " /¯¯\\__/¯¯\\    Hubble:         disabled"
+              echo " \\__/¯¯\\__/"
+              echo "    \\__/"
+              exit 0
+              ;;
+            *)
+              echo "cilium mock command: $*"
+              exit 0
+              ;;
+          esac
+        dest: /usr/local/bin/cilium
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Run cilium role with enabled flag
+      ansible.builtin.include_role:
+        name: corelight_labs.cilium
+      vars:
+        cilium_enabled: true
+        cilium_wait_for_ready: false # Skip waiting in tests

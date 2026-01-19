@@ -1,0 +1,115 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# CIS Benchmark Audit Script
+# Runs Lynis audit and generates CIS-style compliance report
+
+set -euo pipefail
+
+REPORT_DIR="{{ compliance_report_location | default('/var/log/compliance') }}"
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+REPORT_FILE="${REPORT_DIR}/cis-audit-${TIMESTAMP}.log"
+SUMMARY_FILE="${REPORT_DIR}/cis-audit-latest.txt"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$REPORT_FILE"
+}
+
+mkdir -p "$REPORT_DIR"
+
+log "Starting CIS Benchmark Audit"
+log "=============================="
+log "Hostname: $(hostname -f)"
+log "Date: $(date)"
+log ""
+
+# Run Lynis audit if available
+if command -v lynis &> /dev/null; then
+    log "Running Lynis security audit..."
+    lynis audit system --no-colors --quiet >> "$REPORT_FILE" 2>&1 || true
+
+    # Extract hardening index
+    if [ -f /var/log/lynis.log ]; then
+        HARDENING_INDEX=$(grep "Hardening index" /var/log/lynis.log | tail -1 | awk '{print $NF}' || echo "N/A")
+        log ""
+        log "Lynis Hardening Index: ${HARDENING_INDEX}"
+    fi
+else
+    log "WARNING: Lynis not installed - skipping security audit"
+fi
+
+log ""
+log "CIS Quick Checks"
+log "================"
+
+# Check 1: Ensure permissions on /etc/passwd
+PASSWD_PERMS=$(stat -c '%a' /etc/passwd 2>/dev/null || echo "unknown")
+if [ "$PASSWD_PERMS" = "644" ]; then
+    log "[PASS] /etc/passwd permissions: $PASSWD_PERMS"
+else
+    log "[FAIL] /etc/passwd permissions: $PASSWD_PERMS (expected 644)"
+fi
+
+# Check 2: Ensure permissions on /etc/shadow
+SHADOW_PERMS=$(stat -c '%a' /etc/shadow 2>/dev/null || echo "unknown")
+if [ "$SHADOW_PERMS" = "640" ] || [ "$SHADOW_PERMS" = "600" ]; then
+    log "[PASS] /etc/shadow permissions: $SHADOW_PERMS"
+else
+    log "[FAIL] /etc/shadow permissions: $SHADOW_PERMS (expected 640 or 600)"
+fi
+
+# Check 3: Ensure no empty passwords
+EMPTY_PASS=$(awk -F: '($2 == "") {print $1}' /etc/shadow 2>/dev/null | wc -l)
+if [ "$EMPTY_PASS" -eq 0 ]; then
+    log "[PASS] No accounts with empty passwords"
+else
+    log "[FAIL] Found $EMPTY_PASS accounts with empty passwords"
+fi
+
+# Check 4: Ensure root is only UID 0
+ROOT_UID=$(awk -F: '($3 == 0) {print $1}' /etc/passwd | wc -l)
+if [ "$ROOT_UID" -eq 1 ]; then
+    log "[PASS] Only root has UID 0"
+else
+    log "[FAIL] Multiple accounts with UID 0: $ROOT_UID"
+fi
+
+# Check 5: SSH root login
+if [ -f /etc/ssh/sshd_config ]; then
+    ROOT_LOGIN=$(grep -i "^PermitRootLogin" /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo "not set")
+    if [ "$ROOT_LOGIN" = "no" ]; then
+        log "[PASS] SSH root login disabled"
+    else
+        log "[WARN] SSH PermitRootLogin: $ROOT_LOGIN"
+    fi
+fi
+
+# Check 6: Firewall status
+if command -v ufw &> /dev/null; then
+    UFW_STATUS=$(ufw status 2>/dev/null | head -1 || echo "unknown")
+    log "[INFO] UFW status: $UFW_STATUS"
+elif command -v firewall-cmd &> /dev/null; then
+    FW_STATUS=$(firewall-cmd --state 2>/dev/null || echo "unknown")
+    log "[INFO] Firewalld status: $FW_STATUS"
+fi
+
+# Check 7: Check for world-writable files in /etc
+WORLD_WRITABLE=$(find /etc -type f -perm -0002 2>/dev/null | wc -l)
+if [ "$WORLD_WRITABLE" -eq 0 ]; then
+    log "[PASS] No world-writable files in /etc"
+else
+    log "[FAIL] Found $WORLD_WRITABLE world-writable files in /etc"
+fi
+
+log ""
+log "Audit completed at $(date)"
+
+# Create summary
+cat > "$SUMMARY_FILE" << EOF
+CIS Benchmark Audit Summary
+===========================
+Date: $(date)
+Host: $(hostname -f)
+Full Report: $REPORT_FILE
+EOF
+
+log "Report saved to: $REPORT_FILE"

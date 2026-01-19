@@ -41,9 +41,27 @@ collections:
     version: ">=3.0.0"
     source: https://galaxy.ansible.com
 
-  # AWS
+  # Cloud Providers - AWS
   - name: amazon.aws
     version: ">=7.0.0"
+    source: https://galaxy.ansible.com
+
+  # Cloud Providers - Hetzner Cloud
+  # Provides: hcloud dynamic inventory, server/network management
+  - name: hetzner.hcloud
+    version: ">=4.0.0"
+    source: https://galaxy.ansible.com
+
+  # Cloud Providers - DigitalOcean
+  # Provides: digitalocean dynamic inventory, droplet management
+  - name: community.digitalocean
+    version: ">=1.26.0"
+    source: https://galaxy.ansible.com
+
+  # Cloud Providers - Vultr
+  # Provides: vultr dynamic inventory, instance management
+  - name: vultr.cloud
+    version: ">=1.13.0"
     source: https://galaxy.ansible.com
 
   # Kubernetes (optional)

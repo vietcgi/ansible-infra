@@ -1,0 +1,54 @@
+---
+# pfSense WireGuard - Outbound NAT Configuration
+
+- name: Get WireGuard interface internal name
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      foreach ($config['interfaces'] as $ifname => $ifconf) {
+        if (isset($ifconf['descr']) && $ifconf['descr'] == '{{ pfsense_wireguard_interface_name }}') {
+          echo $ifname;
+          exit;
+        }
+      }
+      echo "not_found";
+  register: wg_ifname_nat
+  changed_when: false
+
+- name: Set NAT mode to Hybrid
+  when: pfsense_wireguard_nat_mode == 'hybrid'
+  pfsensible.core.pfsense_phpshell:
+    command: |
+      if ($config['nat']['outbound']['mode'] != 'hybrid') {
+        $config['nat']['outbound']['mode'] = 'hybrid';
+        write_config("NAT mode set to hybrid via Ansible");
+        echo "mode_changed";
+      } else {
+        echo "mode_unchanged";
+      }
+  register: nat_mode_result
+
+- name: Create outbound NAT rules for WireGuard
+  pfsensible.core.pfsense_nat_outbound:
+    descr: "NAT {{ item }} traffic through WireGuard"
+    interface: "{{ wg_ifname_nat.stdout | trim }}"
+    source: "{{ item }}:any"
+    destination: "any:any"
+    protocol: "any"
+    target: ""
+    natport: ""
+    state: present
+  loop: "{{ pfsense_wireguard_nat_sources }}"
+  register: nat_rules_result
+
+- name: Display NAT configuration
+  ansible.builtin.debug:
+    msg: |
+      ✓ Outbound NAT Configuration
+      Mode: {{ pfsense_wireguard_nat_mode }}
+      Interface: {{ wg_ifname_nat.stdout | trim }} ({{ pfsense_wireguard_interface_name }})
+      Source Networks: {{ pfsense_wireguard_nat_sources | join(', ') }}
+
+      NAT Rules Created:
+      {% for item in pfsense_wireguard_nat_sources %}
+      - {{ item }} -> {{ pfsense_wireguard_interface_name }}
+      {% endfor %}

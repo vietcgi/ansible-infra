@@ -295,19 +295,42 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install Ansible
+      - name: Install Ansible and collections
         run: |
           python -m pip install --upgrade pip
           pip install ansible>=${{ env.ANSIBLE_VERSION }} \
-                      pyyaml netaddr
+                      pyyaml netaddr boto3 requests
+          ansible-galaxy collection install -r requirements.yml
 
-      - name: Validate inventories
+      - name: Validate static inventories
         run: |
           for inv in inventories/*/hosts.yml inventories/projects/*/hosts.yml; do
             if [ -f "$inv" ]; then
               echo "Validating: $inv"
               ansible-inventory -i "$inv" --list > /dev/null || exit 1
               echo "✓ $inv is valid"
+            fi
+          done
+
+      - name: Validate dynamic inventory configs
+        run: |
+          echo "Validating dynamic inventory configurations..."
+
+          # Test Python inventory scripts syntax
+          for script in inventories/dynamic/*.py; do
+            if [ -f "$script" ]; then
+              echo "Checking Python syntax: $script"
+              python -m py_compile "$script"
+              echo "✓ $script syntax valid"
+            fi
+          done
+
+          # Test YAML inventory plugin configs (will fail on credentials, but validates structure)
+          for inv in inventories/dynamic/*.yml; do
+            if [ -f "$inv" ]; then
+              echo "Validating structure: $inv"
+              python -c "import yaml; yaml.safe_load(open('$inv'))"
+              echo "✓ $inv YAML valid"
             fi
           done
 

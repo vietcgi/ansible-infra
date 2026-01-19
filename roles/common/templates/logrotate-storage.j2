@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+# Storage Monitoring Log Rotation - ansible-infra
+
+/var/log/storage/*.log
+/var/log/disk-monitor.log
+/var/log/quota-monitor.log
+{
+  daily
+  rotate {{ common_log_retention_days | default(30) }}
+  missingok
+  notifempty
+  compress
+  delaycompress
+  copytruncate
+  create 0640 root adm
+}

@@ -1,0 +1,122 @@
+---
+# Plesk Server Configuration
+
+project_name: plesk-server
+project_env: production
+project_owner: jason
+project_description: "Plesk hosting server"
+
+# ============================================================================
+# SSH CONFIGURATION
+# ============================================================================
+common_ssh_port: 22
+common_ssh_permit_root_login: "yes"
+common_ssh_password_authentication: "yes"
+
+# ============================================================================
+# FIREWALL CONFIGURATION - PLESK PORTS
+# ============================================================================
+firewall_enabled: true
+
+# Plesk required ports
+firewall_custom_ports:
+  # Plesk Panel
+  - port: "8443"
+    proto: "tcp"
+    state: "enabled"
+    comment: "Plesk Panel HTTPS"
+  - port: "8447"
+    proto: "tcp"
+    state: "enabled"
+    comment: "Plesk Installer/Updater"
+
+  # Web
+  - port: "80"
+    proto: "tcp"
+    state: "enabled"
+    comment: "HTTP"
+  - port: "443"
+    proto: "tcp"
+    state: "enabled"
+    comment: "HTTPS"
+
+  # FTP
+  - port: "21"
+    proto: "tcp"
+    state: "enabled"
+    comment: "FTP"
+  - port: "49152:65535"
+    proto: "tcp"
+    state: "enabled"
+    comment: "FTP Passive Mode"
+
+  # SSH
+  - port: "22"
+    proto: "tcp"
+    state: "enabled"
+    comment: "SSH"
+
+  # Email - SMTP
+  - port: "25"
+    proto: "tcp"
+    state: "enabled"
+    comment: "SMTP"
+  - port: "465"
+    proto: "tcp"
+    state: "enabled"
+    comment: "SMTPS"
+  - port: "587"
+    proto: "tcp"
+    state: "enabled"
+    comment: "SMTP Submission"
+
+  # Email - POP3/IMAP
+  - port: "110"
+    proto: "tcp"
+    state: "enabled"
+    comment: "POP3"
+  - port: "995"
+    proto: "tcp"
+    state: "enabled"
+    comment: "POP3S"
+  - port: "143"
+    proto: "tcp"
+    state: "enabled"
+    comment: "IMAP"
+  - port: "993"
+    proto: "tcp"
+    state: "enabled"
+    comment: "IMAPS"
+
+  # DNS
+  - port: "53"
+    proto: "tcp"
+    state: "enabled"
+    comment: "DNS TCP"
+  - port: "53"
+    proto: "udp"
+    state: "enabled"
+    comment: "DNS UDP"
+
+  # MySQL (if remote access needed)
+  - port: "3306"
+    proto: "tcp"
+    state: "enabled"
+    comment: "MySQL"
+
+# ============================================================================
+# DISABLE FEATURES NOT NEEDED FOR PLESK
+# ============================================================================
+
+# Don't mess with Plesk's configs
+common_update_packages: false
+common_upgrade_packages: false
+fail2ban_enabled: false
+blocklist_enabled: false
+metrics_enabled: false
+log_shipping_enabled: false
+monitoring_prometheus_enabled: false
+monitoring_grafana_enabled: false
+
+# Plesk manages its own services
+common_chrony_enabled: false

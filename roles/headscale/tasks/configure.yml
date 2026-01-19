@@ -1,0 +1,74 @@
+---
+# Headscale - Configuration Tasks
+
+- name: Generate Headscale configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: "{{ headscale_config_dir }}/config.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+    backup: true
+  notify: restart headscale
+  no_log: "{{ headscale_no_log | default(true) }}"
+  when: headscale_state == 'present'
+
+- name: Generate ACL policy file
+  ansible.builtin.template:
+    src: acl.json.j2
+    dest: "{{ headscale_config_dir }}/acl.json"
+    owner: root
+    group: root
+    mode: "0640"
+    backup: true
+  notify: restart headscale
+  when:
+    - headscale_state == 'present'
+    - headscale_policy_mode == 'file'
+
+- name: Generate Headplane configuration
+  ansible.builtin.template:
+    src: headplane-config.yaml.j2
+    dest: "{{ headscale_config_dir }}/headplane.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+    backup: true
+  notify: restart headplane
+  no_log: "{{ headscale_no_log | default(true) }}"
+  when:
+    - headscale_state == 'present'
+    - headplane_enabled | bool
+
+- name: Generate Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ headscale_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: restart headscale stack
+  no_log: "{{ headscale_no_log | default(true) }}"
+  when: headscale_state == 'present'
+
+- name: Copy TLS certificates (manual mode)
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - { src: "{{ headscale_tls_cert_path }}", dest: "{{ headscale_config_dir }}/server.crt" }
+    - { src: "{{ headscale_tls_key_path }}", dest: "{{ headscale_config_dir }}/server.key" }
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: restart headscale
+  no_log: true
+  when:
+    - headscale_state == 'present'
+    - headscale_tls_enabled | bool
+    - headscale_tls_mode == 'manual'
+    - headscale_tls_cert_path | length > 0
+    - headscale_tls_key_path | length > 0

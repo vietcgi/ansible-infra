@@ -3,13 +3,23 @@
 # Implements security best practices and compliance requirements
 # Purpose: Secure Docker daemon and container runtime
 
-# Pre-flight checks
-- name: Validate Docker security configuration is enabled
+# Skip if Docker is disabled
+- name: Skip Docker security if Docker is disabled
+  ansible.builtin.debug:
+    msg: "Docker security skipped. Docker is disabled (container_docker_enabled: false)"
+  when: not (container_docker_enabled | default(false))
+  tags:
+    - docker_security
+    - containers
+
+# Pre-flight validation - only when Docker is enabled
+- name: Validate Docker security prerequisites
   ansible.builtin.assert:
     that:
-      - container_docker_enabled | default(true) | bool
-    fail_msg: "Docker must be enabled for security configuration"
+      - container_docker_security_enabled | default(true) | bool
+    fail_msg: "Docker security is disabled (container_docker_security_enabled: false)"
     quiet: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - containers
@@ -21,6 +31,7 @@
   ansible.builtin.stat:
     path: /usr/bin/docker
   register: docker_installation
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - validation
@@ -28,7 +39,10 @@
 - name: Fail if Docker is not installed
   ansible.builtin.fail:
     msg: "Docker must be installed before applying security hardening"
-  when: not docker_installation.stat.exists
+  when:
+    - container_docker_enabled | default(false)
+    - docker_installation.stat is defined
+    - not docker_installation.stat.exists
   tags:
     - docker_security
     - validation
@@ -44,6 +58,7 @@
     backup: true
   become: true
   register: docker_security_config
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - config
@@ -63,6 +78,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - config
@@ -72,6 +88,7 @@
   ansible.builtin.stat:
     path: /etc/apparmor.d
   register: apparmor_dir
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - apparmor
@@ -85,7 +102,11 @@
     mode: "0640"
     backup: true
   become: true
-  when: apparmor_dir.stat.exists and container_docker_apparmor_enabled | default(true) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - apparmor_dir.stat is defined
+    - apparmor_dir.stat.exists
+    - container_docker_apparmor_enabled | default(true) | bool
   register: apparmor_profile
   tags:
     - docker_security
@@ -96,7 +117,10 @@
   ansible.builtin.command:
     cmd: apparmor_parser -r /etc/apparmor.d/docker
   become: true
-  when: apparmor_profile.changed
+  when:
+    - container_docker_enabled | default(false)
+    - apparmor_profile is defined
+    - apparmor_profile.changed | default(false)
   tags:
     - docker_security
     - apparmor
@@ -107,6 +131,7 @@
   ansible.builtin.stat:
     path: /etc/selinux
   register: selinux_dir
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - selinux
@@ -120,7 +145,11 @@
     mode: "0640"
     backup: true
   become: true
-  when: selinux_dir.stat.exists and container_docker_selinux_enabled | default(true) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - selinux_dir.stat is defined
+    - selinux_dir.stat.exists
+    - container_docker_selinux_enabled | default(true) | bool
   tags:
     - docker_security
     - selinux
@@ -134,6 +163,7 @@
     group: docker
     mode: "0660"
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - permissions
@@ -148,7 +178,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_resource_limits | default({}) | length > 0
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_resource_limits | default({}) | length > 0
   tags:
     - docker_security
     - resources
@@ -168,6 +200,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - capabilities
@@ -186,6 +219,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - filesystem
@@ -200,7 +234,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_userns_remap_enabled | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_userns_remap_enabled | default(false) | bool
   tags:
     - docker_security
     - namespaces
@@ -216,6 +252,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - network
@@ -234,6 +271,7 @@
     mode: "0640"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - image_verification
@@ -248,7 +286,9 @@
     mode: "0640"
     backup: true
   become: true
-  when: container_docker_audit_logging | default(true) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_audit_logging | default(true) | bool
   tags:
     - docker_security
     - audit
@@ -264,7 +304,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_seccomp_enabled | default(true) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_seccomp_enabled | default(true) | bool
   tags:
     - docker_security
     - seccomp
@@ -277,7 +319,10 @@
     enabled: true
     daemon_reload: true
   become: true
-  when: docker_security_config.changed or apparmor_profile.changed | default(false)
+  when:
+    - container_docker_enabled | default(false)
+    - docker_security_config is defined
+    - docker_security_config.changed | default(false)
   register: docker_security_restart
   tags:
     - docker_security
@@ -290,7 +335,10 @@
     state: present
     timeout: 30
   become: true
-  when: docker_security_restart.changed
+  when:
+    - container_docker_enabled | default(false)
+    - docker_security_restart is defined
+    - docker_security_restart.changed | default(false)
   tags:
     - docker_security
     - health
@@ -300,6 +348,7 @@
   community.docker.docker_host_info:
   register: docker_security_check
   ignore_errors: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - health
@@ -315,6 +364,7 @@
     mode: "0644"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - policy
@@ -329,7 +379,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_image_scanning | default(false) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_image_scanning | default(false) | bool
   tags:
     - docker_security
     - scanning
@@ -344,7 +396,9 @@
     mode: "0644"
     backup: true
   become: true
-  when: container_docker_security_monitoring | default(true) | bool
+  when:
+    - container_docker_enabled | default(false)
+    - container_docker_security_monitoring | default(true) | bool
   tags:
     - docker_security
     - monitoring
@@ -359,6 +413,7 @@
     mode: "0644"
     backup: true
   become: true
+  when: container_docker_enabled | default(false)
   tags:
     - docker_security
     - compliance
@@ -366,6 +421,9 @@
 
 # Install and configure Trivy for image scanning
 - name: Configure Trivy image vulnerability scanning
+  when:
+    - container_docker_enabled | default(false)
+    - docker_trivy_enabled | default(false) | bool
   block:
     - name: Install Trivy
       ansible.builtin.shell: |
@@ -373,7 +431,6 @@
       args:
         creates: /usr/local/bin/trivy
       become: true
-      when: docker_trivy_enabled | default(true) | bool
       tags:
         - docker_security
         - trivy
@@ -388,7 +445,6 @@
         mode: "0644"
         backup: true
       become: true
-      when: docker_trivy_enabled | default(true) | bool
       tags:
         - docker_security
         - trivy
@@ -403,7 +459,6 @@
         mode: "0755"
         backup: true
       become: true
-      when: docker_trivy_enabled | default(true) | bool
       tags:
         - docker_security
         - trivy
@@ -416,7 +471,6 @@
         job: "/usr/local/bin/docker-image-scan.sh >> /var/log/docker/image-scans.log 2>&1"
         user: root
       become: true
-      when: docker_trivy_enabled | default(true) | bool
       tags:
         - docker_security
         - trivy
@@ -425,7 +479,7 @@
     - name: Handle Trivy installation errors
       ansible.builtin.debug:
         msg: |
-          ⚠ Trivy installation encountered issues:
+          Trivy installation encountered issues:
           - Check internet connectivity
           - Verify permissions for /usr/local/bin
           - Review curl output for errors
@@ -436,6 +490,9 @@
 
 # Install and configure Falco for runtime security
 - name: Configure Falco runtime security monitoring
+  when:
+    - container_docker_enabled | default(false)
+    - docker_falco_enabled | default(false) | bool
   block:
     - name: Add Falco repository
       ansible.builtin.shell: |
@@ -445,9 +502,7 @@
       args:
         warn: false
       become: true
-      when:
-        - ansible_os_family == "Debian"
-        - docker_falco_enabled | default(true) | bool
+      when: ansible_os_family == "Debian"
       tags:
         - docker_security
         - falco
@@ -458,7 +513,6 @@
         name: falco
         state: present
       become: true
-      when: docker_falco_enabled | default(true) | bool
       tags:
         - docker_security
         - falco
@@ -473,7 +527,6 @@
         backup: true
       become: true
       notify: restart falco
-      when: docker_falco_enabled | default(true) | bool
       tags:
         - docker_security
         - falco
@@ -489,7 +542,6 @@
         backup: true
       become: true
       notify: restart falco
-      when: docker_falco_enabled | default(true) | bool
       tags:
         - docker_security
         - falco
@@ -501,7 +553,6 @@
         enabled: true
         state: started
       become: true
-      when: docker_falco_enabled | default(true) | bool
       tags:
         - docker_security
         - falco
@@ -510,7 +561,7 @@
     - name: Handle Falco installation errors
       ansible.builtin.debug:
         msg: |
-          ⚠ Falco installation encountered issues:
+          Falco installation encountered issues:
           - Repository may be unavailable
           - Kernel headers may not be installed: apt-get install linux-headers-$(uname -r)
           - Check system requirements for Falco
@@ -521,14 +572,15 @@
 
 # Final security validation
 - name: Docker security hardening validation
+  when: container_docker_enabled | default(false)
   block:
     - name: Verify Docker daemon security
       ansible.builtin.debug:
         msg: |
-          ✓ Docker Security Hardening Complete:
+          Docker Security Hardening Complete:
           - Daemon Status: {{ 'Healthy' if docker_security_check.host_info is defined else 'Check Required' }}
-          - AppArmor Support: {{ 'Enabled' if apparmor_dir.stat.exists else 'Not Available' }}
-          - SELinux Support: {{ 'Enabled' if selinux_dir.stat.exists else 'Not Available' }}
+          - AppArmor Support: {{ 'Enabled' if (apparmor_dir.stat is defined and apparmor_dir.stat.exists) else 'Not Available' }}
+          - SELinux Support: {{ 'Enabled' if (selinux_dir.stat is defined and selinux_dir.stat.exists) else 'Not Available' }}
           - Socket Permissions: Configured (root:docker 0660)
           - Audit Logging: {{ 'Enabled' if container_docker_audit_logging | default(true) else 'Disabled' }}
           - Seccomp Profiles: {{ 'Enabled' if container_docker_seccomp_enabled | default(true) else 'Disabled' }}
@@ -541,7 +593,7 @@
     - name: Log security validation errors
       ansible.builtin.debug:
         msg: |
-          ⚠ Docker security validation encountered issues:
+          Docker security validation encountered issues:
           - Check Docker daemon status: systemctl status docker
           - Review security logs: journalctl -u docker -n 50
           - Validate configuration: docker info
@@ -554,7 +606,9 @@
 - name: Docker security hardening task completion
   ansible.builtin.debug:
     msg: "Docker security hardening wrapper task completed successfully"
-  when: not ansible_check_mode
+  when:
+    - container_docker_enabled | default(false)
+    - not ansible_check_mode
   tags:
     - docker_security
     - summary

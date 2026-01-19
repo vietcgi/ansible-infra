@@ -1,3 +1,4 @@
+# {{ ansible_managed }}
 # Alert Routing Rules
 # Routes alerts to appropriate channels and responders based on severity and type
 
@@ -48,10 +49,12 @@ receivers:
   - name: critical_team
     slack_configs:
       - channel: '#alerts-critical'
+{% raw %}
         title: 'CRITICAL: {{ .GroupLabels.alertname }}'
         text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
         send_resolved: true
         color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+{% endraw %}
     pagerduty_configs:
       - service_key: '{{ alerting_pagerduty_service_key | default("") }}'
         severity: 'critical'
@@ -59,7 +62,9 @@ receivers:
   - name: ops_team
     slack_configs:
       - channel: '#alerts-ops'
+{% raw %}
         title: '{{ .GroupLabels.severity | upper }}: {{ .GroupLabels.alertname }}'
+{% endraw %}
         send_resolved: true
     email_configs:
       - to: '{{ alerting_email_to | default("") }}'

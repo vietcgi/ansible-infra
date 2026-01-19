@@ -1,0 +1,60 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Full Compliance Scan Script
+# Runs all enabled compliance tools and generates consolidated report
+
+set -euo pipefail
+
+REPORT_DIR="{{ compliance_report_location | default('/var/log/compliance') }}"
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+REPORT_FILE="${REPORT_DIR}/full-scan-${TIMESTAMP}.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$REPORT_FILE"
+}
+
+mkdir -p "$REPORT_DIR"
+
+log "Starting Full Compliance Scan"
+log "=============================="
+log "Hostname: $(hostname -f)"
+log "Date: $(date)"
+log ""
+
+ERRORS=0
+
+# Run CIS Benchmark audit
+if [ -x /opt/compliance-scanning/run-cis-audit.sh ]; then
+    log "Running CIS Benchmark audit..."
+    /opt/compliance-scanning/run-cis-audit.sh >> "$REPORT_FILE" 2>&1 || ((ERRORS++))
+else
+    log "SKIP: CIS audit script not found"
+fi
+
+log ""
+
+# Run chkrootkit if available
+if command -v chkrootkit &> /dev/null; then
+    log "Running rootkit scan..."
+    chkrootkit >> "$REPORT_FILE" 2>&1 || ((ERRORS++))
+else
+    log "SKIP: chkrootkit not installed"
+fi
+
+log ""
+
+# Run AIDE check if available
+if command -v aide &> /dev/null && [ -f /var/lib/aide/aide.db ]; then
+    log "Running AIDE file integrity check..."
+    aide --check >> "$REPORT_FILE" 2>&1 || true
+else
+    log "SKIP: AIDE not configured"
+fi
+
+log ""
+log "=============================="
+log "Compliance scan completed"
+log "Errors encountered: $ERRORS"
+log "Report saved to: $REPORT_FILE"
+
+exit $ERRORS

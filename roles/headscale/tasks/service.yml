@@ -1,0 +1,125 @@
+---
+# Headscale - Service Management Tasks
+
+- name: Start Headscale stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ headscale_base_dir }}"
+    project_name: "{{ headscale_compose_project }}"
+    state: present
+  register: headscale_compose_result
+  when:
+    - headscale_state == 'present'
+    - headscale_service_enabled | bool
+
+- name: Wait for Headscale to be healthy
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ headscale_port }}/health"
+    method: GET
+    status_code: 200
+  register: health_check
+  retries: 30
+  delay: 2
+  until: health_check.status == 200
+  when:
+    - headscale_state == 'present'
+    - headscale_service_enabled | bool
+
+- name: Wait for Headplane to be available
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ headplane_port }}/admin"
+    method: GET
+    status_code:
+      - 200
+      - 302
+  register: headplane_check
+  retries: 15
+  delay: 2
+  until: headplane_check.status in [200, 302]
+  when:
+    - headscale_state == 'present'
+    - headscale_service_enabled | bool
+    - headplane_enabled | bool
+
+- name: Check existing Headscale users
+  ansible.builtin.command: >
+    docker exec {{ headscale_container_name }}
+    headscale users list -o json
+  register: existing_users
+  changed_when: false
+  failed_when: false
+  when:
+    - headscale_state == 'present'
+    - headscale_users | length > 0
+
+- name: Create Headscale users
+  ansible.builtin.command: >
+    docker exec {{ headscale_container_name }}
+    headscale users create {{ item }}
+  loop: "{{ headscale_users }}"
+  register: user_create
+  changed_when: "'already exists' not in user_create.stderr"
+  failed_when:
+    - user_create.rc != 0
+    - "'already exists' not in user_create.stderr"
+  when:
+    - headscale_state == 'present'
+    - headscale_users | length > 0
+
+- name: Check if API key already exists
+  ansible.builtin.command: >
+    docker exec {{ headscale_container_name }}
+    headscale apikeys list -o json
+  register: existing_apikeys
+  changed_when: false
+  failed_when: false
+  when:
+    - headscale_state == 'present'
+    - headplane_enabled | bool
+
+- name: Generate API key for Headplane
+  ansible.builtin.command: >
+    docker exec {{ headscale_container_name }}
+    headscale apikeys create --expiration 365d
+  register: api_key_result
+  changed_when: api_key_result.rc == 0
+  no_log: true
+  when:
+    - headscale_state == 'present'
+    - headplane_enabled | bool
+    - existing_apikeys.stdout | default('[]') | from_json | length == 0
+
+- name: Display API key for Headplane login
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      HEADPLANE API KEY (save this securely!)
+      ========================================
+      {{ api_key_result.stdout }}
+      ========================================
+      Use this key to log in to Headplane at:
+      http://{{ headscale_domain }}:{{ headplane_port }}/admin
+      ========================================
+  when:
+    - headscale_state == 'present'
+    - headplane_enabled | bool
+    - api_key_result is defined
+    - api_key_result.stdout is defined
+    - api_key_result.changed | default(false)
+
+- name: Stop Headscale stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ headscale_base_dir }}"
+    project_name: "{{ headscale_compose_project }}"
+    state: absent
+    remove_orphans: true
+  when: headscale_state == 'absent'
+
+- name: Remove Headscale directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ headscale_base_dir }}"
+  when:
+    - headscale_state == 'absent'
+    - headscale_remove_data | default(false) | bool

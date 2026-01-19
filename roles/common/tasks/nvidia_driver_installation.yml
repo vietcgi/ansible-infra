@@ -1,0 +1,224 @@
+---
+# NVIDIA Driver Installation Task
+# Installs NVIDIA GPU drivers with proper configuration for hosting workloads
+# Following ansible-infra patterns: wrapper task with validation, idempotency, and health checks
+
+- name: Skip NVIDIA driver installation if disabled
+  ansible.builtin.debug:
+    msg: "NVIDIA driver installation disabled. Set gpu_nvidia_enabled: true to enable."
+  when: not (gpu_nvidia_enabled | default(false))
+  tags:
+    - nvidia
+    - gpu
+
+# Pre-flight validation
+- name: Validate NVIDIA driver prerequisites
+  when: gpu_nvidia_enabled | default(false)
+  tags:
+    - nvidia
+    - validation
+  block:
+    - name: Check for NVIDIA GPU hardware
+      ansible.builtin.shell: |
+        set -o pipefail
+        lspci | grep -i nvidia
+      args:
+        executable: /bin/bash
+      register: nvidia_gpu_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if no NVIDIA GPU detected
+      ansible.builtin.fail:
+        msg: "No NVIDIA GPU detected. Please verify hardware installation."
+      when: nvidia_gpu_check.rc != 0
+
+    - name: Validate OS compatibility
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_major_version | int >= 20
+        fail_msg: "NVIDIA driver installation requires Ubuntu 20.04 or newer"
+        quiet: true
+
+# Check if driver already installed
+- name: Check existing NVIDIA driver installation
+  when: gpu_nvidia_enabled | default(false)
+  tags:
+    - nvidia
+    - validation
+  block:
+    - name: Check if nvidia-smi is available
+      ansible.builtin.command: which nvidia-smi
+      register: nvidia_smi_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get current driver version if installed
+      ansible.builtin.shell: |
+        set -o pipefail
+        nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1
+      args:
+        executable: /bin/bash
+      register: current_driver_version
+      changed_when: false
+      failed_when: false
+      when: nvidia_smi_exists.rc == 0
+
+    - name: Store driver status
+      ansible.builtin.set_fact:
+        nvidia_driver_installed: "{{ nvidia_smi_exists.rc == 0 }}"
+        nvidia_current_version: "{{ current_driver_version.stdout | default('') | trim }}"
+
+# Nouveau driver removal
+- name: Remove nouveau driver (conflicts with NVIDIA)
+  when:
+    - gpu_nvidia_enabled | default(false)
+    - not nvidia_driver_installed | default(false)
+  tags:
+    - nvidia
+    - nouveau
+  block:
+    - name: Blacklist nouveau driver
+      ansible.builtin.copy:
+        content: |
+          blacklist nouveau
+          options nouveau modeset=0
+        dest: /etc/modprobe.d/blacklist-nouveau.conf
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      register: nouveau_blacklist
+
+    - name: Update initramfs if nouveau blacklisted
+      ansible.builtin.command: update-initramfs -u
+      become: true
+      when: nouveau_blacklist.changed
+      changed_when: true
+
+# Add NVIDIA PPA and install drivers
+- name: Install NVIDIA drivers
+  when:
+    - gpu_nvidia_enabled | default(false)
+    - not nvidia_driver_installed | default(false)
+  tags:
+    - nvidia
+    - installation
+  block:
+    - name: Add NVIDIA graphics drivers PPA
+      ansible.builtin.apt_repository:
+        repo: "ppa:graphics-drivers/ppa"
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Install NVIDIA driver packages
+      ansible.builtin.apt:
+        name:
+          - "nvidia-driver-{{ gpu_nvidia_driver_version }}-{{ gpu_nvidia_driver_type | default('server') }}"
+          - "nvidia-utils-{{ gpu_nvidia_driver_version }}"
+        state: present
+        update_cache: true
+      become: true
+      register: nvidia_driver_install
+
+    - name: Hold NVIDIA packages to prevent auto-updates
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      become: true
+      loop:
+        - "nvidia-driver-{{ gpu_nvidia_driver_version }}-{{ gpu_nvidia_driver_type | default('server') }}"
+        - "nvidia-utils-{{ gpu_nvidia_driver_version }}"
+      when: gpu_nvidia_driver_hold | default(true)
+
+    - name: Set reboot required flag
+      ansible.builtin.set_fact:
+        nvidia_reboot_required: true
+      when: nvidia_driver_install.changed
+
+# NVIDIA persistence daemon
+- name: Configure NVIDIA persistence daemon
+  when:
+    - gpu_nvidia_enabled | default(false)
+    - gpu_nvidia_persistence_mode | default(true)
+    - nvidia_driver_installed | default(false) or not nvidia_reboot_required | default(false)
+  tags:
+    - nvidia
+    - persistence
+  block:
+    - name: Enable NVIDIA persistence daemon
+      ansible.builtin.systemd:
+        name: nvidia-persistenced
+        state: started
+        enabled: true
+      become: true
+      ignore_errors: true
+
+# Verify installation
+- name: Verify NVIDIA driver installation
+  when:
+    - gpu_nvidia_enabled | default(false)
+    - not nvidia_reboot_required | default(false)
+  tags:
+    - nvidia
+    - validation
+    - health
+  block:
+    - name: Run nvidia-smi to verify driver
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_smi_result
+      changed_when: false
+      failed_when: nvidia_smi_result.rc != 0
+
+    - name: Get GPU count
+      ansible.builtin.shell: |
+        set -o pipefail
+        nvidia-smi --query-gpu=count --format=csv,noheader | head -1
+      args:
+        executable: /bin/bash
+      register: gpu_count
+      changed_when: false
+
+    - name: Get GPU names
+      ansible.builtin.shell: |
+        set -o pipefail
+        nvidia-smi --query-gpu=name --format=csv,noheader
+      args:
+        executable: /bin/bash
+      register: gpu_names
+      changed_when: false
+
+    - name: Store GPU information as facts
+      ansible.builtin.set_fact:
+        nvidia_gpu_count: "{{ gpu_count.stdout | trim }}"
+        nvidia_gpu_names: "{{ gpu_names.stdout_lines }}"
+
+- name: NVIDIA driver installation complete
+  ansible.builtin.debug:
+    msg: |
+      NVIDIA Driver Installation:
+          - Driver Version: {{ gpu_nvidia_driver_version }}
+          - Driver Type: {{ gpu_nvidia_driver_type | default('server') }}
+          - GPUs Detected: {{ nvidia_gpu_count | default('N/A') }}
+          - GPU Models: {{ nvidia_gpu_names | default(['N/A']) | join(', ') }}
+          - Persistence Mode: {{ gpu_nvidia_persistence_mode | default(true) }}
+          - Reboot Required: {{ nvidia_reboot_required | default(false) }}
+  when: gpu_nvidia_enabled | default(false)
+  tags:
+    - nvidia
+    - summary
+
+- name: Warn about required reboot
+  ansible.builtin.debug:
+    msg: |
+      [WARNING] REBOOT REQUIRED!
+      NVIDIA drivers were installed but require a system reboot.
+      Please reboot the system and re-run this playbook to complete setup.
+  when:
+    - gpu_nvidia_enabled | default(false)
+    - nvidia_reboot_required | default(false)
+  tags:
+    - nvidia
+    - warning

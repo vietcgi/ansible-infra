@@ -1,0 +1,490 @@
+---
+- name: Gather minimal facts if not available
+  ansible.builtin.setup:
+    gather_subset:
+      - min
+  when: ansible_architecture is not defined
+
+- name: Skip Cilium installation if disabled
+  ansible.builtin.debug:
+    msg: "Cilium installation is disabled (cilium_enabled=false)"
+  when: not cilium_enabled
+
+- name: Install Cilium
+  when: cilium_enabled
+  block:
+    - name: Set architecture fact
+      ansible.builtin.set_fact:
+        cilium_arch: "{{ ansible_architecture | replace('aarch64', 'arm64') | replace('x86_64', 'amd64') }}"
+
+    - name: Check if Cilium CLI is already installed
+      ansible.builtin.stat:
+        path: "{{ cilium_cli_path }}"
+      register: cilium_cli_stat
+
+    - name: Download and install Cilium CLI
+      when: not cilium_cli_stat.stat.exists
+      block:
+        - name: Set download filename
+          ansible.builtin.set_fact:
+            cilium_tar_filename: "cilium-linux-{{ cilium_arch }}.tar.gz"
+
+        - name: Download Cilium CLI checksums (with proxy support)
+          ansible.builtin.command:
+            cmd: >-
+              curl -L
+              -o {{ cilium_tmp_dir }}/{{ cilium_tar_filename }}.sha256sum
+              https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/{{ cilium_tar_filename }}.sha256sum
+            creates: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}.sha256sum"
+          environment:
+            ALL_PROXY: "{{ ('socks5://' + socks5proxy) if (use_apt_socks5_proxy | default(false)) else '' }}"
+          retries: 3
+          delay: 5
+          register: checksum_download
+          failed_when: false
+          when: cilium_verify_checksum
+
+        - name: Warn if checksum file not available
+          ansible.builtin.debug:
+            msg:
+              - "WARNING: Checksum file not available for verification."
+              - "URL attempted: https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/{{ cilium_tar_filename }}.sha256sum"
+              - "Proceeding without checksum verification."
+              - "For production, verify binary integrity manually."
+          when:
+            - cilium_verify_checksum
+            - checksum_download.rc | default(0) != 0
+
+        - name: Download Cilium CLI (with proxy support)
+          ansible.builtin.command:
+            cmd: >-
+              curl -L
+              -o {{ cilium_tmp_dir }}/{{ cilium_tar_filename }}
+              https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/{{ cilium_tar_filename }}
+            creates: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}"
+          environment:
+            ALL_PROXY: "{{ ('socks5://' + socks5proxy) if (use_apt_socks5_proxy | default(false)) else '' }}"
+          retries: 3
+          delay: 10
+          register: cilium_download_result
+          failed_when: cilium_download_result.rc != 0
+
+        - name: Check if checksum file exists
+          ansible.builtin.stat:
+            path: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}.sha256sum"
+          register: checksum_file_stat
+          when: cilium_verify_checksum
+
+        - name: Verify checksum of downloaded binary
+          ansible.builtin.command:
+            cmd: sha256sum -c {{ cilium_tar_filename }}.sha256sum
+            chdir: "{{ cilium_tmp_dir }}"
+          register: checksum_verify
+          changed_when: false
+          when:
+            - cilium_verify_checksum
+            - checksum_file_stat.stat.exists | default(false)
+          failed_when: checksum_verify.rc != 0
+
+        - name: Extract Cilium CLI
+          ansible.builtin.unarchive:
+            src: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}"
+            dest: /usr/local/bin
+            remote_src: yes
+            mode: '0755'
+            owner: root
+            group: root
+
+        - name: Verify Cilium CLI binary is functional
+          ansible.builtin.command: "{{ cilium_cli_path }} version --client"
+          register: cilium_cli_version_check
+          changed_when: false
+          failed_when: cilium_cli_version_check.rc != 0
+
+        - name: Display Cilium CLI version
+          ansible.builtin.debug:
+            msg: "Cilium CLI version: {{ cilium_cli_version_check.stdout_lines[0] }}"
+
+        - name: Remove Cilium CLI archive
+          ansible.builtin.file:
+            path: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}"
+            state: absent
+
+        - name: Remove checksum file
+          ansible.builtin.file:
+            path: "{{ cilium_tmp_dir }}/{{ cilium_tar_filename }}.sha256sum"
+            state: absent
+          when: cilium_verify_checksum
+
+    - name: Determine kubeconfig path
+      ansible.builtin.set_fact:
+        cilium_kubeconfig: "{{ (kubeconfig_path | default('/etc/rancher/k3s/k3s.yaml')).rstrip('/') }}/k3s.yaml"
+      when: kubeconfig_path is defined and (kubeconfig_path | regex_search('\\.(yaml|yml)$')) is none
+
+    - name: Use provided kubeconfig path if it's a file
+      ansible.builtin.set_fact:
+        cilium_kubeconfig: "{{ kubeconfig_path }}"
+      when: kubeconfig_path is defined and (kubeconfig_path | regex_search('\\.(yaml|yml)$')) is not none
+
+    - name: Set default kubeconfig path
+      ansible.builtin.set_fact:
+        cilium_kubeconfig: "/etc/rancher/k3s/k3s.yaml"
+      when: kubeconfig_path is not defined
+
+    - name: Verify kubeconfig file exists
+      ansible.builtin.stat:
+        path: "{{ cilium_kubeconfig }}"
+      register: kubeconfig_stat
+
+    - name: Fail if kubeconfig not found
+      ansible.builtin.fail:
+        msg: "Kubeconfig not found at {{ cilium_kubeconfig }}. Ensure K3s/RKE2 is installed and running."
+      when: not kubeconfig_stat.stat.exists
+
+    - name: Display kubeconfig path
+      ansible.builtin.debug:
+        msg: "Using kubeconfig: {{ cilium_kubeconfig }}"
+
+    - name: Check if Helm is installed
+      ansible.builtin.command: which helm
+      register: helm_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Helm
+      when: helm_check.rc != 0
+      block:
+        - name: Download Helm installation script
+          ansible.builtin.command:
+            cmd: >-
+              curl -fsSL
+              -o {{ cilium_tmp_dir }}/get_helm.sh
+              https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+          environment:
+            ALL_PROXY: "{{ ('socks5://' + socks5proxy) if (use_apt_socks5_proxy | default(false)) else '' }}"
+
+        - name: Make Helm installation script executable
+          ansible.builtin.file:
+            path: "{{ cilium_tmp_dir }}/get_helm.sh"
+            mode: '0755'
+
+        - name: Run Helm installation script
+          ansible.builtin.command:
+            cmd: "{{ cilium_tmp_dir }}/get_helm.sh"
+          environment:
+            HELM_INSTALL_DIR: /usr/local/bin
+            USE_SUDO: "false"
+            http_proxy: "{{ http_proxy | default('') }}"
+            https_proxy: "{{ https_proxy | default(http_proxy | default('')) }}"
+            no_proxy: "{{ no_proxy | default('') }}"
+          become: yes
+
+        - name: Remove Helm installation script
+          ansible.builtin.file:
+            path: "{{ cilium_tmp_dir }}/get_helm.sh"
+            state: absent
+
+        - name: Verify Helm installation
+          ansible.builtin.command: helm version --short
+          register: helm_version
+          changed_when: false
+
+        - name: Display Helm version
+          ansible.builtin.debug:
+            msg: "Helm installed: {{ helm_version.stdout }}"
+
+    - name: Check if Cilium is already installed
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: cilium-operator
+        namespace: kube-system
+        kubeconfig: "{{ cilium_kubeconfig }}"
+      register: cilium_check
+      failed_when: false
+
+    # Only wait for K3s to be ready if Cilium is already installed (upgrade scenario)
+    # For fresh installs with --flannel-backend=none --disable-kube-proxy,
+    # K3s nodes won't be Ready until Cilium is installed
+    - name: Wait for K3s/RKE2 to be ready (upgrade scenario only)
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        kubeconfig: "{{ cilium_kubeconfig }}"
+      register: nodes_result
+      until: nodes_result is succeeded and nodes_result.resources is defined and nodes_result.resources | length > 0
+      retries: 30
+      delay: 10
+      failed_when: false
+      when: cilium_check.resources is defined and cilium_check.resources | length > 0
+
+    - name: Display K8s cluster readiness status
+      ansible.builtin.debug:
+        msg: "Waiting for K8s cluster... Attempt {{ nodes_result.attempts | default(1) }}/30"
+      when:
+        - cilium_check.resources is defined and cilium_check.resources | length > 0
+        - nodes_result is failed or nodes_result.resources is not defined or nodes_result.resources | length == 0
+
+    - name: Fail if K3s/RKE2 not ready after timeout (upgrade scenario)
+      ansible.builtin.fail:
+        msg: "{{ ['K3s/RKE2 cluster not ready after 5 minutes (' + (nodes_result.attempts | default(30) | string) + ' attempts).', 'Check cluster status: kubectl get nodes --kubeconfig=' + cilium_kubeconfig, 'Check service status: systemctl status k3s (or rke2-server)'] }}"
+      when:
+        - cilium_check.resources is defined and cilium_check.resources | length > 0
+        - nodes_result is failed or nodes_result.resources is not defined or nodes_result.resources | length == 0
+
+    - name: Display fresh install message
+      ansible.builtin.debug:
+        msg:
+          - "Fresh Cilium installation detected"
+          - "K3s nodes will become Ready after Cilium is installed"
+      when: cilium_check.resources is not defined or cilium_check.resources | length == 0
+
+    - name: Check if Flannel interface exists
+      ansible.builtin.command: ip link show flannel.1
+      register: flannel_check
+      changed_when: false
+      failed_when: false
+
+    - name: Remove Flannel interface if present
+      ansible.builtin.command: ip link delete flannel.1
+      when: flannel_check.rc == 0
+      register: flannel_removal
+      failed_when: false
+
+    - name: Display Flannel removal status
+      ansible.builtin.debug:
+        msg: "Removed Flannel interface (flannel.1) to avoid conflicts with Cilium"
+      when: flannel_check.rc == 0 and flannel_removal.rc == 0
+
+    - name: Add Cilium Helm repository
+      kubernetes.core.helm_repository:
+        name: cilium
+        repo_url: https://helm.cilium.io/
+      environment:
+        http_proxy: "{{ http_proxy | default('') }}"
+        https_proxy: "{{ https_proxy | default(http_proxy | default('')) }}"
+        no_proxy: "{{ no_proxy | default('') }}"
+
+    - name: Parse Cilium install options into Helm values
+      ansible.builtin.set_fact:
+        cilium_helm_values:
+          kubeProxyReplacement: "{{ cilium_kube_proxy_replacement }}"
+          operator:
+            replicas: "{{ cilium_operator_replicas }}"
+          prometheus:
+            enabled: true
+
+    - name: Process cilium_install_opts into Helm values
+      ansible.builtin.set_fact:
+        cilium_helm_values: >-
+          {{
+            cilium_helm_values | combine({
+              item.split('=')[0] | regex_replace('^--set ', ''):
+              item.split('=')[1]
+            })
+          }}
+      loop: "{{ cilium_install_opts }}"
+      when: cilium_install_opts | length > 0
+
+    - name: Display Cilium Helm values
+      ansible.builtin.debug:
+        msg: "Installing Cilium with values: {{ cilium_helm_values }}"
+
+    - name: Install or upgrade Cilium using Helm
+      kubernetes.core.helm:
+        name: cilium
+        chart_ref: cilium/cilium
+        chart_version: "{{ cilium_version }}"
+        release_namespace: kube-system
+        create_namespace: false
+        values: "{{ cilium_helm_values }}"
+        wait: no
+      environment:
+        KUBECONFIG: "{{ cilium_kubeconfig }}"
+        http_proxy: "{{ http_proxy | default('') }}"
+        https_proxy: "{{ https_proxy | default(http_proxy | default('')) }}"
+        no_proxy: "{{ no_proxy | default('') }}"
+      register: cilium_install
+      notify: Rollback Cilium on failure
+
+    - name: Display Cilium deployment result
+      ansible.builtin.debug:
+        msg: "Cilium {{ cilium_version }} deployed successfully via Helm"
+      when: cilium_install.changed | default(false)
+
+    - name: Wait for Cilium to be ready
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: kube-system
+        label_selectors:
+          - k8s-app=cilium
+        kubeconfig: "{{ cilium_kubeconfig }}"
+      register: cilium_pods
+      until: >
+        cilium_pods.resources | length > 0 and
+        cilium_pods.resources | selectattr('status.containerStatuses', 'defined') | list | length == cilium_pods.resources | length and
+        cilium_pods.resources | map(attribute='status.containerStatuses') | flatten | selectattr('ready', 'equalto', true) | list | length == cilium_pods.resources | map(attribute='status.containerStatuses') | flatten | list | length
+      retries: "{{ (cilium_ready_timeout | int / 10) | int }}"
+      delay: 10
+      when:
+        - cilium_wait_for_ready
+        - cilium_install.changed | default(false)
+      failed_when:
+        - cilium_fail_on_not_ready
+        - cilium_pods.resources | length == 0 or cilium_pods.resources | map(attribute='status.containerStatuses') | flatten | selectattr('ready', 'equalto', false) | list | length > 0
+
+    - name: Verify installed Cilium version
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: cilium-operator
+        namespace: kube-system
+        kubeconfig: "{{ cilium_kubeconfig }}"
+      register: cilium_deployed_image
+      when: cilium_check.resources is not defined or cilium_check.resources | length == 0
+
+    - name: Display installed Cilium version
+      ansible.builtin.debug:
+        msg: "Installed Cilium image: {{ cilium_deployed_image.resources[0].spec.template.spec.containers[0].image }}"
+      when:
+        - cilium_deployed_image.resources is defined
+        - cilium_deployed_image.resources | length > 0
+
+    - name: Verify Cilium DaemonSet status
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: DaemonSet
+        name: cilium
+        namespace: kube-system
+        kubeconfig: "{{ cilium_kubeconfig }}"
+      register: cilium_daemonset
+      when: cilium_install.changed | default(false) or (cilium_check.resources is defined and cilium_check.resources | length > 0)
+
+    - name: Display Cilium DaemonSet status
+      ansible.builtin.debug:
+        msg:
+          - "Cilium DaemonSet status:"
+          - "  Desired: {{ cilium_daemonset.resources[0].status.desiredNumberScheduled | default(0) }}"
+          - "  Ready: {{ cilium_daemonset.resources[0].status.numberReady | default(0) }}"
+          - "  Available: {{ cilium_daemonset.resources[0].status.numberAvailable | default(0) }}"
+      when:
+        - cilium_daemonset.resources is defined
+        - cilium_daemonset.resources | length > 0
+
+    - name: Warn if Cilium DaemonSet is not fully ready
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: Cilium DaemonSet is not fully ready yet."
+          - "This may be normal if the cluster is still initializing."
+          - "Run 'kubectl get ds -n kube-system cilium' to verify."
+      when:
+        - cilium_daemonset.resources is defined
+        - cilium_daemonset.resources | length > 0
+        - cilium_daemonset.resources[0].status.numberReady | default(0) < cilium_daemonset.resources[0].status.desiredNumberScheduled | default(1)
+        - not cilium_fail_on_not_ready
+
+    - name: Fail if Cilium is not ready and strict mode enabled
+      ansible.builtin.fail:
+        msg: "Cilium DaemonSet is not ready. Run 'kubectl describe ds -n kube-system cilium' to diagnose."
+      when:
+        - cilium_fail_on_not_ready
+        - cilium_daemonset.resources is defined
+        - cilium_daemonset.resources | length > 0
+        - cilium_daemonset.resources[0].status.numberReady | default(0) < cilium_daemonset.resources[0].status.desiredNumberScheduled | default(1)
+
+    # LoadBalancer IP Pool Configuration
+    - name: Configure Cilium LoadBalancer IP Pool
+      when: cilium_lb_pool_enabled
+      block:
+        - name: Gather network facts for WireGuard interface
+          ansible.builtin.setup:
+            gather_subset:
+              - '!all'
+              - '!min'
+              - network
+          when: cilium_lb_pool_source == "wireguard"
+
+        - name: Check if WireGuard interface exists
+          ansible.builtin.fail:
+            msg: "WireGuard interface {{ cilium_lb_pool_wg_interface }} not found in network interfaces. Available: {{ ansible_interfaces | join(', ') }}"
+          when:
+            - cilium_lb_pool_source == "wireguard"
+            - cilium_lb_pool_wg_interface not in ansible_interfaces
+
+        - name: Set LoadBalancer IP from WireGuard interface
+          ansible.builtin.set_fact:
+            cilium_lb_pool_ip: "{{ hostvars[inventory_hostname]['ansible_' + cilium_lb_pool_wg_interface].ipv4.address }}"
+          when: cilium_lb_pool_source == "wireguard"
+
+        - name: Validate LoadBalancer IP is set
+          ansible.builtin.fail:
+            msg: "LoadBalancer IP is not set. Check cilium_lb_pool_source and cilium_lb_pool_ip variables."
+          when: cilium_lb_pool_ip == ""
+
+        - name: Display LoadBalancer IP pool configuration
+          ansible.builtin.debug:
+            msg:
+              - "Configuring Cilium LoadBalancer IP Pool"
+              - "  Pool Name: {{ cilium_lb_pool_name }}"
+              - "  IP Address: {{ cilium_lb_pool_ip }}"
+              - "  Source: {{ cilium_lb_pool_source }}"
+
+        - name: Apply Cilium LoadBalancer IP pool
+          kubernetes.core.k8s:
+            state: present
+            definition: "{{ lookup('template', 'cilium-lb-pool.yaml.j2') | from_yaml }}"
+            kubeconfig: "{{ cilium_kubeconfig }}"
+          environment:
+            http_proxy: "{{ http_proxy | default('') }}"
+            https_proxy: "{{ https_proxy | default(http_proxy | default('')) }}"
+            no_proxy: "{{ no_proxy | default('') }}"
+          register: cilium_pool_result
+
+        - name: Display LoadBalancer IP pool result
+          ansible.builtin.debug:
+            msg: "Cilium LoadBalancer IP pool {{ 'created' if cilium_pool_result.changed else 'already exists' }}"
+
+        - name: Verify LoadBalancer IP pool status
+          kubernetes.core.k8s_info:
+            api_version: cilium.io/v2alpha1
+            kind: CiliumLoadBalancerIPPool
+            name: "{{ cilium_lb_pool_name }}"
+            kubeconfig: "{{ cilium_kubeconfig }}"
+          register: pool_status
+          failed_when: false
+
+        - name: Display LoadBalancer IP pool status
+          ansible.builtin.debug:
+            msg: "Pool {{ cilium_lb_pool_name }}: {{ pool_status.resources[0].status | default('No status available') }}"
+          when: pool_status.resources | length > 0
+
+    - name: Run Cilium connectivity test
+      ansible.builtin.command: "{{ cilium_cli_path }} connectivity test --test-concurrency=1"
+      environment:
+        KUBECONFIG: "{{ cilium_kubeconfig }}"
+        http_proxy: "{{ http_proxy | default('') }}"
+        https_proxy: "{{ https_proxy | default(http_proxy | default('')) }}"
+        no_proxy: "{{ no_proxy | default('') }}"
+      register: cilium_connectivity
+      changed_when: false
+      failed_when: false
+      when: cilium_connectivity_test
+      timeout: 600
+
+    - name: Display connectivity test results
+      ansible.builtin.debug:
+        msg: "{{ cilium_connectivity.stdout_lines | default(['Connectivity test skipped']) }}"
+      when: cilium_connectivity_test
+
+  rescue:
+    - name: Display Cilium installation error
+      ansible.builtin.debug:
+        msg:
+          - "Cilium installation failed!"
+          - "Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+          - "Check logs: kubectl logs -n kube-system -l k8s-app=cilium"
+
+    - name: Re-raise the failure
+      ansible.builtin.fail:
+        msg: "Cilium installation failed. See error above."

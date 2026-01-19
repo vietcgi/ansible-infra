@@ -1,0 +1,28 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# AIDE File Integrity Check Script
+
+set -euo pipefail
+
+AIDE_DB="/var/lib/aide/aide.db"
+LOG_DIR="/var/log/aide"
+
+mkdir -p "$LOG_DIR"
+
+echo "======================================"
+echo "AIDE File Integrity Check"
+echo "Date: $(date)"
+echo "Host: $(hostname -f)"
+echo "======================================"
+
+if [ ! -f "$AIDE_DB" ]; then
+    echo "ERROR: AIDE database not found at $AIDE_DB"
+    echo "Run 'aideinit' to initialize the database"
+    exit 1
+fi
+
+# Run AIDE check
+aide --check || true
+
+echo ""
+echo "Check completed at $(date)"

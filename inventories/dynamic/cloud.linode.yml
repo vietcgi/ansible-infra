@@ -1,0 +1,96 @@
+# Linode Dynamic Inventory
+# =========================
+# Automatically discovers Linodes (instances) from Linode Cloud
+#
+# Requirements:
+#   pip install linode_api4
+#   Uses community.general.linode plugin (included in community.general collection)
+#
+# Authentication:
+#   Set LINODE_ACCESS_TOKEN environment variable
+#   Get API token from: https://cloud.linode.com/profile/tokens
+#
+# Usage:
+#   export LINODE_ACCESS_TOKEN="your-api-token"
+#   ansible-inventory -i inventories/dynamic/cloud.linode.yml --list
+#   ansible-playbook -i inventories/dynamic/cloud.linode.yml playbooks/provision.yml
+---
+plugin: community.general.linode
+
+# API Token (set via LINODE_ACCESS_TOKEN env var)
+# access_token: "{{ lookup('env', 'LINODE_ACCESS_TOKEN') }}"
+
+# Filter by region (optional)
+regions:
+  - us-east
+  - us-central
+  - us-west
+  - eu-west
+  - eu-central
+  - ap-south
+  - ap-northeast
+  - ap-southeast
+
+# Filter by instance type (optional)
+# types:
+#   - g6-nanode-1
+#   - g6-standard-1
+#   - g6-standard-2
+
+# Compose variables from Linode attributes
+compose:
+  # Set ansible_host to public IPv4
+  ansible_host: ipv4[0] | default(ipv6.split('/')[0], true)
+  # Default user for Linode images
+  ansible_user: "'root'"
+  # Linode metadata
+  linode_id: id
+  linode_label: label
+  linode_region: region
+  linode_type: instance_type
+  linode_status: status
+  linode_image: image
+  linode_ipv4: ipv4[0] | default(None)
+  linode_ipv6: ipv6 | default(None)
+  # Extract environment from tags
+  environment: tags | select('match', 'env-.*') | map('regex_replace', 'env-', '') | first | default('unknown')
+  role: tags | select('match', 'role-.*') | map('regex_replace', 'role-', '') | first | default('server')
+
+# Create groups based on Linode attributes
+keyed_groups:
+  # Group by region
+  - key: region
+    prefix: linode_region
+    separator: "_"
+
+  # Group by type
+  - key: instance_type
+    prefix: linode_type
+    separator: "_"
+
+  # Group by image/OS
+  - key: image | default('unknown') | regex_replace('linode/', '')
+    prefix: os
+    separator: "_"
+
+  # Group by status
+  - key: status
+    prefix: status
+    separator: "_"
+
+# Static groups based on conditions
+groups:
+  # All Linode instances
+  linode: true
+  # Running instances only
+  running: status == 'running'
+  # Group by common tags
+  production: "'env-production' in tags"
+  staging: "'env-staging' in tags"
+  development: "'env-development' in tags or 'env-dev' in tags"
+  # Role-based groups
+  webservers: "'role-web' in tags or 'role-webserver' in tags"
+  databases: "'role-db' in tags or 'role-database' in tags"
+
+# Strict mode - fail if errors occur
+strict: false

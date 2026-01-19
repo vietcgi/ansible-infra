@@ -1,0 +1,197 @@
+---
+# pfSense WireGuard - Tunnel Configuration
+
+- name: Configure WireGuard tunnel (Provider mode)
+  when: pfsense_wireguard_mode == 'provider'
+  block:
+    - name: Create WireGuard tunnel for VPN provider
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+          require_once("wireguard/wg_globals.inc");
+
+          // Initialize WireGuard config if needed
+          init_config_arr(array('installedpackages', 'wireguard', 'tunnels', 'item'));
+
+          $tunnel = array(
+            'enabled' => 'yes',
+            'name' => 'tun_wg0',
+            'descr' => '{{ pfsense_wireguard_provider.name }} VPN',
+            'listenport' => '',
+            'privatekey' => '{{ pfsense_wireguard_provider.private_key }}',
+            'mtu' => '{{ pfsense_wireguard_provider.mtu | default(1420) }}',
+            'addresses' => array(
+              'row' => array(
+                array(
+                  'address' => '{{ pfsense_wireguard_provider.address | regex_replace("/.*", "") }}',
+                  'mask' => '{{ pfsense_wireguard_provider.address | regex_replace(".*?/", "") | default(32) }}',
+                  'descr' => 'WireGuard Tunnel IP'
+                )
+              )
+            )
+          );
+
+          // Check if tunnel already exists
+          $tunnels = &$config['installedpackages']['wireguard']['tunnels']['item'];
+          $found = false;
+          foreach ($tunnels as $idx => $t) {
+            if ($t['name'] == 'tun_wg0') {
+              $tunnels[$idx] = $tunnel;
+              $found = true;
+              break;
+            }
+          }
+          if (!$found) {
+            $tunnels[] = $tunnel;
+          }
+
+          write_config("WireGuard tunnel configured via Ansible");
+          echo "tunnel_configured";
+      register: tunnel_result
+
+    - name: Configure WireGuard peer (VPN provider endpoint)
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+
+          init_config_arr(array('installedpackages', 'wireguard', 'peers', 'item'));
+
+          $peer = array(
+            'enabled' => 'yes',
+            'tun' => 'tun_wg0',
+            'descr' => '{{ pfsense_wireguard_provider.name }} Server',
+            'endpoint' => '{{ pfsense_wireguard_provider.endpoint }}',
+            'port' => '{{ pfsense_wireguard_provider.endpoint_port }}',
+            'publickey' => '{{ pfsense_wireguard_provider.public_key }}',
+            'allowedips' => '{{ pfsense_wireguard_provider.allowed_ips }}',
+            'persistentkeepalive' => '{{ pfsense_wireguard_provider.persistent_keepalive | default(25) }}'
+          );
+
+          // Check if peer already exists
+          $peers = &$config['installedpackages']['wireguard']['peers']['item'];
+          $found = false;
+          foreach ($peers as $idx => $p) {
+            if ($p['tun'] == 'tun_wg0' && $p['publickey'] == '{{ pfsense_wireguard_provider.public_key }}') {
+              $peers[$idx] = $peer;
+              $found = true;
+              break;
+            }
+          }
+          if (!$found) {
+            $peers[] = $peer;
+          }
+
+          write_config("WireGuard peer configured via Ansible");
+          echo "peer_configured";
+      register: peer_result
+
+    - name: Apply WireGuard configuration
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+          wg_configure();
+          echo "applied";
+      register: apply_result
+
+- name: Configure WireGuard tunnels (Custom mode)
+  when: pfsense_wireguard_mode != 'provider'
+  block:
+    - name: Create custom WireGuard tunnels
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+          require_once("wireguard/wg_globals.inc");
+
+          init_config_arr(array('installedpackages', 'wireguard', 'tunnels', 'item'));
+
+          $tunnel = array(
+            'enabled' => 'yes',
+            'name' => '{{ item.name }}',
+            'descr' => '{{ item.description | default(item.name) }}',
+            'listenport' => '{{ item.listen_port | default("") }}',
+            'privatekey' => '{{ item.private_key }}',
+            'mtu' => '{{ item.mtu | default(1420) }}',
+            'addresses' => array(
+              'row' => array(
+                array(
+                  'address' => '{{ item.address | regex_replace("/.*", "") }}',
+                  'mask' => '{{ item.address | regex_replace(".*?/", "") | default(32) }}',
+                  'descr' => 'WireGuard Tunnel IP'
+                )
+              )
+            )
+          );
+
+          $tunnels = &$config['installedpackages']['wireguard']['tunnels']['item'];
+          $found = false;
+          foreach ($tunnels as $idx => $t) {
+            if ($t['name'] == '{{ item.name }}') {
+              $tunnels[$idx] = $tunnel;
+              $found = true;
+              break;
+            }
+          }
+          if (!$found) {
+            $tunnels[] = $tunnel;
+          }
+
+          write_config("WireGuard tunnel {{ item.name }} configured via Ansible");
+          echo "tunnel_configured";
+      loop: "{{ pfsense_wireguard_tunnels }}"
+      register: custom_tunnel_results
+
+    - name: Configure peers for custom tunnels
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+
+          init_config_arr(array('installedpackages', 'wireguard', 'peers', 'item'));
+
+          $peer = array(
+            'enabled' => 'yes',
+            'tun' => '{{ item.0.name }}',
+            'descr' => '{{ item.1.description | default("Peer") }}',
+            'endpoint' => '{{ item.1.endpoint | regex_replace(":.*", "") }}',
+            'port' => '{{ item.1.endpoint | regex_replace(".*:", "") | default(51820) }}',
+            'publickey' => '{{ item.1.public_key }}',
+            'allowedips' => '{{ item.1.allowed_ips | default("0.0.0.0/0") }}',
+            'persistentkeepalive' => '{{ item.1.persistent_keepalive | default(25) }}'
+          );
+
+          $peers = &$config['installedpackages']['wireguard']['peers']['item'];
+          $found = false;
+          foreach ($peers as $idx => $p) {
+            if ($p['tun'] == '{{ item.0.name }}' && $p['publickey'] == '{{ item.1.public_key }}') {
+              $peers[$idx] = $peer;
+              $found = true;
+              break;
+            }
+          }
+          if (!$found) {
+            $peers[] = $peer;
+          }
+
+          write_config("WireGuard peer for {{ item.0.name }} configured via Ansible");
+          echo "peer_configured";
+      loop: "{{ pfsense_wireguard_tunnels | subelements('peers') }}"
+      register: custom_peer_results
+
+    - name: Apply WireGuard configuration
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("wireguard/wg.inc");
+          wg_configure();
+          echo "applied";
+
+- name: Display tunnel configuration result
+  ansible.builtin.debug:
+    msg: |
+      ✓ WireGuard Tunnel Configured
+      Mode: {{ pfsense_wireguard_mode }}
+      {% if pfsense_wireguard_mode == 'provider' %}
+      Tunnel: tun_wg0
+      Provider: {{ pfsense_wireguard_provider.name }}
+      Endpoint: {{ pfsense_wireguard_provider.endpoint }}:{{ pfsense_wireguard_provider.endpoint_port }}
+      {% else %}
+      Tunnels: {{ pfsense_wireguard_tunnels | map(attribute='name') | join(', ') }}
+      {% endif %}

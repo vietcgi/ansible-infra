@@ -53,48 +53,68 @@ common_chrony_ntp_domain: pool.ntp.org
 
 # SSH Hardening
 common_ssh_port: 22
-common_ssh_permit_root_login: "no"
-common_ssh_password_authentication: "no"
+common_ssh_permit_root_login: "yes"
+common_ssh_password_authentication: "yes"
 common_ssh_key_bits: 4096
 
-# Sysctl Parameters (OS Tuning) - Production Performance Optimized
+# Sysctl Parameters (OS Tuning) - Production Performance Optimized (Updated Dec 2025)
 common_sysctl_config:
-  # Network performance - Optimized for high throughput
+  # ===== NETWORK PERFORMANCE =====
   net.ipv4.ip_forward: 1
   net.core.somaxconn: 65536
-  net.ipv4.tcp_max_syn_backlog: 2048
+  net.core.netdev_max_backlog: 16384
+  net.core.rmem_max: 16777216
+  net.core.wmem_max: 16777216
+  net.core.rmem_default: 1048576
+  net.core.wmem_default: 1048576
+  net.core.optmem_max: 65536
+
+  # ===== TCP OPTIMIZATION =====
+  net.ipv4.tcp_rmem: "4096 87380 16777216"
+  net.ipv4.tcp_wmem: "4096 65536 16777216"
+  net.ipv4.tcp_mem: "1535106 2046809 16777216"
+  net.ipv4.tcp_max_syn_backlog: 8192
   net.ipv4.tcp_tw_reuse: 1
   net.ipv4.tcp_fin_timeout: 10
+  net.ipv4.tcp_syncookies: 1
+  net.ipv4.tcp_max_tw_buckets: 2000000
+  net.ipv4.ip_local_port_range: "1024 65535"
+  net.ipv4.tcp_moderate_rcvbuf: 1
 
-  # Multipath routing optimizations
+  # ===== BBR CONGESTION CONTROL =====
+  net.core.default_qdisc: fq
+  net.ipv4.tcp_congestion_control: bbr
+
+  # ===== MULTIPATH ROUTING =====
   net.ipv4.fib_multipath_hash_policy: 1
   net.ipv4.fib_multipath_use_neigh: 1
 
-  # ARP cache optimizations (high-traffic environments)
+  # ===== ARP CACHE (high-traffic environments) =====
   net.ipv4.neigh.default.gc_thresh1: 80000
   net.ipv4.neigh.default.gc_thresh2: 90000
   net.ipv4.neigh.default.gc_thresh3: 100000
 
-  # TCP buffer optimization (throughput for gigabit+ networks)
-  net.ipv4.tcp_mem: "1535106 2046809 10000000"
-  net.ipv4.tcp_rmem: "4096 131072 6291456"
-  net.ipv4.tcp_wmem: "4096 16384 4194304"
-
-  # Port range for high-connection scenarios
-  net.ipv4.ip_local_port_range: "1024 65535"
-  net.ipv4.tcp_moderate_rcvbuf: 1
-
-  # File system optimizations
+  # ===== FILE SYSTEM =====
   fs.file-max: 12000500
   fs.nr_open: 20000500
 
-  # Security
+  # ===== MEMORY =====
+  vm.swappiness: 10
+  vm.dirty_ratio: 15
+  vm.dirty_background_ratio: 5
+
+  # ===== SECURITY =====
   net.ipv4.conf.all.send_redirects: 0
   net.ipv4.conf.default.send_redirects: 0
   net.ipv4.conf.all.accept_source_route: 0
   net.ipv4.conf.default.accept_source_route: 0
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv4.conf.all.rp_filter: 1
+  kernel.kptr_restrict: 2
+  net.core.bpf_jit_harden: 2
 
-  # ICMP
+  # ===== ICMP =====
   net.ipv4.icmp_echo_ignore_broadcasts: 1
   net.ipv4.icmp_ignore_bogus_error_responses: 1
 
@@ -202,17 +222,22 @@ fail2ban_loglevel: "INFO" # Log level (DEBUG, INFO, WARN, ERROR, CRIT)
 fail2ban_syslog_facility: "daemon" # Syslog facility
 fail2ban_usedns: "warn" # DNS usage (yes, no, warn)
 fail2ban_ignoreself: true # Never ban localhost
-fail2ban_ignoreips: [] # Additional IPs to whitelist
-# Example:
-#  - 192.168.1.100
-#  - 203.0.113.0/24
+
+# CRITICAL: Add admin/automation IPs to prevent accidental lockout
+# These IPs will NEVER be banned by fail2ban
+# Examples:
+#   - "YOUR_OFFICE_IP"
+#   - "YOUR_HOME_IP"
+#   - "10.0.0.0/8"            # Internal network
+#   - "192.168.0.0/16"        # Internal network
+fail2ban_ignoreips: []
 
 # SSH jail settings
-fail2ban_bantime_ssh: 3600 # SSH ban duration
-fail2ban_findtime_ssh: 600 # SSH detection window
-fail2ban_maxretry_ssh: 5 # SSH max retries
+fail2ban_bantime_ssh: 14400 # SSH ban duration (4 hours - balanced security/usability)
+fail2ban_findtime_ssh: 600 # SSH detection window (10 min)
+fail2ban_maxretry_ssh: 5 # SSH max retries (industry standard 3-5)
 fail2ban_ssh_port: "ssh" # SSH port
-fail2ban_ssh_whitelist_ips: [] # SSH-specific whitelist
+fail2ban_ssh_whitelist_ips: [] # SSH-specific whitelist (add admin IPs here)
 
 # Postfix jail settings (mail server)
 fail2ban_enable_postfix: false # Postfix jail enabled
@@ -270,6 +295,30 @@ fail2ban_internal_network_ips: [] # Internal network ranges
 #  - 192.168.0.0/16
 fail2ban_monitoring_ips: [] # Monitoring/automation IPs
 fail2ban_custom_ignoreips: [] # Custom whitelist entries
+
+## IP Blocklist (ipset)
+# Pre-emptive blocking of known attackers at network level
+# WARNING: Always add your admin IPs to blocklist_whitelist_ips before enabling!
+blocklist_enabled: true
+blocklist_max_entries: 65536 # Maximum IPs in blocklist
+blocklist_update_hour: "4" # Hour to run daily update (0-23)
+
+# CRITICAL: Add ALL admin/automation IPs here to prevent lockout
+# These IPs will NEVER be blocked, even if they appear in threat feeds
+blocklist_whitelist_ips:
+  - "127.0.0.1"
+  # IMPORTANT: Uncomment and add your IPs before running!
+  # - "YOUR_OFFICE_IP/32"      # Office static IP
+  # - "YOUR_HOME_IP/32"        # Home IP (if static)
+  # - "YOUR_VPN_RANGE/24"      # VPN exit range
+  # - "10.0.0.0/8"             # Internal network
+  # - "192.168.0.0/16"         # Internal network
+
+# Threat feed sources
+blocklist_enable_ipsum: true # Fetch from ipsum threat feed (recommended)
+blocklist_ipsum_limit: 2000 # Max IPs from ipsum (prevents huge lists)
+blocklist_enable_spamhaus: true # Fetch Spamhaus DROP/EDROP (highly reliable)
+blocklist_enable_fail2ban_sync: true # Sync IPs already banned by fail2ban (safe - pre-verified)
 
 ## Prometheus Metrics Collection
 metrics_enabled: true
@@ -356,7 +405,7 @@ backup_verify_after_backup: true
 
 ## Sudo Hardening (Placeholder for PHASE 1.B)
 sudo_hardening_enabled: true
-sudo_require_tty: true
+sudo_require_tty: false  # true breaks ansible remote execution
 sudo_use_pty: true
 sudo_log_input: true
 sudo_log_output: true
@@ -665,7 +714,7 @@ loadbalancing_haproxy_default_options: {}
 ################################################################################
 
 ## Vault Core Configuration
-security_vault_enabled: true
+security_vault_enabled: false  # Disabled by default
 security_vault_version: "1.16.0"
 security_vault_download_url: "https://releases.hashicorp.com/vault"
 security_vault_checksum: ""
@@ -710,7 +759,7 @@ security_vault_audit_retention_days: 90
 security_vault_audit_hmac_accessor: true
 
 ## Vault PKI Configuration
-security_vault_pki_enabled: true
+security_vault_pki_enabled: false  # Disabled by default
 security_vault_pki_max_lease_ttl: "87600h"
 security_vault_pki_default_ttl: "8760h"
 security_vault_pki_root_ca_ttl: "87600h"
@@ -836,6 +885,12 @@ database_monitoring_slow_query_threshold: 1000
 ## PHASE 3: Final Integration & Orchestration
 ################################################################################
 
+## Application Deployment
+application_deployment_enabled: false  # Disabled by default
+
+## Advanced Monitoring
+advanced_monitoring_enabled: false  # Disabled by default
+
 ## Kubernetes Cluster Orchestration
 orchestration_kubernetes_enabled: false
 orchestration_kubernetes_version: "1.28"
@@ -928,7 +983,7 @@ orchestration_cost_optimization_enabled: true
 orchestration_auto_scaling_enabled: true
 orchestration_cluster_upgrade_strategy: "rolling"
 orchestration_backup_enabled: true
-orchestration_disaster_recovery_enabled: true
+orchestration_disaster_recovery_enabled: false  # Disabled by default
 
 ## Monitoring & Observability
 orchestration_distributed_tracing_enabled: false
@@ -1016,7 +1071,7 @@ service_mesh_egress_control_enabled: false
 service_mesh_outbound_traffic_policy: "ALLOW_ANY"
 
 ## Disaster Recovery & Backup Configuration
-disaster_recovery_enabled: true
+disaster_recovery_enabled: false  # Disabled by default
 backup_storage_path: "/var/backups/kubernetes"
 backup_storage_type: "local"
 
@@ -1101,9 +1156,14 @@ monitoring_metrics_evaluation_interval: "15s"
 ## Alerting Configuration
 monitoring_alerting_enabled: true
 monitoring_alert_email: "ops-team@example.com"
+monitoring_alert_command: ""  # Optional: custom alert command (e.g., "/usr/local/bin/send-alert")
 monitoring_critical_alert_email: "on-call@example.com"
 monitoring_smtp_host: "smtp.example.com:587"
 monitoring_error_rate_threshold: 0.05
+monitoring_cpu_warning_threshold: 80
+monitoring_cpu_critical_threshold: 95
+monitoring_memory_warning_threshold: 80
+monitoring_memory_critical_threshold: 95
 monitoring_latency_threshold: 1
 
 ## OpenTelemetry Collector
@@ -1132,7 +1192,7 @@ monitoring_slo_availability_target: 0.99
 monitoring_slo_latency_p99_ms: 1000
 
 ## ===== PHASE 1.A: Kernel Hardening =====
-kernel_hardening_enabled: true
+kernel_hardening_enabled: false
 kernel_aslr_enabled: true
 kernel_ptrace_scope: 2 # Restrict ptrace to parent/child
 kernel_modules_disabled: false # Keep enabled for most systems
@@ -1175,7 +1235,7 @@ storage_allow_usb: false
 storage_enable_encryption: false
 
 ## ===== PHASE 1.B: Performance Tuning =====
-performance_tuning_enabled: true
+performance_tuning_enabled: false  # Set to true to enable kernel/network tuning (may fail on VPS)
 performance_enable_cpu_affinity: false
 performance_cpu_scheduler_tuning: true
 postgres_shared_buffers: "2GB"
@@ -1255,20 +1315,21 @@ monitoring_ops_phone: ""
 monitoring_manager_phone: ""
 
 ## ===== PHASE 1.B: Compliance Scanning =====
-compliance_scanning_enabled: true
+compliance_scanning_enabled: false  # Disabled by default - can cause high CPU/IO
 compliance_tools_enabled: true
-compliance_aide_enabled: true
-compliance_aide_scan_time: "03:00" # Daily at 3 AM
+compliance_aide_enabled: false      # AIDE file integrity - disabled by default
+compliance_samhain_enabled: false   # Samhain disabled - conflicts with AIDE, heavy resource usage
+compliance_aide_scan_time: "03:00"  # Daily at 3 AM
 compliance_weekly_scan_time: "01:00" # Weekly Sunday at 1 AM
-compliance_cis_enabled: true
+compliance_cis_enabled: false       # CIS Benchmark audit - disabled by default
 compliance_nist_enabled: true
-compliance_openscap_enabled: true
+compliance_openscap_enabled: false  # OpenSCAP disabled - package availability varies by distro
 compliance_chkrootkit_enabled: true
 compliance_reporting_enabled: true
 compliance_report_location: "/var/log/compliance"
 
 ## ===== PHASE 1.B: Compliance Automation =====
-compliance_automation_enabled: true
+compliance_automation_enabled: false  # Disabled by default - many templates required
 compliance_fedramp_enabled: true
 compliance_hipaa_enabled: false
 compliance_pci_dss_enabled: false
@@ -1283,7 +1344,7 @@ compliance_dashboard_enabled: false
 compliance_log_rotation_days: 30
 
 ## ===== PHASE 1.B: Backup Recovery Testing =====
-backup_recovery_testing_enabled: true
+backup_recovery_testing_enabled: false  # Disabled by default
 backup_test_schedule: "02:00" # Weekly Sunday at 2 AM
 backup_test_retention_days: 7
 backup_integrity_check_enabled: true
@@ -1461,3 +1522,57 @@ ssh_config:
 
 ## SSH Key Management
 ssh_public_key_path: "{{ lookup('env', 'HOME') }}/.ssh/id_rsa.pub"
+
+################################################################################
+# PHASE 2.F: GPU Hosting & Vast.ai Marketplace
+################################################################################
+
+## NVIDIA Driver Configuration
+gpu_nvidia_enabled: false                           # Master switch for GPU support
+gpu_nvidia_driver_version: "550"                    # Driver version (550-server recommended)
+gpu_nvidia_driver_type: "server"                    # server or desktop
+gpu_nvidia_driver_hold: true                        # Prevent auto-updates
+gpu_nvidia_persistence_mode: true                   # Keep GPU initialized
+gpu_nvidia_power_limit: 0                           # 0 = default, else watts (e.g., 350)
+
+## NVIDIA Container Toolkit
+gpu_container_toolkit_enabled: false                # Enable container GPU support
+gpu_container_toolkit_runtime: "nvidia"             # Runtime name for Docker
+gpu_container_toolkit_default_runtime: false        # Make NVIDIA default Docker runtime
+
+## GPU Monitoring (DCGM Exporter)
+gpu_monitoring_enabled: false                       # Enable GPU metrics
+gpu_monitoring_dcgm_version: "3.3.8-3.6.1"         # DCGM exporter version
+gpu_monitoring_dcgm_port: 9400                      # Prometheus metrics port
+gpu_monitoring_dcgm_interval: "5000"               # Collection interval (ms)
+
+## Vast.ai Host Configuration
+vastai_enabled: false                               # Master switch for Vast.ai
+vastai_api_key: ""                                  # API key (use vault!)
+vastai_min_gpu: 1                                   # Minimum GPUs per rental
+vastai_port_range_start: 40000                      # Port range start
+vastai_port_range_end: 40019                        # Port range end
+vastai_price_gpu: 0.50                              # Price per GPU/hour ($)
+vastai_price_disk: 0.15                             # Price per GB/month ($)
+vastai_price_inet_up: 0.00                          # Upload bandwidth $/GB
+vastai_price_inet_down: 0.00                        # Download bandwidth $/GB
+vastai_discount_rate: 0.4                           # Max prepay discount
+vastai_auto_list: true                              # Auto-list after setup
+vastai_vm_support: false                            # Enable VM support
+
+## Vast.ai Security
+vastai_firewall_ports_enabled: true                 # Open required ports
+vastai_ssh_port_vast: 22                            # SSH port for Vast clients
+vastai_max_clients_per_gpu: 1                       # Max concurrent clients
+
+## GPU Performance Tuning
+gpu_performance_mode: "maximum"                      # maximum, balanced, quiet
+gpu_memory_overclock: 0                             # Memory offset (MHz), 0=disabled
+gpu_graphics_overclock: 0                           # Graphics offset (MHz), 0=disabled
+gpu_fan_control: "auto"                             # auto or fixed percentage
+
+## GPU Health Monitoring Thresholds
+gpu_temp_warning: 80                                # Warning temp (C)
+gpu_temp_critical: 90                               # Critical temp (C)
+gpu_power_warning: 400                              # Warning power (W)
+gpu_memory_warning: 95                              # Warning memory usage (%)

@@ -1,0 +1,65 @@
+---
+# pfSense WireGuard Configuration Playbook
+#
+# Usage:
+#   # Configure WireGuard on pfSense with SafeShark
+#   ansible-playbook playbooks/pfsense-wireguard.yml -l pfsense
+#
+#   # With custom provider vars
+#   ansible-playbook playbooks/pfsense-wireguard.yml -l pfsense \
+#     -e @group_vars/pfsense/wireguard_safeshark.yml
+#
+#   # Dry run
+#   ansible-playbook playbooks/pfsense-wireguard.yml -l pfsense --check
+
+- name: Configure WireGuard VPN on pfSense
+  hosts: pfsense
+  gather_facts: false
+
+  vars:
+    # Override these in inventory or extra vars
+    ansible_python_interpreter: /usr/local/bin/python3.8
+    ansible_connection: network_cli
+    ansible_network_os: pfsensible.core.pfsense
+
+  pre_tasks:
+    - name: Verify connectivity to pfSense
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          echo "pfSense " . $config['system']['version'];
+      register: pfsense_version
+      changed_when: false
+
+    - name: Display pfSense version
+      ansible.builtin.debug:
+        msg: "Connected to: {{ pfsense_version.stdout }}"
+
+  roles:
+    - role: pfsense_wireguard
+      tags:
+        - wireguard
+        - vpn
+
+  post_tasks:
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════
+          WireGuard Configuration Complete
+          ═══════════════════════════════════════════════════════════
+
+          Verify your setup:
+          1. pfSense Web UI > Status > WireGuard
+          2. Check handshake timestamp (should update every ~2 min)
+          3. Test from LAN client: curl https://api.ipify.org
+
+          If tunnel not working:
+          1. Check System > Package Manager - WireGuard installed?
+          2. Verify keys match provider configuration
+          3. Check Firewall > Rules > WAN - outbound UDP allowed?
+          4. Review System Logs > WireGuard
+
+          Common issues:
+          - No handshake: Check endpoint DNS resolution, firewall
+          - Can't route: Check NAT rules, gateway assignment
+          - Slow speed: Adjust MTU (try 1380, 1400, 1420)

@@ -1,0 +1,103 @@
+---
+# ENCRYPTED SECRETS - DO NOT EDIT DIRECTLY
+# This file is encrypted with Ansible Vault
+#
+# To edit:
+#   ansible-vault edit inventories/projects/<project>/group_vars/all_vault.yml
+#
+# To view:
+#   ansible-vault view inventories/projects/<project>/group_vars/all_vault.yml
+#
+# To encrypt a new file:
+#   ansible-vault create inventories/projects/<project>/group_vars/all_vault.yml
+#
+# Store your vault password in: ~/.vault_password
+# Use: --vault-password-file ~/.vault_password
+
+# ============================================================================
+# SERVICE CREDENTIALS
+# ============================================================================
+
+vault_grafana_admin_password: ""
+vault_prometheus_scrape_token: ""
+vault_loki_api_key: ""
+
+# ============================================================================
+# DATABASE CREDENTIALS
+# ============================================================================
+
+vault_database_root_password: ""
+vault_database_replication_password: ""
+
+# ============================================================================
+# SSH KEYS
+# ============================================================================
+
+vault_ssh_key_private: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  PLACEHOLDER - Add your SSH private key here
+  -----END OPENSSH PRIVATE KEY-----
+
+vault_ssh_key_public: "ssh-ed25519 PLACEHOLDER"
+
+# ============================================================================
+# TLS/SSL CERTIFICATES
+# ============================================================================
+
+vault_tls_cert_key: |
+  -----BEGIN PRIVATE KEY-----
+  PLACEHOLDER - Add your TLS key here
+  -----END PRIVATE KEY-----
+
+vault_tls_cert: |
+  -----BEGIN CERTIFICATE-----
+  PLACEHOLDER - Add your TLS certificate here
+  -----END CERTIFICATE-----
+
+# ============================================================================
+# API TOKENS AND KEYS
+# ============================================================================
+
+vault_api_token: ""
+vault_api_secret: ""
+
+# ============================================================================
+# THIRD-PARTY SERVICE CREDENTIALS
+# ============================================================================
+
+vault_github_token: ""
+vault_gitlab_token: ""
+vault_dockerhub_token: ""
+
+# ============================================================================
+# BACKUP CREDENTIALS
+# ============================================================================
+
+vault_backup_s3_access_key: ""
+vault_backup_s3_secret_key: ""
+vault_backup_encryption_password: ""
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# This is a TEMPLATE file.
+# After creating your actual vault file, this template won't be used.
+#
+# Important:
+# - Never commit unencrypted secrets to git
+# - Keep vault password in ~/.vault_password (add to .gitignore)
+# - Use strong passwords (20+ characters)
+# - Rotate secrets regularly
+#
+# Variable naming convention:
+# - Prefix with 'vault_' to indicate encrypted
+# - Use descriptive names
+# - Use underscores for multi-word names
+#
+# Usage in playbooks:
+#   - name: Set Grafana password
+#     grafana_user:
+#       username: admin
+#       password: "{{ vault_grafana_admin_password }}"
+#     no_log: true  # Important: don't log secrets

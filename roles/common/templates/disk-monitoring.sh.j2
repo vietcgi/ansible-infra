@@ -28,9 +28,9 @@ send_alert() {
     logger -t disk-monitor -p "user.$severity" "$message"
 
     # Send to monitoring system if configured
-    if [ -n "{{ monitoring_alert_command | default('') }}" ]; then
-        {{ monitoring_alert_command }} --severity "$severity" --metric disk_usage --value "$usage" --device "$filesystem"
-    fi
+{% if monitoring_alert_command is defined and monitoring_alert_command %}
+    {{ monitoring_alert_command }} --severity "$severity" --metric disk_usage --value "$usage" --device "$filesystem"
+{% endif %}
 }
 
 # Check disk usage

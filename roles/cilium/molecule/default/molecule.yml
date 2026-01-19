@@ -1,0 +1,36 @@
+---
+
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+
+  - name: cilium-test
+    image: registry.gitlab.com/corelight/labs/infra/ubuntu2204:latest
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    override_command: true
+    privileged: true
+    pre_build_image: true
+    tty: true
+    volumes: []
+
+provisioner:
+  name: ansible
+  log: true
+  options:
+    vvv: true
+
+verifier:
+  name: ansible
+
+scenario:
+  name: default
+  test_sequence:
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

@@ -1,0 +1,38 @@
+---
+# Headscale - Handlers
+# Following naming convention: lowercase "[action] [service]"
+
+- name: restart headscale
+  community.docker.docker_compose_v2:
+    project_src: "{{ headscale_base_dir }}"
+    project_name: "{{ headscale_compose_project }}"
+    services:
+      - headscale
+    state: "{{ headscale_restart_handler_state | default('restarted') }}"
+  when: headscale_service_enabled | bool
+
+- name: restart headplane
+  community.docker.docker_compose_v2:
+    project_src: "{{ headscale_base_dir }}"
+    project_name: "{{ headscale_compose_project }}"
+    services:
+      - headplane
+    state: "{{ headscale_restart_handler_state | default('restarted') }}"
+  when:
+    - headplane_enabled | bool
+    - headscale_service_enabled | bool
+
+- name: restart headscale stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ headscale_base_dir }}"
+    project_name: "{{ headscale_compose_project }}"
+    state: "{{ headscale_restart_handler_state | default('restarted') }}"
+  when: headscale_service_enabled | bool
+
+- name: validate headscale config
+  ansible.builtin.command: >
+    docker exec {{ headscale_container_name }} headscale configtest
+  changed_when: false
+  failed_when: headscale_configtest.rc != 0
+  register: headscale_configtest
+  when: headscale_service_enabled | bool

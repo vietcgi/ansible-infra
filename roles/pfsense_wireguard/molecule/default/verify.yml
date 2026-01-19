@@ -1,0 +1,81 @@
+---
+- name: Verify
+  hosts: pfsense
+  gather_facts: false
+
+  tasks:
+    - name: Check WireGuard package installed
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          require_once("pkg-utils.inc");
+          echo is_pkg_installed("pfSense-pkg-WireGuard") ? "installed" : "not_installed";
+      register: wg_package
+      changed_when: false
+
+    - name: Assert WireGuard package is installed
+      ansible.builtin.assert:
+        that:
+          - wg_package.stdout | trim == "installed"
+        fail_msg: "WireGuard package not installed"
+        success_msg: "WireGuard package installed"
+
+    - name: Check WireGuard tunnel exists
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          $tunnels = $config['installedpackages']['wireguard']['tunnels']['item'];
+          echo count($tunnels) > 0 ? "configured" : "not_configured";
+      register: wg_tunnel
+      changed_when: false
+
+    - name: Assert WireGuard tunnel is configured
+      ansible.builtin.assert:
+        that:
+          - wg_tunnel.stdout | trim == "configured"
+        fail_msg: "WireGuard tunnel not configured"
+        success_msg: "WireGuard tunnel configured"
+
+    - name: Check WireGuard peer exists
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          $peers = $config['installedpackages']['wireguard']['peers']['item'];
+          echo count($peers) > 0 ? "configured" : "not_configured";
+      register: wg_peer
+      changed_when: false
+
+    - name: Assert WireGuard peer is configured
+      ansible.builtin.assert:
+        that:
+          - wg_peer.stdout | trim == "configured"
+        fail_msg: "WireGuard peer not configured"
+        success_msg: "WireGuard peer configured"
+
+    - name: Check WireGuard interface assigned
+      pfsensible.core.pfsense_phpshell:
+        command: |
+          foreach ($config['interfaces'] as $ifname => $ifconf) {
+            if (isset($ifconf['if']) && strpos($ifconf['if'], 'tun_wg') !== false) {
+              echo "assigned:" . $ifname;
+              exit;
+            }
+          }
+          echo "not_assigned";
+      register: wg_interface
+      changed_when: false
+
+    - name: Assert WireGuard interface is assigned
+      ansible.builtin.assert:
+        that:
+          - "'assigned:' in wg_interface.stdout"
+        fail_msg: "WireGuard interface not assigned"
+        success_msg: "WireGuard interface assigned: {{ wg_interface.stdout }}"
+
+    - name: Display verification summary
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════
+          WireGuard Verification Summary
+          ═══════════════════════════════════════
+          Package:   ✓ Installed
+          Tunnel:    ✓ Configured
+          Peer:      ✓ Configured
+          Interface: ✓ {{ wg_interface.stdout }}

@@ -1,0 +1,17 @@
+---
+galaxy_info:
+
+  role_name: cilium
+  namespace: corelight_labs
+  author: A. Corelighter
+  description: Install and configure Cilium CNI with kube-proxy replacement
+  company: Corelight Inc.
+  license: Copyright (C) Corelight, Inc
+  min_ansible_version: "2.12.5"
+  galaxy_tags: []
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+
+dependencies: []

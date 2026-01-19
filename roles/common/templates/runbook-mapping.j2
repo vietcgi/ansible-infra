@@ -117,8 +117,9 @@ runbooks:
       estimated_duration_minutes: 120
 
 # Quick response templates
+# Variables like ${service_name} are placeholders for runtime substitution
 quick_responses:
-  system_restart: 'systemctl restart {{ service_name }}'
-  service_check: 'systemctl status {{ service_name }}'
-  log_review: 'tail -100 {{ log_file }}'
+  system_restart: 'systemctl restart ${service_name}'
+  service_check: 'systemctl status ${service_name}'
+  log_review: 'tail -100 ${log_file}'
   disk_cleanup: '/usr/local/bin/cleanup-disk.sh'

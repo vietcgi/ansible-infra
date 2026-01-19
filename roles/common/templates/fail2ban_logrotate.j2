@@ -54,7 +54,7 @@
     {% endif %}
 }
 
----
+
 
 # Additional fail2ban journal log rotation
 /var/log/fail2ban/jail.log {
@@ -69,7 +69,7 @@
     size {{ fail2ban_jail_log_rotate_size | default('50M') }}
 }
 
----
+
 
 # Audit log rotation for fail2ban
 /var/log/fail2ban/audit.log {
@@ -83,7 +83,7 @@
     copytruncate
 }
 
----
+
 
 # Fail2ban database backup before rotation (optional)
 {% if fail2ban_backup_db_before_rotation | default(false) %}
@@ -106,7 +106,7 @@
 }
 {% endif %}
 
----
+
 
 # Configuration summary
 # Log retention: {{ fail2ban_log_rotate_count | default(30) }} days

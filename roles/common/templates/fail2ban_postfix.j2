@@ -20,34 +20,12 @@ action = %(action_mwl)s
 action = %(action_)s
 {% endif %}
 
-# Log file location (varies by OS)
-logpath = /var/log/mail.log
-          /var/log/maillog
-
 # Backend detection (pure or systemd)
 backend = {{ fail2ban_postfix_backend | default('auto') }}
 
 # Ban configuration
 destemail = {{ fail2ban_destemail | default('root') }}
 sendername = {{ fail2ban_sendername | default('Fail2Ban') }}
-
-# Increase sensitivity for mail server attacks
-ignorecommand =
-ignoreregex =
-
-# Connection/protocol issues to monitor
-# - SASL authentication failures
-# - DKIM verification issues
-# - RBL/DNSBL rejections (optional)
-logpath = /var/log/mail.log
-          /var/log/maillog
-          /var/log/syslog
-
-# Custom filter for Postfix-specific patterns
-filter = postfix
-
-# Timeout for connections
-timeout = {{ fail2ban_postfix_timeout | default(600) }}
 
 # Chain for iptables rules
 chain = INPUT

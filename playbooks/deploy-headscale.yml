@@ -1,0 +1,78 @@
+---
+# Deploy Headscale Control Server
+#
+# This playbook deploys Headscale - a self-hosted Tailscale control server.
+#
+# Prerequisites:
+#   - Docker installed on target hosts (use common role with container_docker_enabled: true)
+#   - A domain name pointing to your server
+#   - Port 8080 available for Headscale API
+#   - Port 3000 available for Headplane UI (if enabled)
+#
+# Usage:
+#   # Deploy to all headscale servers
+#   uv run ansible-playbook playbooks/deploy-headscale.yml
+#
+#   # Deploy to specific host
+#   uv run ansible-playbook playbooks/deploy-headscale.yml -l headscale.example.com
+#
+#   # Check mode (dry run)
+#   uv run ansible-playbook playbooks/deploy-headscale.yml --check
+#
+#   # Remove Headscale
+#   uv run ansible-playbook playbooks/deploy-headscale.yml -e "headscale_state=absent"
+
+- name: Deploy Headscale Control Server
+  hosts: headscale_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Verify target host is defined
+      ansible.builtin.assert:
+        that:
+          - headscale_domain is defined
+          - headscale_domain | length > 0
+        fail_msg: "headscale_domain must be defined in inventory or extra vars"
+
+    - name: Display deployment info
+      ansible.builtin.debug:
+        msg: |
+          Deploying Headscale Control Server
+          ===================================
+          Host: {{ inventory_hostname }}
+          Domain: {{ headscale_domain }}
+          Headplane UI: {{ headplane_enabled | default(true) }}
+
+  roles:
+    - role: headscale
+
+  post_tasks:
+    - name: Display connection instructions
+      ansible.builtin.debug:
+        msg: |
+          =============================================
+          Headscale deployment complete!
+          =============================================
+
+          Server URL: {{ headscale_server_url }}
+          Headplane UI: http://{{ headscale_domain }}:{{ headplane_port | default(3000) }}/admin
+
+          Quick Start:
+          1. Generate an API key for Headplane:
+             ssh {{ ansible_user | default('root') }}@{{ ansible_host }} \
+               "docker exec headscale headscale apikeys create --expiration 90d"
+
+          2. Create a user:
+             ssh {{ ansible_user | default('root') }}@{{ ansible_host }} \
+               "docker exec headscale headscale users create myuser"
+
+          3. Create a pre-auth key:
+             ssh {{ ansible_user | default('root') }}@{{ ansible_host }} \
+               "docker exec headscale headscale preauthkeys create --user myuser"
+
+          4. Connect a client:
+             tailscale up --login-server {{ headscale_server_url }} --authkey <KEY>
+
+          =============================================
+      when: headscale_state | default('present') == 'present'

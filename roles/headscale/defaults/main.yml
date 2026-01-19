@@ -1,0 +1,280 @@
+---
+# Headscale Control Server - Default Variables
+
+# =============================================================================
+# INSTALLATION
+# =============================================================================
+headscale_enabled: true
+headscale_version: "0.27.1"
+headscale_state: "present"
+
+# Handler behavior (restarted or reloaded)
+headscale_restart_handler_state: "restarted"
+
+# Security: Suppress secret values in logs (disable only for debugging)
+headscale_no_log: true
+
+# Docker images
+headscale_image: "headscale/headscale"
+headscale_image_tag: "{{ headscale_version }}"
+headplane_image: "ghcr.io/tale/headplane"
+headplane_image_tag: "latest"
+
+# Directories
+headscale_base_dir: "/opt/headscale"
+headscale_config_dir: "{{ headscale_base_dir }}/config"
+headscale_data_dir: "{{ headscale_base_dir }}/data"
+headscale_run_dir: "{{ headscale_base_dir }}/run"
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+# REQUIRED: Set this to your public URL (e.g., https://headscale.example.com)
+headscale_server_url: "https://{{ headscale_domain }}"
+headscale_domain: "headscale.example.com"
+
+# Listen addresses
+headscale_listen_addr: "0.0.0.0:8080"
+headscale_metrics_listen_addr: "0.0.0.0:9090"
+headscale_grpc_listen_addr: "0.0.0.0:50443"
+headscale_grpc_allow_insecure: false
+
+# Ports (for Docker)
+headscale_port: 8080
+headscale_metrics_port: 9090
+headscale_grpc_port: 50443
+
+# =============================================================================
+# IP ALLOCATION
+# =============================================================================
+headscale_ip_prefixes:
+  - "100.64.0.0/10"
+  - "fd7a:115c:a1e0::/48"
+
+# IP allocation strategy: sequential or random
+headscale_ip_allocation_strategy: "sequential"
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+# Database type: sqlite or postgres
+headscale_database_type: "sqlite"
+
+# SQLite configuration (default)
+headscale_sqlite_path: "/var/lib/headscale/db.sqlite"
+headscale_sqlite_wal_enabled: true
+
+# PostgreSQL configuration (if headscale_database_type: postgres)
+headscale_postgres_host: "localhost"
+headscale_postgres_port: 5432
+headscale_postgres_name: "headscale"
+headscale_postgres_user: "headscale"
+headscale_postgres_password: ""
+headscale_postgres_ssl: false
+headscale_postgres_max_open_conns: 10
+headscale_postgres_max_idle_conns: 10
+headscale_postgres_conn_max_idle_time_secs: 3600
+
+# =============================================================================
+# TLS / HTTPS
+# =============================================================================
+headscale_tls_enabled: false
+
+# TLS mode: letsencrypt or manual
+headscale_tls_mode: "letsencrypt"
+
+# Let's Encrypt configuration
+headscale_acme_email: ""
+headscale_acme_url: "https://acme-v02.api.letsencrypt.org/directory"
+headscale_acme_challenge_type: "HTTP-01"
+headscale_acme_listen: ":http"
+
+# Manual TLS certificate paths (if headscale_tls_mode: manual)
+headscale_tls_cert_path: ""
+headscale_tls_key_path: ""
+
+# =============================================================================
+# DNS / MAGICDNS
+# =============================================================================
+headscale_dns_enabled: true
+headscale_dns_magic_enabled: true
+headscale_dns_base_domain: "tail.net"
+headscale_dns_override_local: true
+
+headscale_dns_nameservers_global:
+  - "1.1.1.1"
+  - "8.8.8.8"
+
+headscale_dns_nameservers_split: {}
+# Example split DNS:
+# headscale_dns_nameservers_split:
+#   "internal.example.com":
+#     - "10.0.0.1"
+
+headscale_dns_search_domains: []
+headscale_dns_extra_records: []
+# Example extra records:
+# headscale_dns_extra_records:
+#   - name: "server.tail.net"
+#     type: "A"
+#     value: "100.64.0.1"
+
+# =============================================================================
+# DERP (Relay Servers)
+# =============================================================================
+headscale_derp_urls:
+  - "https://controlplane.tailscale.com/derpmap/default"
+
+headscale_derp_paths: []
+headscale_derp_auto_update: true
+headscale_derp_update_frequency: "24h"
+
+# Embedded DERP server (optional)
+headscale_derp_server_enabled: false
+headscale_derp_server_region_id: 999
+headscale_derp_server_region_code: "local"
+headscale_derp_server_region_name: "Local DERP"
+headscale_derp_server_stun_listen_addr: "0.0.0.0:3478"
+headscale_derp_server_private_key_path: ""
+headscale_derp_server_ipv4: ""
+headscale_derp_server_ipv6: ""
+
+# =============================================================================
+# OIDC / SSO AUTHENTICATION
+# =============================================================================
+headscale_oidc_enabled: false
+headscale_oidc_issuer: ""
+headscale_oidc_client_id: ""
+headscale_oidc_client_secret: ""
+headscale_oidc_client_secret_path: ""  # Alternative to client_secret - path to file
+headscale_oidc_scope:
+  - "openid"
+  - "profile"
+  - "email"
+headscale_oidc_extra_params: {}
+headscale_oidc_allowed_domains: []
+headscale_oidc_allowed_groups: []
+headscale_oidc_allowed_users: []
+headscale_oidc_strip_email_domain: true
+headscale_oidc_expiry: "180d"
+headscale_oidc_use_expiry_from_token: false
+headscale_oidc_only_start_if_oidc_is_available: true
+headscale_oidc_map_legacy_users: true
+
+# =============================================================================
+# ACL POLICY
+# =============================================================================
+# ACL policy mode: file or database
+headscale_policy_mode: "file"
+headscale_policy_path: "/etc/headscale/acl.json"
+
+# Default ACL (allow all)
+headscale_acl_policy:
+  hosts: {}
+  groups: {}
+  tagOwners: {}
+  acls:
+    - action: "accept"
+      src:
+        - "*"
+      dst:
+        - "*:*"
+
+# =============================================================================
+# FEATURES
+# =============================================================================
+# Ephemeral node inactivity timeout
+headscale_ephemeral_node_inactivity_timeout: "30m"
+
+# Randomize client port
+headscale_randomize_client_port: false
+
+# Disable update check
+headscale_disable_check_updates: false
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+headscale_log_level: "info"
+headscale_log_format: "text"
+
+# =============================================================================
+# HEADPLANE WEB UI (Optional)
+# =============================================================================
+headplane_enabled: true
+headplane_port: 3000
+headplane_data_dir: "{{ headscale_base_dir }}/headplane"
+
+# Cookie secret for Headplane (32 characters)
+# Generate with: openssl rand -hex 16
+headplane_cookie_secret: ""
+
+# Headplane agent for enhanced node information
+headplane_agent_enabled: false
+headplane_agent_authkey: ""
+
+# =============================================================================
+# SERVICE CONFIGURATION
+# =============================================================================
+headscale_service_enabled: true
+headscale_service_state: "started"
+headscale_container_name: "headscale"
+headplane_container_name: "headplane"
+
+# Docker Compose project name
+headscale_compose_project: "headscale"
+
+# =============================================================================
+# MONITORING
+# =============================================================================
+headscale_monitoring_enabled: true
+headscale_prometheus_enabled: true
+
+# =============================================================================
+# BACKUP
+# =============================================================================
+headscale_backup_enabled: false
+headscale_backup_dir: "/var/backups/headscale"
+headscale_backup_schedule: "0 3 * * *"
+headscale_backup_retention_days: 30
+
+# =============================================================================
+# USERS (Optional - pre-create users)
+# =============================================================================
+headscale_users: []
+# Example:
+# headscale_users:
+#   - "admin"
+#   - "developers"
+#   - "servers"
+
+# =============================================================================
+# PRE-AUTH KEYS (Optional)
+# =============================================================================
+headscale_preauthkeys: []
+# Example:
+# headscale_preauthkeys:
+#   - user: "servers"
+#     reusable: true
+#     ephemeral: false
+#     expiration: "24h"
+#     tags:
+#       - "tag:server"
+
+# =============================================================================
+# INFISICAL SECRET MANAGEMENT (Optional)
+# =============================================================================
+# Enable Infisical for secret retrieval
+headscale_infisical_enabled: false
+
+# Infisical project and environment
+headscale_infisical_project_id: ""
+headscale_infisical_env: "prod"
+headscale_infisical_path: "/headscale"
+
+# Secret names in Infisical (when headscale_infisical_enabled: true)
+# These will be retrieved and used instead of the direct variable values
+headscale_infisical_secrets:
+  oidc_client_secret: "HEADSCALE_OIDC_CLIENT_SECRET"
+  postgres_password: "HEADSCALE_POSTGRES_PASSWORD"
+  headplane_cookie_secret: "HEADPLANE_COOKIE_SECRET"

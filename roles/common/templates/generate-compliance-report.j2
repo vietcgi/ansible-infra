@@ -1,0 +1,56 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Generate Compliance Report Summary
+
+set -euo pipefail
+
+REPORT_DIR="{{ compliance_report_location | default('/var/log/compliance') }}"
+OUTPUT_FILE="${REPORT_DIR}/compliance-summary-$(date '+%Y%m%d').html"
+
+cat > "$OUTPUT_FILE" << 'HTMLEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Compliance Report - $(hostname -f)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .pass { color: green; }
+        .fail { color: red; }
+        .warn { color: orange; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f5f5f5; }
+    </style>
+</head>
+<body>
+HTMLEOF
+
+echo "<h1>Compliance Report</h1>" >> "$OUTPUT_FILE"
+echo "<p>Host: $(hostname -f)</p>" >> "$OUTPUT_FILE"
+echo "<p>Generated: $(date)</p>" >> "$OUTPUT_FILE"
+
+# Summary of latest scans
+echo "<h2>Recent Scan Results</h2>" >> "$OUTPUT_FILE"
+echo "<table><tr><th>Scan Type</th><th>Last Run</th><th>Status</th></tr>" >> "$OUTPUT_FILE"
+
+# Check for latest CIS audit
+if [ -f "${REPORT_DIR}/cis-audit-latest.txt" ]; then
+    CIS_DATE=$(stat -c '%y' "${REPORT_DIR}/cis-audit-latest.txt" 2>/dev/null | cut -d' ' -f1 || echo "Unknown")
+    echo "<tr><td>CIS Benchmark</td><td>$CIS_DATE</td><td class='pass'>Complete</td></tr>" >> "$OUTPUT_FILE"
+else
+    echo "<tr><td>CIS Benchmark</td><td>-</td><td class='warn'>Not run</td></tr>" >> "$OUTPUT_FILE"
+fi
+
+# Check for AIDE
+if [ -f /var/log/aide/daily-scan.log ]; then
+    AIDE_DATE=$(stat -c '%y' /var/log/aide/daily-scan.log 2>/dev/null | cut -d' ' -f1 || echo "Unknown")
+    echo "<tr><td>AIDE File Integrity</td><td>$AIDE_DATE</td><td class='pass'>Complete</td></tr>" >> "$OUTPUT_FILE"
+else
+    echo "<tr><td>AIDE File Integrity</td><td>-</td><td class='warn'>Not run</td></tr>" >> "$OUTPUT_FILE"
+fi
+
+echo "</table>" >> "$OUTPUT_FILE"
+echo "</body></html>" >> "$OUTPUT_FILE"
+
+echo "Report generated: $OUTPUT_FILE"

@@ -1,0 +1,84 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# pfSense WireGuard Testing Environment
+#
+# SETUP INSTRUCTIONS:
+# 1. Download pfSense CE ISO from https://www.pfsense.org/download/
+# 2. Create VirtualBox VM manually with the ISO
+# 3. Or use the Makefile targets to automate
+#
+# This Vagrantfile defines the network topology for testing.
+# pfSense must be installed manually or via Packer.
+
+Vagrant.configure("2") do |config|
+
+  # pfSense Firewall (manual setup required)
+  # After manual install, add to Vagrant:
+  #   vagrant package --base pfsense-test --output pfsense.box
+  #   vagrant box add pfsense-local pfsense.box
+  config.vm.define "pfsense", autostart: false do |pfsense|
+    pfsense.vm.box = "pfsense-local"
+    pfsense.vm.hostname = "pfsense-test"
+
+    # Disable default synced folder (FreeBSD compatibility)
+    pfsense.vm.synced_folder ".", "/vagrant", disabled: true
+
+    # WAN Interface (NAT - internet access)
+    pfsense.vm.network "private_network",
+      ip: "192.168.56.10",
+      virtualbox__intnet: false
+
+    # LAN Interface (internal network for clients)
+    pfsense.vm.network "private_network",
+      ip: "10.0.0.1",
+      virtualbox__intnet: "pfsense_lan"
+
+    pfsense.vm.provider "virtualbox" do |vb|
+      vb.name = "pfsense-test"
+      vb.memory = 1024
+      vb.cpus = 1
+      vb.gui = false
+
+      # Network adapters
+      vb.customize ["modifyvm", :id, "--nic1", "nat"]
+      vb.customize ["modifyvm", :id, "--nic2", "hostonly"]
+      vb.customize ["modifyvm", :id, "--nic3", "intnet"]
+      vb.customize ["modifyvm", :id, "--intnet3", "pfsense_lan"]
+    end
+
+    # SSH settings for Ansible
+    pfsense.ssh.username = "admin"
+    pfsense.ssh.shell = "/bin/sh"
+  end
+
+  # Test Client (Ubuntu) - for testing VPN connectivity
+  config.vm.define "client" do |client|
+    client.vm.box = "ubuntu/jammy64"
+    client.vm.hostname = "test-client"
+
+    # Connect to pfSense LAN
+    client.vm.network "private_network",
+      ip: "10.0.0.100",
+      virtualbox__intnet: "pfsense_lan"
+
+    client.vm.provider "virtualbox" do |vb|
+      vb.name = "pfsense-test-client"
+      vb.memory = 512
+      vb.cpus = 1
+    end
+
+    client.vm.provision "shell", inline: <<-SHELL
+      # Configure to use pfSense as gateway
+      ip route del default 2>/dev/null || true
+      ip route add default via 10.0.0.1
+
+      # Install test tools
+      apt-get update
+      apt-get install -y curl jq
+
+      echo "Client configured. Test with: curl https://api.ipify.org"
+    SHELL
+  end
+
+end

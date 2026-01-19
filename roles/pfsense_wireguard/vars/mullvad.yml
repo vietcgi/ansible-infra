@@ -1,0 +1,58 @@
+---
+# Mullvad VPN Provider Configuration
+# https://mullvad.net
+#
+# Usage:
+#   1. Generate WireGuard config at https://mullvad.net/account/wireguard-config
+#   2. Download the .conf file for your preferred server
+#   3. Extract the values below
+#
+# Example Mullvad .conf file:
+#   [Interface]
+#   PrivateKey = YOUR_PRIVATE_KEY
+#   Address = 10.66.XXX.XXX/32,fc00:bbbb:bbbb:bb01::X:XXXX/128
+#   DNS = 10.64.0.1
+#
+#   [Peer]
+#   PublicKey = MULLVAD_SERVER_PUBKEY
+#   AllowedIPs = 0.0.0.0/0,::0/0
+#   Endpoint = us-lax-wg-001.relays.mullvad.net:51820
+
+pfsense_wireguard_mode: "provider"
+
+pfsense_wireguard_provider:
+  name: "Mullvad"
+  # From [Peer] section
+  endpoint: ""                    # e.g., us-lax-wg-001.relays.mullvad.net
+  endpoint_port: 51820
+  public_key: ""                  # Mullvad server's public key
+
+  # From [Interface] section
+  private_key: ""                 # Your private key (use vault!)
+  address: ""                     # e.g., 10.66.123.45/32 (IPv4 only for pfSense)
+  dns:
+    - "10.64.0.1"                # Mullvad DNS (blocks ads/trackers)
+    - "100.64.0.1"               # Alternative Mullvad DNS
+
+  # Connection settings
+  allowed_ips: "0.0.0.0/0, ::/0"
+  persistent_keepalive: 25
+  mtu: 1380                       # Mullvad recommends lower MTU
+
+# Interface naming
+pfsense_wireguard_interface_name: "MULLVAD"
+pfsense_wireguard_interface_descr: "Mullvad VPN"
+
+# Gateway
+pfsense_wireguard_gateway_name: "MULLVAD_GW"
+pfsense_wireguard_gateway_descr: "Mullvad VPN Gateway"
+
+# NAT configuration
+pfsense_wireguard_configure_nat: true
+pfsense_wireguard_nat_sources:
+  - "lan"
+
+# Kill switch (recommended for privacy)
+pfsense_wireguard_kill_switch: false
+pfsense_wireguard_kill_switch_interfaces:
+  - "lan"

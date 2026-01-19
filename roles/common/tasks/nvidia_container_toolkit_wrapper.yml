@@ -1,0 +1,170 @@
+---
+# NVIDIA Container Toolkit Installation Wrapper
+# Enables GPU access in Docker containers
+# Follows ansible-infra wrapper pattern with upstream integration
+
+- name: Skip NVIDIA container toolkit if disabled
+  ansible.builtin.debug:
+    msg: "NVIDIA container toolkit disabled. Set gpu_container_toolkit_enabled: true to enable."
+  when: not (gpu_container_toolkit_enabled | default(false))
+  tags:
+    - nvidia
+    - containers
+
+# Pre-flight validation
+- name: Validate container toolkit prerequisites
+  when: gpu_container_toolkit_enabled | default(false)
+  tags:
+    - nvidia
+    - validation
+  block:
+    - name: Verify NVIDIA driver is installed
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_driver_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if NVIDIA driver not installed
+      ansible.builtin.fail:
+        msg: "NVIDIA driver must be installed first. Set gpu_nvidia_enabled: true"
+      when: nvidia_driver_check.rc != 0
+
+    - name: Verify Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if Docker not installed
+      ansible.builtin.fail:
+        msg: "Docker must be installed first. Set container_docker_enabled: true"
+      when: docker_check.rc != 0
+
+# Check if already installed
+- name: Check existing toolkit installation
+  when: gpu_container_toolkit_enabled | default(false)
+  tags:
+    - nvidia
+    - validation
+  block:
+    - name: Check if nvidia-ctk is available
+      ansible.builtin.command: which nvidia-ctk
+      register: nvidia_ctk_exists
+      changed_when: false
+      failed_when: false
+
+    - name: Store toolkit status
+      ansible.builtin.set_fact:
+        nvidia_toolkit_installed: "{{ nvidia_ctk_exists.rc == 0 }}"
+
+# Install NVIDIA Container Toolkit
+- name: Install NVIDIA Container Toolkit
+  when:
+    - gpu_container_toolkit_enabled | default(false)
+    - not nvidia_toolkit_installed | default(false)
+  tags:
+    - nvidia
+    - containers
+    - installation
+  block:
+    - name: Add NVIDIA Container Toolkit GPG key
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+          gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      args:
+        executable: /bin/bash
+        creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      become: true
+
+    - name: Add NVIDIA Container Toolkit repository
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+          sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+          tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      args:
+        executable: /bin/bash
+        creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      become: true
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+
+    - name: Install NVIDIA Container Toolkit packages
+      ansible.builtin.apt:
+        name:
+          - nvidia-container-toolkit
+        state: present
+      become: true
+      register: container_toolkit_install
+
+# Configure Docker runtime
+- name: Configure Docker for NVIDIA runtime
+  when: gpu_container_toolkit_enabled | default(false)
+  tags:
+    - nvidia
+    - docker
+    - config
+  block:
+    - name: Check if Docker daemon.json exists
+      ansible.builtin.stat:
+        path: /etc/docker/daemon.json
+      register: docker_daemon_json
+
+    - name: Configure NVIDIA container runtime
+      ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+      become: true
+      register: nvidia_ctk_config
+      changed_when: "'configured' in nvidia_ctk_config.stdout or nvidia_ctk_config.rc == 0"
+
+    - name: Restart Docker daemon
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+        daemon_reload: true
+      become: true
+      when: nvidia_ctk_config.changed or (container_toolkit_install is defined and container_toolkit_install.changed)
+
+    - name: Wait for Docker socket
+      ansible.builtin.wait_for:
+        path: /var/run/docker.sock
+        state: present
+        timeout: 30
+      become: true
+
+# Verify GPU access in containers
+- name: Verify GPU access in Docker containers
+  when: gpu_container_toolkit_enabled | default(false)
+  tags:
+    - nvidia
+    - docker
+    - health
+  block:
+    - name: Test NVIDIA GPU in Docker container
+      ansible.builtin.command: >
+        docker run --rm --gpus all
+        nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi -L
+      register: nvidia_docker_test
+      changed_when: false
+      failed_when: false
+      become: true
+
+    - name: Store container GPU test result
+      ansible.builtin.set_fact:
+        nvidia_container_gpu_ok: "{{ nvidia_docker_test.rc == 0 }}"
+
+- name: NVIDIA Container Toolkit installation complete
+  ansible.builtin.debug:
+    msg: |
+      NVIDIA Container Toolkit:
+          - Docker Runtime: nvidia
+          - Default Runtime: {{ gpu_container_toolkit_default_runtime | default(false) }}
+          - Container GPU Test: {{ 'PASSED' if nvidia_container_gpu_ok | default(false) else 'FAILED' }}
+          - GPUs in Container: {{ nvidia_docker_test.stdout_lines | default(['N/A']) | join(', ') }}
+  when: gpu_container_toolkit_enabled | default(false)
+  tags:
+    - nvidia
+    - summary

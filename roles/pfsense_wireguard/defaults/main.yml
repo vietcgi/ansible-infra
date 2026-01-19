@@ -1,0 +1,96 @@
+---
+# pfSense WireGuard Role - Defaults
+# Configures WireGuard tunnels on pfSense using pfsensible.core
+
+pfsense_wireguard_enabled: true
+
+# WireGuard Package
+pfsense_wireguard_package: "pfSense-pkg-WireGuard"
+pfsense_wireguard_ensure_package: true
+
+# Tunnel Configuration
+# For VPN providers (SafeShark, Mullvad, etc.), use provider mode
+pfsense_wireguard_mode: "provider"  # provider, site-to-site, roadwarrior
+
+# Provider VPN Configuration (SafeShark, Mullvad, etc.)
+pfsense_wireguard_provider:
+  name: "SafeShark"
+  endpoint: ""              # VPN server endpoint (e.g., us-west.safeshark.net)
+  endpoint_port: 51820      # WireGuard port
+  public_key: ""            # Provider's public key
+  private_key: ""           # Your private key (from provider or generated)
+  address: ""               # Your assigned tunnel IP (e.g., 10.66.66.2/32)
+  dns: []                   # DNS servers to use through tunnel
+  allowed_ips: "0.0.0.0/0, ::/0"  # Route all traffic (full tunnel)
+  persistent_keepalive: 25  # Keep NAT mappings alive
+  mtu: 1420                 # WireGuard default MTU
+
+# Tunnels (for advanced/custom configurations)
+pfsense_wireguard_tunnels: []
+# Example:
+#   - name: "wg0"
+#     description: "SafeShark VPN"
+#     listen_port: ""  # Empty for client mode
+#     private_key: "{{ vault_wg_private_key }}"
+#     address: "10.66.66.2/32"
+#     mtu: 1420
+#     peers:
+#       - description: "SafeShark US-West"
+#         public_key: "ProviderPublicKey..."
+#         endpoint: "us-west.safeshark.net:51820"
+#         allowed_ips: "0.0.0.0/0, ::/0"
+#         persistent_keepalive: 25
+
+# Interface Assignment
+pfsense_wireguard_assign_interface: true
+pfsense_wireguard_interface_name: "WG_VPN"
+pfsense_wireguard_interface_descr: "WireGuard VPN"
+
+# Gateway Configuration
+pfsense_wireguard_create_gateway: true
+pfsense_wireguard_gateway_name: "WG_VPN_GW"
+pfsense_wireguard_gateway_descr: "WireGuard VPN Gateway"
+pfsense_wireguard_gateway_monitor: ""  # IP to monitor (leave empty for auto)
+
+# Outbound NAT
+pfsense_wireguard_configure_nat: true
+pfsense_wireguard_nat_mode: "hybrid"  # hybrid or manual
+pfsense_wireguard_nat_sources:
+  - "lan"  # Interfaces to NAT through WireGuard
+
+# Firewall Rules
+pfsense_wireguard_configure_firewall: true
+pfsense_wireguard_firewall_rules:
+  # Allow all traffic out the WireGuard interface
+  - interface: "{{ pfsense_wireguard_interface_name }}"
+    action: "pass"
+    direction: "any"
+    protocol: "any"
+    source: "any"
+    destination: "any"
+    description: "Allow all WireGuard tunnel traffic"
+
+# Policy Routing (route specific traffic through VPN)
+pfsense_wireguard_policy_routing: false
+pfsense_wireguard_policy_sources: []
+# Example - route specific hosts/networks through VPN:
+#   - alias: "VPN_Clients"
+#     networks:
+#       - "192.168.1.100/32"
+#       - "192.168.1.101/32"
+
+# Kill Switch (block traffic if VPN is down)
+pfsense_wireguard_kill_switch: false
+pfsense_wireguard_kill_switch_interfaces:
+  - "lan"
+
+# DNS Configuration
+pfsense_wireguard_configure_dns: false
+pfsense_wireguard_dns_servers: []
+
+# Verification
+pfsense_wireguard_verify: true
+pfsense_wireguard_verify_endpoint: "1.1.1.1"  # IP to ping through tunnel
+
+# Debug mode
+pfsense_wireguard_debug: false

@@ -1,0 +1,23 @@
+---
+# Headscale - Role Variables (constants)
+# These are internal variables not meant to be overridden by users
+
+# Container health check settings
+headscale_health_check_retries: 30
+headscale_health_check_delay: 2
+
+# Supported database types
+headscale_supported_databases:
+  - sqlite
+  - postgres
+
+# Supported TLS modes
+headscale_supported_tls_modes:
+  - letsencrypt
+  - manual
+
+# Default DERP map URL
+headscale_default_derp_url: "https://controlplane.tailscale.com/derpmap/default"
+
+# Minimum required versions
+headscale_min_docker_compose_version: "2.0.0"

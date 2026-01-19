@@ -1,0 +1,123 @@
+---
+# Vast.ai GPU Host Deployment Playbook
+# Deploys complete GPU hosting stack with security hardening
+#
+# Usage:
+#   ansible-playbook playbooks/deploy-vastai-host.yml -i inventory.yml
+#   ./bootstrap.sh <target-ip> [username]
+#
+# Tags:
+#   --tags core         : Base system only
+#   --tags nvidia       : NVIDIA driver + toolkit only
+#   --tags vastai       : Vast.ai daemon only
+#   --tags security     : Security hardening only
+#   --tags monitoring   : Monitoring stack only
+#   --tags phase2f      : All GPU/Vast.ai tasks
+#
+
+- name: "Vast.ai GPU Host Deployment"
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg: |
+          ===============================================================
+           Vast.ai GPU Host Deployment
+          ===============================================================
+           Target:     {{ inventory_hostname }}
+           OS:         {{ ansible_distribution }} {{ ansible_distribution_version }}
+           Kernel:     {{ ansible_kernel }}
+          ===============================================================
+      tags: [always]
+
+    - name: Validate minimum requirements
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_major_version | int >= 20
+          - ansible_memtotal_mb >= 16384
+        fail_msg: "Minimum requirements: Ubuntu 20.04+, 16GB RAM"
+        quiet: true
+      tags: [always, validation]
+
+    - name: Check for NVIDIA GPU hardware
+      ansible.builtin.shell: |
+        set -o pipefail
+        lspci | grep -i nvidia
+      args:
+        executable: /bin/bash
+      register: gpu_hardware_check
+      changed_when: false
+      failed_when: false
+      tags: [always, validation]
+
+    - name: Warn if no GPU detected
+      ansible.builtin.debug:
+        msg: "[WARNING] No NVIDIA GPU detected. GPU tasks may fail."
+      when: gpu_hardware_check.rc != 0
+      tags: [always, validation]
+
+  roles:
+    - role: common
+      tags:
+        - common
+        - foundation
+
+  post_tasks:
+    - name: Final verification
+      tags: [always, verification]
+      block:
+        - name: Verify NVIDIA driver
+          ansible.builtin.command: nvidia-smi --query-gpu=name,driver_version --format=csv,noheader
+          register: nvidia_verify
+          changed_when: false
+          failed_when: false
+          when: gpu_nvidia_enabled | default(false)
+
+        - name: Verify Docker GPU access
+          ansible.builtin.command: >
+            docker run --rm --gpus all
+            nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi -L
+          register: docker_gpu_verify
+          changed_when: false
+          failed_when: false
+          when: gpu_container_toolkit_enabled | default(false)
+
+        - name: Get Vast.ai machine ID
+          ansible.builtin.command: cat /var/lib/vastai_kaalia/machine_id
+          register: vastai_id_verify
+          changed_when: false
+          failed_when: false
+          become: true
+          when: vastai_enabled | default(false)
+
+        - name: Verify Vast.ai service
+          ansible.builtin.systemd:
+            name: vastai
+          register: vastai_verify
+          failed_when: false
+          when: vastai_enabled | default(false)
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ===============================================================
+           DEPLOYMENT COMPLETE
+          ===============================================================
+
+           GPU Driver:    {{ nvidia_verify.stdout | default('Not installed') }}
+           Docker GPU:    {{ 'OK' if (docker_gpu_verify.rc | default(1)) == 0 else 'Not configured' }}
+           Vast.ai ID:    {{ vastai_id_verify.stdout | default('Not installed') | trim }}
+           Vast.ai:       {{ vastai_verify.status.ActiveState | default('Not running') }}
+
+           NEXT STEPS:
+           1. Configure port forwarding ({{ vastai_port_range_start | default(40000) }}-{{ vastai_port_range_end | default(40019) }} TCP)
+           2. Check Vast.ai dashboard: https://cloud.vast.ai/host/machines
+           3. Set competitive pricing
+           4. Run self-test: vastai self-test machine {{ vastai_id_verify.stdout | default('<ID>') | trim }}
+
+          ===============================================================
+      tags: [always, summary]

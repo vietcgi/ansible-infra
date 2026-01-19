@@ -1,0 +1,55 @@
+# Backup Recovery Runbook
+<!-- {{ ansible_managed }} -->
+
+## Overview
+This runbook documents the backup recovery procedures for {{ ansible_hostname | default('this system') }}.
+
+## Backup Location
+- **Primary**: {{ backup_source_dir | default('/var/backup') }}
+- **Test Directory**: /var/backup/test
+
+## Recovery Procedures
+
+### 1. Locate Latest Backup
+```bash
+ls -la {{ backup_source_dir | default('/var/backup') }}/*.tar.gz | head -5
+```
+
+### 2. Verify Backup Integrity
+```bash
+tar -tzf /path/to/backup.tar.gz > /dev/null && echo "OK" || echo "CORRUPTED"
+```
+
+### 3. Extract Backup
+```bash
+# Extract to temporary location first
+mkdir -p /tmp/restore-test
+tar -xzf /path/to/backup.tar.gz -C /tmp/restore-test
+
+# Verify contents
+ls -la /tmp/restore-test/
+```
+
+### 4. Restore Data
+```bash
+# Stop relevant services first
+systemctl stop <service-name>
+
+# Restore files
+cp -a /tmp/restore-test/* /target/location/
+
+# Fix permissions if needed
+chown -R <user>:<group> /target/location/
+
+# Restart services
+systemctl start <service-name>
+```
+
+## Automated Testing
+- **Schedule**: Weekly (Sunday 2:00 AM)
+- **Script**: /usr/local/bin/backup-verify.sh
+- **Logs**: /var/log/backup-test.log
+
+## Contacts
+- On-call: {{ monitoring_manager_phone | default('N/A') }}
+- Email: {{ alerting_email_to | default('N/A') }}

@@ -1,0 +1,114 @@
+---
+# GPU Monitoring with DCGM Exporter
+# Provides Prometheus metrics for NVIDIA GPUs
+# Follows ansible-infra wrapper pattern
+
+- name: Skip GPU monitoring if disabled
+  ansible.builtin.debug:
+    msg: "GPU monitoring disabled. Set gpu_monitoring_enabled: true to enable."
+  when: not (gpu_monitoring_enabled | default(false))
+  tags:
+    - gpu
+    - monitoring
+
+# Pre-flight validation
+- name: Validate GPU monitoring prerequisites
+  when: gpu_monitoring_enabled | default(false)
+  tags:
+    - gpu
+    - monitoring
+    - validation
+  block:
+    - name: Verify Docker is running
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    - name: Verify NVIDIA container toolkit
+      ansible.builtin.command: nvidia-ctk --version
+      register: nvidia_ctk_check
+      changed_when: false
+      failed_when: false
+
+# Deploy DCGM Exporter container
+- name: Deploy DCGM Exporter for GPU monitoring
+  when: gpu_monitoring_enabled | default(false)
+  tags:
+    - gpu
+    - monitoring
+    - dcgm
+  block:
+    - name: Check if DCGM container exists
+      community.docker.docker_container_info:
+        name: dcgm-exporter
+      register: dcgm_container_info
+      failed_when: false
+
+    - name: Pull DCGM Exporter image
+      community.docker.docker_image:
+        name: "nvcr.io/nvidia/k8s/dcgm-exporter:{{ gpu_monitoring_dcgm_version }}-ubuntu22.04"
+        source: pull
+      become: true
+      when: not dcgm_container_info.exists | default(false)
+
+    - name: Run DCGM Exporter container
+      community.docker.docker_container:
+        name: dcgm-exporter
+        image: "nvcr.io/nvidia/k8s/dcgm-exporter:{{ gpu_monitoring_dcgm_version }}-ubuntu22.04"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "{{ gpu_monitoring_dcgm_port }}:9400"
+        capabilities:
+          - SYS_ADMIN
+        device_requests:
+          - driver: nvidia
+            count: -1
+            capabilities:
+              - - gpu
+        env:
+          DCGM_EXPORTER_INTERVAL: "{{ gpu_monitoring_dcgm_interval }}"
+      become: true
+      register: dcgm_container
+
+    - name: Wait for DCGM Exporter to be ready
+      ansible.builtin.wait_for:
+        port: "{{ gpu_monitoring_dcgm_port }}"
+        delay: 5
+        timeout: 30
+      when: dcgm_container.changed
+
+# Verify DCGM metrics
+- name: Verify GPU metrics endpoint
+  when: gpu_monitoring_enabled | default(false)
+  tags:
+    - gpu
+    - monitoring
+    - health
+  block:
+    - name: Test metrics endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ gpu_monitoring_dcgm_port }}/metrics"
+        method: GET
+        return_content: false
+      register: metrics_check
+      failed_when: false
+
+    - name: Store metrics status
+      ansible.builtin.set_fact:
+        gpu_metrics_available: "{{ metrics_check.status | default(0) == 200 }}"
+
+- name: GPU monitoring complete
+  ansible.builtin.debug:
+    msg: |
+      GPU Monitoring (DCGM Exporter):
+          - Status: {{ 'RUNNING' if gpu_metrics_available | default(false) else 'NOT AVAILABLE' }}
+          - Metrics URL: http://{{ ansible_default_ipv4.address | default('localhost') }}:{{ gpu_monitoring_dcgm_port }}/metrics
+          - Grafana Dashboard ID: 12239
+          - Prometheus scrape target: localhost:{{ gpu_monitoring_dcgm_port }}
+  when: gpu_monitoring_enabled | default(false)
+  tags:
+    - gpu
+    - monitoring
+    - summary

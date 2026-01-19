@@ -2,6 +2,13 @@
 # Compliance Automation - Continuous Compliance Checking
 # FedRAMP, HIPAA, SOC2, PCI-DSS, NIST compliance automation
 
+- name: Skip compliance automation if disabled
+  ansible.builtin.debug:
+    msg: "Compliance automation disabled. Set compliance_automation_enabled: true to enable."
+  when: not (compliance_automation_enabled | default(false))
+  tags:
+    - compliance_automation
+
 - name: Install compliance automation tools
   ansible.builtin.package:
     name: "{{ item }}"
@@ -10,6 +17,7 @@
     - git
     - curl
     - jq
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
 
@@ -20,6 +28,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
 
@@ -30,6 +39,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_automation_enabled | default(false)
+    - compliance_fedramp_enabled | default(false)
   tags:
     - compliance_automation
     - fedramp
@@ -41,6 +53,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_automation_enabled | default(false)
+    - compliance_hipaa_enabled | default(false)
   tags:
     - compliance_automation
     - hipaa
@@ -52,6 +67,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_automation_enabled | default(false)
+    - compliance_pci_dss_enabled | default(false)
   tags:
     - compliance_automation
     - pci
@@ -63,6 +81,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_automation_enabled | default(false)
+    - compliance_soc2_enabled | default(false)
   tags:
     - compliance_automation
     - soc2
@@ -74,6 +95,9 @@
     owner: root
     group: root
     mode: "0755"
+  when:
+    - compliance_automation_enabled | default(false)
+    - compliance_nist_enabled | default(false)
   tags:
     - compliance_automation
     - nist
@@ -85,6 +109,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - audit
@@ -92,10 +117,11 @@
 - name: Schedule audit log tamper checks
   ansible.builtin.cron:
     name: "Hourly audit log tamper detection"
-    minute: "*/60"
+    minute: "0"
     job: "/usr/local/bin/check-audit-tampering.sh >> /var/log/audit-tamper-check.log 2>&1"
     state: present
     user: root
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - audit
@@ -107,6 +133,7 @@
     owner: root
     group: root
     mode: "0750"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
 
@@ -117,6 +144,7 @@
     owner: root
     group: root
     mode: "0640"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
 
@@ -127,6 +155,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - audit
@@ -139,6 +168,7 @@
     job: "/usr/local/bin/correlate-audit-trails.sh >> /var/log/audit-correlation.log 2>&1"
     state: present
     user: root
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - audit
@@ -150,6 +180,7 @@
     owner: root
     group: root
     mode: "0640"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - remediation
@@ -161,6 +192,7 @@
     owner: root
     group: root
     mode: "0755"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - reporting
@@ -174,6 +206,7 @@
     job: "/usr/local/bin/generate-compliance-report.sh > /var/log/compliance/weekly-report.html"
     state: present
     user: root
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - reporting
@@ -185,7 +218,9 @@
     owner: root
     group: root
     mode: "0644"
-  when: monitoring_grafana_enabled | default(false)
+  when:
+    - compliance_automation_enabled | default(false)
+    - monitoring_grafana_enabled | default(false)
   tags:
     - compliance_automation
     - dashboard
@@ -197,6 +232,7 @@
     owner: root
     group: root
     mode: "0644"
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - logging
@@ -236,6 +272,7 @@
         2. Configure compliance exceptions as needed
         3. Enable auto-remediation if desired
         4. Review weekly reports
+  when: compliance_automation_enabled | default(false)
   tags:
     - compliance_automation
     - report
